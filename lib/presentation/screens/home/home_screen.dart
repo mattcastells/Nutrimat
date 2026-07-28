@@ -18,6 +18,7 @@ import '../../components/food/food_widgets.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
+import '../../components/water/water_card.dart';
 import '../../providers/app_providers.dart';
 import '../weight/weight_sheet.dart';
 import 'add_sheet.dart';
@@ -102,6 +103,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             const SizedBox(height: NmSpace.s6),
                             NmCard(child: MacroBar(macros: summary.macros)),
+                            const SizedBox(height: NmSpace.s6),
+                            WaterCard(date: date),
                             const SizedBox(height: NmSpace.s8),
 
                             if (summary.isEmpty && !isFutureDate) ...<Widget>[

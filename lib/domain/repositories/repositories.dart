@@ -10,6 +10,7 @@ import '../models/goal.dart';
 import '../models/meal.dart';
 import '../models/summaries.dart';
 import '../models/user_profile.dart';
+import '../models/water.dart';
 
 /// Interfaces de la capa de datos. La presentación depende **solo** de esto;
 /// las implementaciones viven en `data/repositories/` (19-project-structure §3).
@@ -157,6 +158,7 @@ abstract interface class NutrimatRepositories
         ActivityRepository,
         FoodRepository,
         BodyRepository,
+        WaterRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -278,6 +280,18 @@ abstract interface class FoodRepository {
   Future<void> toggleFoodFavorite(String id);
   Future<void> deleteOwnFood(String id);
   Future<void> markUsed(String foodId);
+}
+
+abstract interface class WaterRepository {
+  /// Vasos de hoy o del día pedido. Devuelve 0 si nunca se registró nada.
+  int glassesOn(DateTime date);
+
+  List<WaterLog> get waterLogs;
+
+  /// Suma o resta vasos. Nunca baja de 0 ni sube de [WaterLog.maxGlasses].
+  Future<void> addGlasses(DateTime date, int delta);
+
+  Future<void> setWaterGoal({required int glasses, required int glassSizeMl});
 }
 
 abstract interface class BodyRepository {

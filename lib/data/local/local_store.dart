@@ -11,6 +11,7 @@ import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/user_profile.dart';
+import '../../domain/models/water.dart';
 import '../mock/seed.dart';
 
 /// Base local: la fuente de verdad para la UI (13-state-management.md).
@@ -43,6 +44,7 @@ class LocalStore {
   List<Meal> meals = <Meal>[];
   List<Activity> activities = <Activity>[];
   List<WeightLog> weightLogs = <WeightLog>[];
+  List<WaterLog> waterLogs = <WaterLog>[];
   List<BodyMeasurement> measurements = <BodyMeasurement>[];
   List<ActivityGoal> activityGoals = <ActivityGoal>[];
   List<ExerciseTemplate> templates = <ExerciseTemplate>[];
@@ -181,6 +183,7 @@ class LocalStore {
     meals = data.meals;
     activities = data.activities;
     weightLogs = data.weightLogs;
+    waterLogs = <WaterLog>[];
     measurements = data.measurements;
     activityGoals = data.activityGoals;
     templates = data.templates;
@@ -202,6 +205,7 @@ class LocalStore {
     meals = <Meal>[];
     activities = <Activity>[];
     weightLogs = <WeightLog>[];
+    waterLogs = <WaterLog>[];
     measurements = <BodyMeasurement>[];
     activityGoals = <ActivityGoal>[];
     templates = <ExerciseTemplate>[];
@@ -235,6 +239,7 @@ class LocalStore {
     meals = _list(j['meals'], Meal.fromJson);
     activities = _list(j['activities'], Activity.fromJson);
     weightLogs = _list(j['weightLogs'], WeightLog.fromJson);
+    waterLogs = _list(j['waterLogs'], WaterLog.fromJson);
     measurements = _list(j['measurements'], BodyMeasurement.fromJson);
     activityGoals = _list(j['activityGoals'], ActivityGoal.fromJson);
     templates = _list(j['templates'], ExerciseTemplate.fromJson);
@@ -274,6 +279,7 @@ class LocalStore {
     'meals': meals.map((e) => e.toJson()).toList(),
     'activities': activities.map((e) => e.toJson()).toList(),
     'weightLogs': weightLogs.map((e) => e.toJson()).toList(),
+    'waterLogs': waterLogs.map((e) => e.toJson()).toList(),
     'measurements': measurements.map((e) => e.toJson()).toList(),
     'activityGoals': activityGoals.map((e) => e.toJson()).toList(),
     'templates': templates.map((e) => e.toJson()).toList(),

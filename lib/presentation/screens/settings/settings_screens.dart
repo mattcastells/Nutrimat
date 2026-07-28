@@ -142,6 +142,15 @@ class SettingsScreen extends ConsumerWidget {
                   value: profile.showNetCalories,
                   onChanged: repo.setShowNetCalories,
                 ),
+                const NmDivider(),
+                NmListRow(
+                  title: 'Meta de agua',
+                  subtitle:
+                      '${profile.waterGoalGlasses} vasos de '
+                      '${profile.glassSizeMl} ml por día',
+                  leading: Icon(PhosphorIcons.drop()),
+                  onTap: () => context.push(Routes.water),
+                ),
               ],
             ),
           ),

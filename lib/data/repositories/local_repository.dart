@@ -24,6 +24,7 @@ import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
+import '../../domain/models/water.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/services/summary_builder.dart';
 import '../local/local_store.dart';
@@ -45,6 +46,7 @@ class LocalRepository
         ActivityRepository,
         FoodRepository,
         BodyRepository,
+        WaterRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -922,6 +924,63 @@ class LocalRepository
     store.weightLogs.removeWhere((w) => w.id == id);
     await _commit();
   }
+
+  // ── Agua ───────────────────────────────────────────────────────────────
+
+  @override
+  List<WaterLog> get waterLogs =>
+      <WaterLog>[...store.waterLogs]
+        ..sort((a, b) => a.localDate.compareTo(b.localDate));
+
+  @override
+  int glassesOn(DateTime date) {
+    final day = dateOnly(date);
+    for (final log in store.waterLogs) {
+      if (isSameDay(log.localDate, day)) return log.glasses;
+    }
+    return 0;
+  }
+
+  @override
+  Future<void> addGlasses(DateTime date, int delta) async {
+    final day = dateOnly(date);
+    final index = store.waterLogs.indexWhere(
+      (w) => isSameDay(w.localDate, day),
+    );
+
+    if (index >= 0) {
+      final current = store.waterLogs[index];
+      final next = (current.glasses + delta).clamp(0, WaterLog.maxGlasses);
+      store.waterLogs[index] = current.copyWith(
+        glasses: next,
+        updatedAt: DateTime.now(),
+      );
+    } else {
+      // Restar cuando no hay registro no crea uno en cero: no aporta nada y
+      // ensucia el historial con días vacíos.
+      if (delta <= 0) return;
+      store.waterLogs.add(
+        WaterLog(
+          id: _uuid.v4(),
+          localDate: day,
+          glasses: delta.clamp(0, WaterLog.maxGlasses),
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+    await _commit();
+  }
+
+  @override
+  Future<void> setWaterGoal({
+    required int glasses,
+    required int glassSizeMl,
+  }) => updateProfile(
+    profile.copyWith(
+      waterGoalGlasses: glasses.clamp(1, WaterLog.maxGlasses),
+      glassSizeMl: glassSizeMl.clamp(50, 1000),
+    ),
+  );
 
   @override
   List<BodyMeasurement> measurements(MeasurementMetric metric) =>

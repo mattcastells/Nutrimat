@@ -13,6 +13,8 @@ class UserProfile {
     required this.exerciseCreditPercentage,
     required this.exerciseCreditEnabled,
     required this.showNetCalories,
+    this.waterGoalGlasses = 8,
+    this.glassSizeMl = 250,
     required this.profileCompleted,
     required this.createdAt,
     required this.updatedAt,
@@ -37,6 +39,8 @@ class UserProfile {
     exerciseCreditPercentage: 0,
     exerciseCreditEnabled: true,
     showNetCalories: false,
+    waterGoalGlasses: 8,
+    glassSizeMl: 250,
     profileCompleted: false,
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
@@ -58,6 +62,14 @@ class UserProfile {
   final int exerciseCreditPercentage;
   final bool exerciseCreditEnabled;
   final bool showNetCalories;
+
+  /// Meta diaria de vasos. 8 es la referencia popular, no una regla médica:
+  /// por eso se puede cambiar y no se castiga no llegar.
+  final int waterGoalGlasses;
+
+  /// Solo afecta el equivalente en ml que se muestra; el historial guarda
+  /// vasos, así que cambiarlo no reescribe el pasado.
+  final int glassSizeMl;
   final bool profileCompleted;
   final bool isDemo;
   final String? email;
@@ -83,6 +95,8 @@ class UserProfile {
     int? exerciseCreditPercentage,
     bool? exerciseCreditEnabled,
     bool? showNetCalories,
+    int? waterGoalGlasses,
+    int? glassSizeMl,
     bool? profileCompleted,
     bool? isDemo,
     String? email,
@@ -105,6 +119,8 @@ class UserProfile {
     exerciseCreditEnabled:
         exerciseCreditEnabled ?? this.exerciseCreditEnabled,
     showNetCalories: showNetCalories ?? this.showNetCalories,
+    waterGoalGlasses: waterGoalGlasses ?? this.waterGoalGlasses,
+    glassSizeMl: glassSizeMl ?? this.glassSizeMl,
     profileCompleted: profileCompleted ?? this.profileCompleted,
     isDemo: isDemo ?? this.isDemo,
     email: email ?? this.email,
@@ -128,6 +144,8 @@ class UserProfile {
     'exerciseCreditPercentage': exerciseCreditPercentage,
     'exerciseCreditEnabled': exerciseCreditEnabled,
     'showNetCalories': showNetCalories,
+    'waterGoalGlasses': waterGoalGlasses,
+    'glassSizeMl': glassSizeMl,
     'profileCompleted': profileCompleted,
     'isDemo': isDemo,
     'email': email,
@@ -159,6 +177,8 @@ class UserProfile {
     exerciseCreditPercentage: j['exerciseCreditPercentage'] as int,
     exerciseCreditEnabled: j['exerciseCreditEnabled'] as bool,
     showNetCalories: j['showNetCalories'] as bool,
+    waterGoalGlasses: (j['waterGoalGlasses'] as num?)?.toInt() ?? 8,
+    glassSizeMl: (j['glassSizeMl'] as num?)?.toInt() ?? 250,
     profileCompleted: j['profileCompleted'] as bool,
     isDemo: j['isDemo'] as bool? ?? false,
     email: j['email'] as String?,

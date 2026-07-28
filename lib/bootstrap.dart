@@ -12,6 +12,7 @@ import 'core/utils/dates.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
+import 'data/remote/gemini_analysis_client.dart';
 import 'data/remote/photo_storage_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
 import 'data/repositories/local_repository.dart';
@@ -81,6 +82,9 @@ Future<void> bootstrap() async {
   final repository = LocalRepository(
     store,
     photos: photos,
+    aiAnalysis: SupabaseConfig.isConfigured
+        ? GeminiAnalysisClient.fromInstance()
+        : null,
     onChanged: () {
       notify();
       backup?.markDirty();

@@ -29,6 +29,7 @@ import '../../domain/repositories/repositories.dart';
 import '../../domain/services/photo_sync_service.dart';
 import '../../domain/services/summary_builder.dart';
 import '../local/local_store.dart';
+import '../remote/gemini_analysis_client.dart';
 import '../remote/open_food_facts_client.dart';
 import '../remote/photo_storage_client.dart';
 
@@ -59,6 +60,7 @@ class LocalRepository
     required this.onChanged,
     OpenFoodFactsClient? foodCatalog,
     this.photos,
+    this.aiAnalysis,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
 
   final LocalStore store;
@@ -67,6 +69,9 @@ class LocalRepository
 
   /// Sube al bucket las fotos que quedan en el teléfono. Null sin servidor.
   final PhotoSyncService? photos;
+
+  /// Análisis de foto por la Edge Function. Null sin servidor.
+  final GeminiAnalysisClient? aiAnalysis;
 
   Future<void> _commit() async {
     await store.persist();
@@ -1397,6 +1402,27 @@ class LocalRepository
 
   @override
   Future<AiAnalysis> analyze({required String photoPath}) async {
+    final client = aiAnalysis;
+    if (client != null) {
+      // La foto tiene que estar en el bucket antes: la función la descarga de
+      // ahí. Si la subida falló, esto devuelve la ruta local y la función
+      // responde "no encontramos esa foto", que es correcto y se muestra tal
+      // cual.
+      final remotePath =
+          await photos?.ensureUploaded(
+            bucket: PhotoBucket.meal,
+            recordId: _uuid.v4(),
+            localPath: photoPath,
+          ) ??
+          photoPath;
+
+      final analysis = await client.analyze(photoPath: remotePath);
+      _quotaUsed++;
+      return analysis;
+    }
+
+    // Sin servidor: resultado fijo. Solo se llega acá con `NM_AI_PHOTO`
+    // encendido a mano en una compilación sin Supabase.
     _quotaUsed++;
     final now = DateTime.now();
     return AiAnalysis(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/config/feature_flags.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/motion.dart';
 import '../../../core/theme/nm_theme.dart';
@@ -109,8 +110,11 @@ class _MainPane extends ConsumerWidget {
             icon: PhosphorIcons.camera(),
             label: 'Sacar foto de una comida',
             subtitle: 'La IA estima los ítems y vos los revisás',
-            enabled: FeatureFlags.aiPhotoAnalysis,
-            disabledNote: 'El análisis con IA todavía no está conectado',
+            // Sin servidor no hay Edge Function a la que preguntarle, así que
+            // se muestra deshabilitado en vez de fallar al tocarlo.
+            enabled:
+                FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
+            disabledNote: 'El análisis con IA necesita servidor configurado',
             onTap: () => onGo(Routes.photoCapture),
           ),
           ActionRow(

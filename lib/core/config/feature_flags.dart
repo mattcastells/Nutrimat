@@ -13,10 +13,16 @@
 abstract final class FeatureFlags {
   /// Análisis de foto con Gemini.
   ///
-  /// Para prenderlo hace falta la Edge Function `analyze-meal-photo` con la
-  /// clave del lado del servidor (S-04 del PRD) y la cuota diaria de 20
-  /// análisis (D-18). Hoy el repositorio devuelve un resultado fijo.
-  static const bool aiPhotoAnalysis = bool.fromEnvironment('NM_AI_PHOTO');
+  /// Ya no devuelve un resultado fijo: la Edge Function `analyze-meal-photo`
+  /// está desplegada, con la clave del lado del servidor y la cuota diaria de
+  /// 20 análisis (D-18).
+  ///
+  /// Encendido por defecto. En una compilación **sin** Supabase no hay a quién
+  /// preguntarle, así que ahí se apaga solo.
+  static const bool aiPhotoAnalysis = bool.fromEnvironment(
+    'NM_AI_PHOTO',
+    defaultValue: true,
+  );
 
   /// Importación desde Health Connect.
   ///

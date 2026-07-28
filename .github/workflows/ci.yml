@@ -56,10 +56,13 @@ jobs:
         with:
           version: 2.110.0
 
-      # Levanta Postgres y aplica las 17 migraciones desde cero: si una
+      # Levanta Postgres y aplica las 18 migraciones desde cero: si una
       # migración no corre en una base limpia, acá se ve.
+      #
+      # `storage-api` ya no se excluye: la migración 18 crea los buckets y
+      # storage_test.sql verifica sus políticas.
       - name: Levantar el stack local
-        run: supabase start --exclude realtime,storage-api,imgproxy,studio,edge-runtime
+        run: supabase start --exclude realtime,imgproxy,studio,edge-runtime
 
       - name: Suite pgTAP
         run: supabase test db

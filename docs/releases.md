@@ -147,5 +147,6 @@ limitarse a avisar que hay versión nueva y abrir la ficha de Play.
 ## Verificación continua
 
 [`ci.yml`](../.github/workflows/ci.yml) corre en cada push a `main` y en cada
-pull request: `flutter analyze --fatal-infos`, `flutter test`, y la suite pgTAP
-de RLS contra un Postgres limpio con las 17 migraciones aplicadas desde cero.
+pull request: `flutter analyze --fatal-infos`, `flutter test`, y las suites
+pgTAP de RLS y Storage contra un Postgres limpio con las 18 migraciones
+aplicadas desde cero.

@@ -7,14 +7,15 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 
 | Qué | Resultado |
 | --- | --- |
-| Migraciones aplicadas | 17 de 17 |
+| Migraciones aplicadas | 18 de 18 |
 | Tablas | 24 |
 | Tablas con RLS activo | **24 de 24** (ninguna sin RLS) |
 | Políticas | 78 |
+| Buckets de Storage | 3, privados, con política por prefijo `{user_id}/` |
 | `activity_types` sembrados | 15 (D-06) |
 | RPC | `create_meal_with_items`, `get_daily_summary` |
 | pg_cron | habilitado, con los 4 jobs de `08-supabase-plan.md` §7 |
-| Suite pgTAP de RLS | **22 casos en verde**, en local y contra el proyecto |
+| Suite pgTAP | **31 casos en verde** (22 de RLS + 9 de Storage), en local y contra el proyecto |
 
 ## Cómo trabajar
 

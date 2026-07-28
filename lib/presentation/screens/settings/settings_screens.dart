@@ -26,6 +26,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/update_providers.dart';
 import '../activity/duplicate_dialog.dart';
 
 /// Configuración (raíz).
@@ -91,6 +92,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Privacidad y datos',
                   leading: Icon(PhosphorIcons.shieldCheck()),
                   onTap: () => context.push(Routes.privacy),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
+                  title: 'Actualizaciones',
+                  subtitle: 'Buscar una versión nueva en GitHub',
+                  leading: Icon(PhosphorIcons.downloadSimple()),
+                  onTap: () => context.push(Routes.updates),
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
@@ -885,12 +893,13 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 }
 
 /// Acerca de.
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends ConsumerWidget {
   const AboutScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final nm = context.nm;
+    final version = ref.watch(installedVersionLabelProvider);
     return NmScreen(
       title: 'Acerca de',
       child: Column(
@@ -906,14 +915,30 @@ class AboutScreen extends StatelessWidget {
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
           const SizedBox(height: NmSpace.s6),
-          const NmCard(
+          NmCard(
             child: Column(
               children: <Widget>[
-                ValueRow(label: 'Versión', value: '1.0.0 (1)'),
-                ValueRow(label: 'Sistema de diseño', value: 'Nocturne 1.0.0'),
-                ValueRow(label: 'Idioma', value: 'Español rioplatense'),
+                // Sale del paquete instalado, no de una constante: una versión
+                // escrita a mano queda desactualizada al primer release.
+                ValueRow(
+                  label: 'Versión',
+                  value: version.maybeWhen(
+                    data: (value) => value,
+                    orElse: () => '—',
+                  ),
+                ),
+                const ValueRow(
+                  label: 'Sistema de diseño',
+                  value: 'Nocturne 1.0.0',
+                ),
+                const ValueRow(label: 'Idioma', value: 'Español rioplatense'),
               ],
             ),
+          ),
+          const SizedBox(height: NmSpace.s4),
+          NmButton.secondary(
+            label: 'Buscar actualizaciones',
+            onPressed: () => context.push(Routes.updates),
           ),
         ],
       ),

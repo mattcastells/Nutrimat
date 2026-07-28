@@ -1,0 +1,69 @@
+name: CI
+
+# Se corre en cada push a main y en cada pull request. Lo mismo que se corre a
+# mano antes de un release, para que un tag nunca sea la primera vez que algo
+# se verifica.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Un push nuevo sobre la misma rama cancela la corrida anterior: no tiene
+# sentido gastar minutos verificando un commit que ya quedó atrás.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.35.7
+
+jobs:
+  app:
+    name: Analizar y probar la app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      # `--fatal-infos` porque el proyecto está limpio hoy: dejar que se
+      # acumulen "info" es cómo se llega a un analyze que nadie mira.
+      - name: Analizar
+        run: flutter analyze --fatal-infos
+
+      # No hay control de `dart format`: el estilo "tall" que trae Dart 3.7+
+      # reescribiría 62 de los 100 archivos. Si algún día se quiere adoptar, es
+      # un `dart format .` en un commit aparte y después se agrega el paso —
+      # pero mezclarlo con cambios reales vuelve ilegible cualquier diff.
+      - name: Tests
+        run: flutter test
+
+  database:
+    name: Probar las políticas RLS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.110.0
+
+      # Levanta Postgres y aplica las 17 migraciones desde cero: si una
+      # migración no corre en una base limpia, acá se ve.
+      - name: Levantar el stack local
+        run: supabase start --exclude realtime,storage-api,imgproxy,studio,edge-runtime
+
+      - name: Suite pgTAP
+        run: supabase test db
+
+      - name: Apagar
+        if: always()
+        run: supabase stop --no-backup

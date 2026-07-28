@@ -7,23 +7,18 @@ está creado y verificado. Falta unir las dos cosas.
 
 ## Lo próximo (por acá se arranca)
 
-**Pegar la `anon key` en `supabase/.env.local`.** Es el único dato que falta
-para conectar la app con Supabase.
+**Conectar la app con Supabase.** Las dos claves ya están donde tienen que
+estar: la `publishable` en `supabase/.env.local` y la de Gemini en los secretos
+de Edge Functions. Falta el código.
 
-> Dashboard → proyecto `ifincvqdsotorvmwzpos` → Project Settings → API →
-> Project API keys → **`anon` / `public`**
+En orden: agregar `supabase_flutter`, inicializar el cliente leyendo la config
+por `--dart-define`, Auth real, y un repositorio remoto detrás de las mismas
+interfaces de `domain/repositories/`. **Las pantallas no se tocan**: esa es toda
+la ventaja de haber separado las capas.
 
-```bash
-# supabase/.env.local  (ya existe, con la contraseña de la base cargada)
-SUPABASE_ANON_KEY=eyJ...
-```
-
-Con eso sigue: `supabase_flutter`, Auth real y un repositorio remoto detrás de
-las mismas interfaces de `domain/repositories/`. **Las pantallas no se tocan**:
-esa es toda la ventaja de haber separado las capas.
-
-⚠️ La `service_role key` no va nunca en la app, ni en el repo, ni en un chat:
-saltea RLS por completo. Solo vive en los secretos de las Edge Functions.
+⚠️ La `secret key` (`sb_secret_…`) no va nunca en la app, ni en el repo, ni en
+un chat: saltea RLS por completo. Solo vive en los secretos de las Edge
+Functions.
 
 ---
 
@@ -32,7 +27,7 @@ saltea RLS por completo. Solo vive en los secretos de las Edge Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **82 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **107 tests en verde**, `flutter analyze`
 limpio, APK de release firmado con keystore propio y probado en el emulador.
 
 Funciona hoy sin backend: comidas, actividades con cálculo MET real, peso,
@@ -54,6 +49,18 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 | Suite pgTAP de RLS | **22 de 22**, en local y contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
+
+### Distribución
+
+Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
+público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
+contra un Postgres limpio.
+
+Publicar una versión es empujar un tag `v1.1.0`: el workflow compila el APK
+firmado y crea el release. La app se actualiza sola desde **Configuración →
+Actualizaciones**, sin pasar por Play Store.
+
+Procedimiento completo: [`docs/releases.md`](docs/releases.md)
 
 ---
 
@@ -106,7 +113,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app
 flutter emulators --launch nutrimat
 flutter run
-flutter test                              # 82 tests
+flutter test                              # 107 tests
 flutter build apk --release --split-per-abi
 
 # El backend
@@ -130,7 +137,6 @@ En orden de lo que más desbloquea:
    el cliente). Open Food Facts ya está conectado y no necesita clave.
 5. **Health Connect** de verdad: adaptador nativo, permisos, `minSdk 29`;
    después prender `NM_HEALTH_SYNC`.
-6. **GitHub y CI**: `flutter analyze`, tests y la suite de RLS en cada push.
 
 ---
 

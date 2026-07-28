@@ -22,6 +22,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
 import '../../presentation/screens/progress/progress_screen.dart';
 import '../../presentation/screens/settings/settings_screens.dart';
+import '../../presentation/screens/settings/updates_screen.dart';
 import '../../presentation/shell/app_shell.dart';
 import 'routes.dart';
 
@@ -214,6 +215,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: Routes.updates,
+        builder: (context, state) => const UpdatesScreen(),
       ),
       GoRoute(
         path: Routes.about,

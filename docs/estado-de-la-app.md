@@ -132,7 +132,7 @@ de historial solo entran por "Probar sin cuenta" (modo demo, D-15).
 | Qué | Resultado |
 | --- | --- |
 | `flutter analyze` | sin issues, con reglas extra sobre `flutter_lints` |
-| `flutter test` | **82 en verde**: 55 de cálculo (los 20 fixtures + límites y errores), 13 del catálogo externo, 4 de respaldo, 5 de Inicio, 4 de arranque y navegación, 1 de sincronía de tokens |
+| `flutter test` | **107 en verde**: 55 de cálculo (los 20 fixtures + límites y errores), 13 del catálogo externo, 4 de respaldo, 5 de Inicio, 4 de arranque y navegación, 1 de sincronía de tokens |
 | Desbordes de layout a 393 × 852 dp | ninguno |
 | `flutter build apk --debug` | ✓ `app-debug.apk` (144 MB) |
 | `flutter build apk --release --split-per-abi` | ✓ arm64 19,6 MB · armeabi-v7a 17,4 MB · x86_64 20,7 MB |

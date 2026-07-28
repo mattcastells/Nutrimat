@@ -1,8 +1,32 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Necesario para el catálogo de alimentos (Open Food Facts) y, más
          adelante, para Supabase. En debug Flutter lo agrega solo; en release
          no, así que sin esta línea la app compila y no tiene red. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Nutrimat se distribuye fuera de Play Store: Configuración →
+         Actualizaciones descarga el APK del release de GitHub y se lo entrega
+         al instalador de paquetes del sistema, que es quien pide la
+         confirmación final. Sin este permiso el instalador ni se abre.
+
+         ⚠️ Si algún día la app va a Play Store, este permiso hay que sacarlo
+         junto con la descarga: Google lo rechaza salvo para gestores de
+         paquetes, y el updater tendría que limitarse a avisar. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <!-- `open_filex` declara permisos de lectura de la galería porque su caso
+         de uso general es abrir archivos del almacenamiento compartido.
+         Nutrimat solo lo usa para abrir el APK que acaba de escribir en su
+         propio directorio privado, y para eso no hace falta ningún permiso.
+
+         Se quitan del manifest final: pedir acceso a las fotos, los videos y
+         el audio de alguien "por las dudas" contradice todo lo que la pantalla
+         de Privacidad le promete. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
 
     <application
         android:label="Nutrimat"

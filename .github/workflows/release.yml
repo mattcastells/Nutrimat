@@ -126,10 +126,16 @@ jobs:
 
       # Deja constancia de con qué clave quedó firmado: si algún día un APK no
       # instala encima de otro, esto es lo primero que hay que mirar.
+      #
+      # El runner trae varias versiones de build-tools, así que el glob se
+      # resuelve a una sola: sin esto, la segunda ruta que expande el shell le
+      # llega como argumento a la primera y apksigner corta con "Unsupported
+      # command".
       - name: Verificar la firma
         run: |
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs \
-            "dist/nutrimat-$VERSION-universal.apk"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          echo "Usando $apksigner"
+          "$apksigner" verify --print-certs "dist/nutrimat-$VERSION-universal.apk"
 
       - name: Borrar las credenciales del runner
         if: always()

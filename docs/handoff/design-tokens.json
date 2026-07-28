@@ -1,0 +1,135 @@
+{
+  "$schema": "https://design-tokens.org/schema.json",
+  "meta": {
+    "name": "Nutrimat",
+    "basedOn": "Nocturne",
+    "version": "1.0.0",
+    "canonicalTheme": "dark"
+  },
+  "color": {
+    "dark": {
+      "bg": "#161826",
+      "surface": "#232532",
+      "surfaceRaised": "#2b2e3d",
+      "text": "#e9e9ed",
+      "textMuted": "rgba(233,233,237,0.55)",
+      "accent": "#9184d9",
+      "accentText": "#d2cefd",
+      "divider": "rgba(233,233,237,0.16)",
+      "section": "#262a60",
+      "success": "#6fbf9a",
+      "caution": "#d9b46a",
+      "danger": "#d97b7b",
+      "info": "#7fa8d9"
+    },
+    "light": {
+      "bg": "#f7f7fb",
+      "surface": "#ffffff",
+      "surfaceRaised": "#f0f0f6",
+      "text": "#1b1c26",
+      "textMuted": "rgba(27,28,38,0.58)",
+      "accent": "#796cbf",
+      "accentText": "#5d5294",
+      "divider": "rgba(27,28,38,0.12)",
+      "section": "#262a60",
+      "success": "#2f8f6a",
+      "caution": "#9a7420",
+      "danger": "#b04141",
+      "info": "#3c6ea8"
+    },
+    "ramp": {
+      "neutral": {
+        "100": "#f3f5fe", "200": "#e4e7f5", "300": "#cfd3e5", "400": "#b2b6ca",
+        "500": "#9397ab", "600": "#75798c", "700": "#595d6c", "800": "#3f424d", "900": "#292b31"
+      },
+      "accent": {
+        "100": "#f5f4ff", "200": "#e7e5fe", "300": "#d2cefd", "400": "#b5abfc",
+        "500": "#968ae0", "600": "#796cbf", "700": "#5d5294", "800": "#423a6a", "900": "#2b2741"
+      },
+      "accent2": {
+        "100": "#f5f4ff", "200": "#e7e5fe", "300": "#d2cefd", "400": "#b5afe8",
+        "500": "#9690c9", "600": "#7972a9", "700": "#5c5783", "800": "#423e5d", "900": "#2b293a"
+      }
+    },
+    "chart": {
+      "walking": "#9184d9",
+      "running": "#7fa8d9",
+      "strength": "#b5abfc",
+      "cycling": "#6fbf9a",
+      "sports": "#d9b46a",
+      "other": "#9397ab",
+      "intake": "#968ae0",
+      "target": "#cfd3e5",
+      "weight": "#b5abfc",
+      "trend": "#e9e9ed"
+    }
+  },
+  "font": {
+    "heading": "Inter",
+    "body": "Inter",
+    "headingWeight": 500,
+    "bodyWeight": 400,
+    "numericFeatures": ["tnum"]
+  },
+  "type": {
+    "display":  { "size": 42, "lineHeight": 1.12, "weight": 500, "tracking": "-0.015em" },
+    "h1":       { "size": 32, "lineHeight": 1.12, "weight": 500, "tracking": "-0.015em" },
+    "h2":       { "size": 25, "lineHeight": 1.15, "weight": 500, "tracking": "-0.015em" },
+    "h3":       { "size": 20, "lineHeight": 1.20, "weight": 500, "tracking": "-0.01em" },
+    "h4":       { "size": 16, "lineHeight": 1.30, "weight": 500, "tracking": "0" },
+    "body":     { "size": 15, "lineHeight": 1.55, "weight": 400, "tracking": "0" },
+    "bodySm":   { "size": 14, "lineHeight": 1.50, "weight": 400, "tracking": "0" },
+    "caption":  { "size": 13, "lineHeight": 1.45, "weight": 400, "tracking": "0" },
+    "micro":    { "size": 11, "lineHeight": 1.40, "weight": 400, "tracking": "0.02em" },
+    "overline": { "size": 10, "lineHeight": 1.40, "weight": 500, "tracking": "0.10em", "transform": "uppercase" }
+  },
+  "space": { "1": 3, "2": 6, "3": 8, "4": 11, "5": 14, "6": 17, "8": 22, "10": 28, "12": 34 },
+  "layout": {
+    "screenPaddingCompact": 16,
+    "screenPaddingMedium": 24,
+    "contentMaxWidth": 720,
+    "tabBarHeight": 56,
+    "fabSize": 56,
+    "minTouchTarget": 48
+  },
+  "radius": { "sm": 4, "md": 8, "lg": 14, "full": 999 },
+  "shadow": {
+    "dark": {
+      "sm": "0 0 0 1px #3f424d",
+      "md": "0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,0.55)",
+      "lg": "0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,0.65)"
+    },
+    "light": {
+      "sm": "0 1px 2px rgba(27,28,38,0.08)",
+      "md": "0 4px 14px rgba(27,28,38,0.10)",
+      "lg": "0 16px 40px rgba(27,28,38,0.16)"
+    }
+  },
+  "icon": { "sm": 16, "md": 20, "lg": 24, "xl": 32, "set": "phosphor", "weight": "regular" },
+  "motion": {
+    "instant": 90,
+    "fast": 160,
+    "base": 240,
+    "slow": 380,
+    "chart": 520,
+    "stagger": 40,
+    "shimmerLoop": 1200,
+    "spinnerLoop": 900,
+    "loadingMinVisible": 400,
+    "loadingThreshold": 200,
+    "ease": "cubic-bezier(0.2,0.8,0.2,1)",
+    "easeOut": "cubic-bezier(0.4,0,1,1)"
+  },
+  "breakpoint": { "compact": 0, "medium": 600, "expanded": 905 },
+  "elevationOrder": {
+    "content": 0, "appBar": 10, "fab": 20, "sheet": 30, "dialog": 40, "snackbar": 50, "systemBanner": 60
+  },
+  "state": {
+    "hoverAccentAlpha": 0.12,
+    "pressedAccentAlpha": 0.22,
+    "hoverNeutralAlpha": 0.07,
+    "pressedNeutralAlpha": 0.14,
+    "disabledOpacity": 0.45,
+    "focusRing": { "width": 2, "offset": 2, "color": "{color.accent}" }
+  }
+}

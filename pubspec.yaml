@@ -1,0 +1,69 @@
+name: nutrimat
+description: "Nutrimat — registro de alimentación, actividad física y peso corporal."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Estado (13-state-management.md §1)
+  flutter_riverpod: ^2.6.1
+
+  # Navegación (02-information-architecture.md)
+  go_router: ^14.6.2
+
+  # Iconografía del sistema de diseño (06-design-tokens.md §4)
+  phosphor_flutter: ^2.1.0
+
+  # Utilidades
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  collection: ^1.19.0
+  shared_preferences: ^2.3.3
+  image_picker: ^1.2.2
+  http: ^1.6.0
+  share_plus: ^12.0.2
+  file_selector: ^1.1.0
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Ícono adaptativo de Android a partir de assets/brand/ (ver "Nutrimat Logo").
+# Regenerar con: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: ic_launcher
+  ios: false
+  image_path: assets/brand/icon-512.png
+  adaptive_icon_background: assets/brand/adaptive-background.png
+  adaptive_icon_foreground: assets/brand/adaptive-foreground.png
+  adaptive_icon_monochrome: assets/brand/monochrome.png
+  min_sdk_android: 24
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/brand/
+    - assets/mock/
+
+  # Familia única: Inter (06-design-tokens.md §2).
+  # Peso de títulos 500 — no se sube a 600/700.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600

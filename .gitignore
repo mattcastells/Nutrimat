@@ -1,0 +1,37 @@
+# Secretos y entornos
+.env
+.env.*
+!.env.example
+env/*.json
+*.p8
+*.jks
+*.keystore
+android/key.properties
+google-play-service-account.json
+supabase/.env.local
+supabase/.temp/
+
+# Dependencias y builds
+node_modules/
+.dart_tool/
+build/
+ios/Pods/
+android/.gradle/
+*.iml
+
+# Estado local del IDE
+.idea/
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Local
+coverage/
+*.log
+
+# Flutter
+.flutter-plugins-dependencies
+android/local.properties
+android/.cxx/

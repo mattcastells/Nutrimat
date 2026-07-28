@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gemini meal photo analysis output",
+  "description": "Esquema de salida obligatorio para analyze-meal-photo. Se pasa como responseSchema y se valida antes de persistir en ai_analyses.",
+  "type": "object",
+  "required": ["items", "overallConfidence"],
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "type": "array",
+      "maxItems": 12,
+      "description": "Alimentos visibles. Array vacío si no hay comida en la foto.",
+      "items": {
+        "type": "object",
+        "required": ["name", "quantity", "unit", "kcal", "proteinG", "carbsG", "fatG", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Nombre del alimento en español rioplatense, en singular y sin marca salvo que se lea en la foto."
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 5000,
+            "description": "Cantidad estimada en la unidad indicada."
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["g", "ml", "unidad", "taza", "cucharada", "rebanada", "porcion"],
+            "description": "Unidad de la cantidad estimada."
+          },
+          "kcal": { "type": "integer", "minimum": 0, "maximum": 3000 },
+          "proteinG": { "type": "number", "minimum": 0, "maximum": 500 },
+          "carbsG": { "type": "number", "minimum": 0, "maximum": 500 },
+          "fatG": { "type": "number", "minimum": 0, "maximum": 500 },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Confianza en la identificación Y en la cantidad estimada. Bajar por debajo de 0.5 cuando la porción no se puede estimar con referencias visuales."
+          },
+          "preparation": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Opcional: hervido, frito, a la plancha, crudo, al horno."
+          },
+          "visualReference": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Opcional: qué se usó para estimar el tamaño (plato de 26 cm, tenedor, mano)."
+          }
+        }
+      }
+    },
+    "overallConfidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confianza promedio ponderada por kcal de cada ítem."
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Opcional: advertencias sobre la estimación (foto oscura, plato parcialmente tapado, ángulo)."
+    },
+    "noFoodDetected": {
+      "type": "boolean",
+      "description": "true cuando la imagen no contiene comida. En ese caso items debe ser []."
+    }
+  },
+  "examples": [
+    {
+      "items": [
+        {
+          "name": "Pechuga de pollo a la plancha",
+          "quantity": 150,
+          "unit": "g",
+          "kcal": 248,
+          "proteinG": 46.5,
+          "carbsG": 0,
+          "fatG": 5.4,
+          "confidence": 0.82,
+          "preparation": "a la plancha",
+          "visualReference": "plato de 26 cm"
+        },
+        {
+          "name": "Arroz blanco cocido",
+          "quantity": 180,
+          "unit": "g",
+          "kcal": 234,
+          "proteinG": 4.9,
+          "carbsG": 51.3,
+          "fatG": 0.5,
+          "confidence": 0.44,
+          "visualReference": "comparación con el tenedor"
+        },
+        {
+          "name": "Ensalada de hojas verdes",
+          "quantity": 80,
+          "unit": "g",
+          "kcal": 18,
+          "proteinG": 1.4,
+          "carbsG": 3.2,
+          "fatG": 0.2,
+          "confidence": 0.67
+        }
+      ],
+      "overallConfidence": 0.66,
+      "notes": "El arroz está parcialmente tapado por el pollo; la cantidad puede variar.",
+      "noFoodDetected": false
+    },
+    {
+      "items": [],
+      "overallConfidence": 0,
+      "notes": "No se detectó comida en la imagen.",
+      "noFoodDetected": true
+    }
+  ]
+}

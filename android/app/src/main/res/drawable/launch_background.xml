@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ventana de arranque en tema claro: el fondo de la app, nunca blanco puro.
+     Evita el parpadeo entre el lanzador y el primer frame de Flutter (S-01). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/nm_bg_light" />
+</layer-list>

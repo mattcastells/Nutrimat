@@ -1,0 +1,152 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+import '../../../core/router/routes.dart';
+import '../../../core/theme/nm_theme.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/theme/tokens.dart';
+import '../../components/brand/brand_mark.dart';
+import '../../components/system/buttons.dart';
+import '../../providers/app_providers.dart';
+
+/// S-02 · Bienvenida. Explica la propuesta en una pantalla y ofrece entrada.
+class WelcomeScreen extends ConsumerWidget {
+  const WelcomeScreen({super.key});
+
+  static const List<(IconData, String, String)> _bullets =
+      <(IconData, String, String)>[
+        (
+          Icons.bolt_outlined,
+          'Registro rápido',
+          'Una comida o una actividad en menos de 15 segundos.',
+        ),
+        (
+          Icons.calculate_outlined,
+          'El cálculo a la vista',
+          'Objetivo base, comida, actividad y ajuste, siempre por separado.',
+        ),
+        (
+          Icons.tune_outlined,
+          'Vos decidís cuánto suma el ejercicio',
+          'Por defecto no suma nada a tu presupuesto: es lo más conservador.',
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nm = context.nm;
+
+    return Scaffold(
+      backgroundColor: nm.bg,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: NmLayout.contentMaxWidth,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.screenPadding,
+                vertical: NmSpace.s10,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const BrandWordmark(markSize: 36),
+                  const SizedBox(height: NmSpace.s12),
+                  Text(
+                    'Comida y movimiento, en un solo número honesto',
+                    style: NmTextStyles.from(NmType.h1, color: nm.text),
+                  ),
+                  const SizedBox(height: NmSpace.s8),
+                  for (final bullet in _bullets)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: NmSpace.s6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            height: 36,
+                            width: 36,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: nm.accentFill,
+                              borderRadius: NmRadius.brMd,
+                            ),
+                            child: Icon(
+                              bullet.$1,
+                              size: NmIconSize.md,
+                              color: nm.accentOnFill,
+                            ),
+                          ),
+                          const SizedBox(width: NmSpace.s4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  bullet.$2,
+                                  style: NmTextStyles.from(
+                                    NmType.h4,
+                                    color: nm.text,
+                                  ),
+                                ),
+                                const SizedBox(height: NmSpace.s1),
+                                Text(
+                                  bullet.$3,
+                                  style: NmTextStyles.from(
+                                    NmType.bodySm,
+                                    color: nm.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: NmSpace.s6),
+                  NmButton(
+                    label: 'Crear cuenta',
+                    block: true,
+                    onPressed: () => context.push(Routes.signUp),
+                  ),
+                  const SizedBox(height: NmSpace.s3),
+                  NmButton.secondary(
+                    label: 'Ya tengo cuenta',
+                    block: true,
+                    onPressed: () => context.push(Routes.signIn),
+                  ),
+                  const SizedBox(height: NmSpace.s3),
+                  NmButton.ghost(
+                    label: 'Probar sin cuenta',
+                    block: true,
+                    icon: PhosphorIcons.sparkle(),
+                    onPressed: () async {
+                      // Modo demo: usuario local anónimo, sin respaldo (D-15).
+                      await ref
+                          .read(repositoryProvider)
+                          .startDemoSession(seeded: true);
+                      if (context.mounted) context.go(Routes.home);
+                    },
+                  ),
+                  const SizedBox(height: NmSpace.s4),
+                  Text(
+                    'Sin cuenta no hay respaldo: los datos viven solo en este '
+                    'teléfono y podés migrarlos cuando te registres.',
+                    style: NmTextStyles.from(
+                      NmType.caption,
+                      color: nm.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

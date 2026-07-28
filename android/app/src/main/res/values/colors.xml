@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores de marca para la ventana de arranque.
+     Vienen de design-tokens.json: color.dark.bg y color.light.bg. -->
+<resources>
+    <color name="nm_bg_dark">#161826</color>
+    <color name="nm_bg_light">#F7F7FB</color>
+</resources>

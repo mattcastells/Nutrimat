@@ -40,9 +40,9 @@ class CloudBackupClient {
 
   final SupabaseStorageClient _storage;
 
-  /// Va en `progress-photos` y no en un bucket propio para no sumar una
-  /// migración por un solo archivo; la política es la misma.
-  static const String bucket = 'progress-photos';
+  /// Bucket propio: los de fotos restringen los MIME a imágenes y rechazan el
+  /// JSON. Tiene la misma política por prefijo.
+  static const String bucket = 'backups';
   static const String fileName = 'backup.json';
 
   String _pathFor(String userId) => '$userId/$fileName';

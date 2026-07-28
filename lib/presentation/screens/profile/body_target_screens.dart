@@ -259,7 +259,7 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
     if (goal == null) {
       return const NmScreen(
         title: 'Objetivo',
-        child: Center(child: Text('Completá el onboarding primero.')),
+        child: Center(child: Text('Todavía no hay un objetivo.')),
       );
     }
 

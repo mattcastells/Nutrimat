@@ -130,11 +130,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     await repo.signIn(email);
     if (!mounted) return;
     setState(() => _submitting = false);
-    context.go(
-      repo.profile.profileCompleted
-          ? Routes.home
-          : Routes.onboardingStep('goal'),
-    );
+    context.go(Routes.home);
   }
 
   @override
@@ -270,10 +266,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (!mounted) return;
     setState(() => _submitting = false);
 
-    // Si el alta ya devolvió sesión, el proyecto no exige confirmar el correo
-    // y mandar a "revisá tu casilla" sería mentirle a la persona.
+    // Si el alta ya devolvió sesión, el proyecto no pide confirmar el correo.
     if (account != null) {
-      context.go(Routes.onboardingStep('goal'));
+      context.go(Routes.home);
       return;
     }
     context.go('${Routes.checkEmail}?email=${Uri.encodeComponent(email)}');
@@ -480,14 +475,17 @@ class CheckEmailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: NmSpace.s8),
           NmButton(
-            label: isReset ? 'Volver a entrar' : 'Ya confirmé, continuar',
+            label: isReset ? 'Volver a entrar' : 'Ya confirmé, entrar',
             block: true,
+            // Confirmar el correo no abre sesión: hay que entrar igual.
             onPressed: () {
-              if (isReset) {
-                context.go(Routes.signIn);
-              } else {
-                context.go(Routes.onboardingStep('goal'));
-              }
+              final address = email;
+              context.go(
+                address == null
+                    ? Routes.signIn
+                    : '${Routes.signIn}?email='
+                          '${Uri.encodeComponent(address)}',
+              );
             },
           ),
         ],

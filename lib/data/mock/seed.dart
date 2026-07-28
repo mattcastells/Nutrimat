@@ -79,7 +79,6 @@ SeedData buildSeed({
     exerciseCreditPercentage: ExerciseCreditOptions.defaultPercentage,
     exerciseCreditEnabled: true,
     showNetCalories: false,
-    profileCompleted: true,
     isDemo: true,
     createdAt: todayDate.subtract(const Duration(days: 30)),
     updatedAt: now,

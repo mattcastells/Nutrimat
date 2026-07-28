@@ -134,8 +134,7 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
             _Phase.downloading => _Downloading(progress: _progress),
             _Phase.installing => const InfoNote(
               text:
-                  'Android está mostrando el instalador. Cuando termine, abrí '
-                  'Nutrimat de nuevo para usar la versión nueva.',
+                  'Android está instalando. Cuando termine, volvé a abrir la app.',
               tone: NmNoteTone.success,
             ),
             _ => _Result(
@@ -148,9 +147,7 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
 
           const SizedBox(height: NmSpace.s6),
           Text(
-            'Nutrimat no está en Play Store: las versiones se publican en '
-            'GitHub y se instalan desde acá. La primera vez, Android te va a '
-            'pedir que autorices a Nutrimat a instalar aplicaciones.',
+            'La primera vez, Android te va a pedir permiso para instalar.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
         ],
@@ -251,8 +248,7 @@ class _Result extends StatelessWidget {
         children: <Widget>[
           const InfoNote(
             text:
-                'Todavía no hay ninguna versión publicada en GitHub. Cuando se '
-                'publique la primera, va a aparecer acá.',
+                'Todavía no hay ninguna versión publicada.',
           ),
           const SizedBox(height: NmSpace.s4),
           NmButton.secondary(label: 'Buscar de nuevo', onPressed: onCheck),

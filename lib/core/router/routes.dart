@@ -10,8 +10,6 @@ abstract final class Routes {
   static const String forgotPassword = '/auth/forgot-password';
   static const String checkEmail = '/auth/check-email';
 
-  static const String onboarding = '/onboarding';
-  static String onboardingStep(String step) => '/onboarding/$step';
 
   static const String home = '/home';
   static const String history = '/history';

@@ -94,18 +94,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            // Sin datos corporales el objetivo es un valor de
-                            // referencia, no un cálculo. Decirlo es la regla
-                            // del producto (RN-03): nunca presentar una
-                            // estimación como si fuera una medición.
+                            // Sin datos corporales el objetivo es un número de
+                            // referencia, no un cálculo (RN-03).
                             if (profile.birthDate == null ||
                                 profile.heightCm == null) ...<Widget>[
                               InfoNote(
                                 text:
-                                    'Tu objetivo es un valor de referencia. '
-                                    'Cargá altura, nacimiento y sexo para que '
-                                    'se calcule con tus datos.',
-                                action: 'Completar perfil',
+                                    'Este objetivo es genérico. Cargá tus '
+                                    'datos y se calcula con ellos.',
+                                action: 'Cargar',
                                 onAction: () =>
                                     context.push(Routes.profileBody),
                               ),

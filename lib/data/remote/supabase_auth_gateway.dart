@@ -124,9 +124,8 @@ class SupabaseAuthGateway implements AuthGateway {
         message.contains('email not confirmed')) {
       return const AppError(
         code: ApiErrorCode.unauthenticated,
-        message:
-            'Falta confirmar el correo. Buscá el mail de Supabase y abrí el '
-            'enlace, o confirmá la cuenta desde el panel del proyecto.',
+        message: 'Falta confirmar el correo. Buscá el mail que te mandamos y '
+            'abrí el enlace.',
       );
     }
     if (code == 'user_already_exists' ||
@@ -135,6 +134,15 @@ class SupabaseAuthGateway implements AuthGateway {
       return const AppError(
         code: ApiErrorCode.emailTaken,
         message: 'Ya hay una cuenta con ese correo. Probá iniciar sesión.',
+      );
+    }
+    if (code == 'email_address_invalid' ||
+        code == 'validation_failed' ||
+        message.contains('email address') && message.contains('invalid')) {
+      return const AppError(
+        code: ApiErrorCode.validation,
+        message: 'Ese correo no es válido. Revisá que esté bien escrito.',
+        fields: <String, String>{'email': 'Correo inválido'},
       );
     }
     if (code == 'weak_password' || message.contains('password')) {
@@ -155,11 +163,12 @@ class SupabaseAuthGateway implements AuthGateway {
       );
     }
 
+    // El mensaje del proveedor viene en inglés y no le sirve a nadie; queda en
+    // `requestId` por si hace falta rastrearlo.
     return AppError(
       code: ApiErrorCode.server,
-      message:
-          'El servidor rechazó el intento (${error.message}). Probá de nuevo '
-          'en un rato.',
+      message: 'No pudimos completar la operación. Probá de nuevo en un rato.',
+      requestId: error.message,
     );
   }
 }

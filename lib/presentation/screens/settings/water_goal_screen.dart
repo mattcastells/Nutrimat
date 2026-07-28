@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
-import '../../../domain/models/water.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
@@ -93,14 +92,7 @@ class WaterGoalScreen extends ConsumerWidget {
           const SizedBox(height: NmSpace.s6),
           const InfoNote(
             text:
-                'Los 8 vasos son una referencia popular, no una regla médica. '
-                'Cambiar el tamaño del vaso no reescribe el historial: los días '
-                'anteriores siguen contando los vasos que registraste.',
-          ),
-          const SizedBox(height: NmSpace.s4),
-          Text(
-            'Se registran hasta ${WaterLog.maxGlasses} vasos por día.',
-            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+                'Cambiar el tamaño del vaso no toca los días ya registrados.',
           ),
         ],
       ),

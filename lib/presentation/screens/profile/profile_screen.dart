@@ -15,6 +15,7 @@ import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
+import '../../providers/update_providers.dart';
 
 /// S-27 · Perfil.
 class ProfileScreen extends ConsumerWidget {
@@ -192,7 +193,12 @@ class ProfileScreen extends ConsumerWidget {
                 const BrandMark(size: 28, monochrome: true),
                 const SizedBox(height: NmSpace.s2),
                 Text(
-                  'Nutrimat 1.0.0',
+                  ref
+                      .watch(installedVersionLabelProvider)
+                      .maybeWhen(
+                        data: (v) => 'Nutrimat ',
+                        orElse: () => 'Nutrimat',
+                      ),
                   style: NmTextStyles.from(NmType.micro, color: nm.textMuted),
                 ),
               ],

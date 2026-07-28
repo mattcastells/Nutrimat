@@ -47,11 +47,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       context.go(Routes.welcome);
       return;
     }
-
-    if (!repo.profile.profileCompleted) {
-      context.go(Routes.onboardingStep('goal'));
-      return;
-    }
     context.go(Routes.home);
   }
 

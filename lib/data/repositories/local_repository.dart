@@ -141,7 +141,7 @@ class LocalRepository
   /// hace (RN-03). Se marca `targetMethod: manual` para que la pantalla de
   /// objetivo lo muestre como lo que es: un punto de partida a ajustar.
   Future<void> _ensureUsableProfile(UserProfile profile) async {
-    store.profile = profile.copyWith(profileCompleted: true);
+    store.profile = profile;
     if (store.goals.isEmpty) {
       store.goals = <Goal>[
         Goal(

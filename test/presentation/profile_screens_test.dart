@@ -1,10 +1,6 @@
-// Las pantallas donde ahora se cargan los datos que juntaba el onboarding.
-//
-// El onboarding se cayó en el teléfono por un RenderFlex desbordado que ningún
-// test miraba: se renderizaba en el emulador por modo demo, que lo salteaba.
-// Estas pantallas son las que quedaron en su lugar, así que se verifican a
-// tamaño de teléfono real y con la escala de texto subida — que es donde los
-// desbordes aparecen.
+// Pantallas de perfil a tamaño de teléfono real y con el texto agrandado:
+// un RenderFlex desbordado es una excepción, así que acá falla el test en vez
+// de romperse en el teléfono.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

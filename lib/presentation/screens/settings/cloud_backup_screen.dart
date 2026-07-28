@@ -181,9 +181,21 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             ),
           ),
 
-          if (_error != null) ...<Widget>[
+          // El error puede venir de esta pantalla o del último intento
+          // automático: si el estado dice "falló" y no se muestra el motivo,
+          // no hay forma de saber qué pasó.
+          if (_error != null || state is BackupFailed) ...<Widget>[
             const SizedBox(height: NmSpace.s4),
-            ErrorState(message: _error!.message, code: _error!.code.wire),
+            Builder(
+              builder: (context) {
+                final error =
+                    _error ?? (state as BackupFailed).error;
+                return ErrorState(
+                  message: error.message,
+                  code: error.code.wire,
+                );
+              },
+            ),
           ],
 
           const SizedBox(height: NmSpace.s6),
@@ -205,9 +217,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
 
           const SizedBox(height: NmSpace.s6),
           Text(
-            'La copia sube sola cada vez que registrás algo, unos segundos '
-            'después. Se guarda en tu carpeta privada del proyecto: nadie más '
-            'puede leerla.',
+            'La copia sube sola cada vez que registrás algo.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
         ],

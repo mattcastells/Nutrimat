@@ -618,7 +618,7 @@ class NmDateField extends StatelessWidget {
   }
 }
 
-/// Indicador de paso del onboarding: "Paso N de 6".
+/// "Paso N de M" en un flujo de varios pasos.
 class StepIndicator extends StatelessWidget {
   const StepIndicator({required this.current, required this.total, super.key});
 

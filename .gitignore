@@ -1,7 +1,9 @@
 # Secretos y entornos
 .env
 .env.*
-!.env.example
+# Las plantillas sin valores sí se versionan (`.env.example`,
+# `supabase/.env.local.example`): documentan qué variables hay que definir.
+!*.example
 env/*.json
 *.p8
 *.jks

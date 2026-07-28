@@ -26,9 +26,11 @@ import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
 import '../../domain/repositories/repositories.dart';
+import '../../domain/services/photo_sync_service.dart';
 import '../../domain/services/summary_builder.dart';
 import '../local/local_store.dart';
 import '../remote/open_food_facts_client.dart';
+import '../remote/photo_storage_client.dart';
 
 const _uuid = Uuid();
 
@@ -56,11 +58,15 @@ class LocalRepository
     this.store, {
     required this.onChanged,
     OpenFoodFactsClient? foodCatalog,
+    this.photos,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
 
   final LocalStore store;
   final void Function() onChanged;
   final OpenFoodFactsClient _foodCatalog;
+
+  /// Sube al bucket las fotos que quedan en el teléfono. Null sin servidor.
+  final PhotoSyncService? photos;
 
   Future<void> _commit() async {
     await store.persist();
@@ -299,7 +305,19 @@ class LocalRepository
 
   @override
   Future<Meal> saveMeal(Meal meal) async {
-    final withStatus = meal.copyWith(syncStatus: store.writeStatus);
+    // La foto se sube antes de guardar para que en `photo_path` quede la ruta
+    // del bucket y no una del teléfono, que en otro dispositivo no existiría.
+    // Si la subida falla queda la local y se reintenta al volver a guardar.
+    final photoPath = await photos?.ensureUploaded(
+      bucket: PhotoBucket.meal,
+      recordId: meal.id,
+      localPath: meal.photoPath,
+    );
+
+    final withStatus = meal.copyWith(
+      syncStatus: store.writeStatus,
+      photoPath: photoPath ?? meal.photoPath,
+    );
     final index = store.meals.indexWhere((m) => m.id == meal.id);
     if (index >= 0) {
       store.meals[index] = withStatus;

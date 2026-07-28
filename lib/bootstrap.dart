@@ -12,10 +12,12 @@ import 'core/utils/dates.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
+import 'data/remote/photo_storage_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
 import 'data/repositories/local_repository.dart';
 import 'domain/repositories/auth_gateway.dart';
 import 'domain/services/cloud_backup_service.dart';
+import 'domain/services/photo_sync_service.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
 
@@ -64,11 +66,21 @@ Future<void> bootstrap() async {
         )
       : null;
 
+  // Las fotos van al bucket, no al respaldo: una ruta de archivo del teléfono
+  // guardada en el JSON apunta a algo que en otro dispositivo no existe.
+  final photos = SupabaseConfig.isConfigured
+      ? PhotoSyncService(
+          client: PhotoStorageClient.fromInstance(),
+          auth: auth,
+        )
+      : null;
+
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
   // después de crear el contenedor para evitar la dependencia circular.
   void Function() notify = () {};
   final repository = LocalRepository(
     store,
+    photos: photos,
     onChanged: () {
       notify();
       backup?.markDirty();
@@ -80,6 +92,7 @@ Future<void> bootstrap() async {
       repositoryProvider.overrideWithValue(repository),
       authGatewayProvider.overrideWithValue(auth),
       if (backup != null) cloudBackupProvider.overrideWithValue(backup),
+      if (photos != null) photoSyncProvider.overrideWithValue(photos),
     ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();

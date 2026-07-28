@@ -17,6 +17,12 @@ Antes del primer release hay que cargar cuatro secretos en el repositorio:
 | `KEYSTORE_PASSWORD` | `storePassword` de `android/key.properties` |
 | `KEY_PASSWORD` | `keyPassword` de `android/key.properties` |
 | `KEY_ALIAS` | `nutrimat` |
+| `SUPABASE_URL` | `https://ifincvqdsotorvmwzpos.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | La `sb_publishable_…` de `env/local.json` |
+
+Los dos últimos no son secretos de verdad — la publishable key está pensada para
+viajar en el cliente — pero van como secretos igual para que no queden escritos
+en los registros de cada compilación.
 
 Para generar el base64 del keystore, desde la raíz del proyecto:
 
@@ -39,6 +45,24 @@ base64 -w0 android/nutrimat-upload.jks
 
 Subirlo como secreto de GitHub **no cuenta como respaldo**: los secretos se
 escriben pero no se pueden volver a leer.
+
+---
+
+## Compilar en tu máquina
+
+La conexión a Supabase entra por `--dart-define`. Copiá
+[`env/local.json.example`](../env/local.json.example) a `env/local.json`,
+completá los dos valores y usalo en todos los comandos:
+
+```bash
+flutter run   --dart-define-from-file=env/local.json
+flutter build apk --release --dart-define-from-file=env/local.json
+```
+
+`env/local.json` está en `.gitignore`. **Sin ese archivo la app compila y
+arranca igual**, pero en modo local: no se puede iniciar sesión y los datos
+viven solo en el teléfono. Es a propósito — así `flutter test` y un clon recién
+bajado funcionan sin credenciales.
 
 ---
 

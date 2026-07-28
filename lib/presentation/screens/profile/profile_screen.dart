@@ -14,6 +14,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 
 /// S-27 · Perfil.
 class ProfileScreen extends ConsumerWidget {
@@ -175,6 +176,10 @@ class ProfileScreen extends ConsumerWidget {
                 );
                 if (confirmed != true) return;
               }
+              // Primero el servidor y después lo local: si se hiciera al
+              // revés y el cierre remoto fallara, quedaría una sesión abierta
+              // sin ninguna pantalla desde donde cerrarla.
+              await ref.read(authGatewayProvider).signOut();
               await repo.signOut();
               if (!context.mounted) return;
               context.go(Routes.welcome);

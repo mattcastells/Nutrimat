@@ -7,10 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:nutrimat/app.dart';
 import 'package:nutrimat/core/utils/dates.dart';
+import 'package:nutrimat/data/local/local_auth_gateway.dart';
 import 'package:nutrimat/data/local/local_store.dart';
 import 'package:nutrimat/data/repositories/local_repository.dart';
 import 'package:nutrimat/presentation/components/charts/calorie_ring.dart';
 import 'package:nutrimat/presentation/providers/app_providers.dart';
+import 'package:nutrimat/presentation/providers/auth_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<ProviderContainer> _boot({required bool seeded}) async {
@@ -21,7 +23,13 @@ Future<ProviderContainer> _boot({required bool seeded}) async {
   void Function() notify = () {};
   final repository = LocalRepository(store, onChanged: () => notify());
   final container = ProviderContainer(
-    overrides: <Override>[repositoryProvider.overrideWithValue(repository)],
+    overrides: <Override>[
+      repositoryProvider.overrideWithValue(repository),
+      // Sin este override cualquier pantalla que toque la sesión revienta con
+      // `authGatewayProvider sin inicializar`, que es exactamente lo que se
+      // quiere: el arranque tiene que elegir explícitamente una implementación.
+      authGatewayProvider.overrideWithValue(LocalAuthGateway()),
+    ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();
   return container;

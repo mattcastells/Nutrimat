@@ -8,6 +8,7 @@ import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 
 /// S-01 · Splash. Decide el destino inicial sin parpadeos.
 ///
@@ -36,6 +37,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       context.go(Routes.welcome);
       return;
     }
+
+    // Con servidor configurado, el perfil local no alcanza: si la sesión de
+    // Supabase caducó o se revocó desde otro lado, hay que volver a entrar.
+    // El modo demo (D-15) queda afuera a propósito — nunca tuvo cuenta.
+    final needsAccount =
+        ref.read(isCloudEnabledProvider) && !repo.profile.isDemo;
+    if (needsAccount && ref.read(authGatewayProvider).currentAccount == null) {
+      context.go(Routes.welcome);
+      return;
+    }
+
     if (!repo.profile.profileCompleted) {
       context.go(Routes.onboardingStep('goal'));
       return;

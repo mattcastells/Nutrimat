@@ -7,14 +7,23 @@ está creado y verificado. Falta unir las dos cosas.
 
 ## Lo próximo (por acá se arranca)
 
-**Conectar la app con Supabase.** Las dos claves ya están donde tienen que
-estar: la `publishable` en `supabase/.env.local` y la de Gemini en los secretos
-de Edge Functions. Falta el código.
+**Sincronizar los datos con Supabase.** La sesión ya es real: `supabase_flutter`
+está conectado y el inicio de sesión valida contra el servidor. Lo que todavía
+vive solo en el teléfono son los datos — comidas, actividades, peso.
 
-En orden: agregar `supabase_flutter`, inicializar el cliente leyendo la config
-por `--dart-define`, Auth real, y un repositorio remoto detrás de las mismas
-interfaces de `domain/repositories/`. **Las pantallas no se tocan**: esa es toda
-la ventaja de haber separado las capas.
+El paso siguiente es reemplazar `LocalRepository` por local-first con Drift y
+una `sync_queue` contra las 24 tablas (13-state-management.md §5 y §8). **Las
+pantallas no se tocan**: esa es toda la ventaja de haber separado las capas.
+
+Para compilar con servidor hay que pasarle la config:
+
+```bash
+flutter run --dart-define-from-file=env/local.json
+```
+
+Sin ese archivo la app arranca en **modo local** y lo dice: no autentica contra
+nadie y los datos no salen del teléfono. Es a propósito, para que un clon recién
+bajado y `flutter test` funcionen sin credenciales.
 
 ⚠️ La `secret key` (`sb_secret_…`) no va nunca en la app, ni en el repo, ni en
 un chat: saltea RLS por completo. Solo vive en los secretos de las Edge
@@ -27,7 +36,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **107 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **110 tests en verde**, `flutter analyze`
 limpio, APK de release firmado con keystore propio y probado en el emulador.
 
 Funciona hoy sin backend: comidas, actividades con cálculo MET real, peso,
@@ -110,11 +119,11 @@ Para no volver a perder tiempo con lo mismo:
 ## Comandos para retomar
 
 ```bash
-# La app
+# La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
-flutter run
-flutter test                              # 107 tests
-flutter build apk --release --split-per-abi
+flutter run  --dart-define-from-file=env/local.json
+flutter test                              # 110 tests
+flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
 supabase start                            # stack local, Studio en :54323
@@ -128,8 +137,8 @@ supabase stop
 
 En orden de lo que más desbloquea:
 
-1. **Auth y sincronización**: reemplazar `LocalRepository` por local-first con
-   Drift + `sync_queue` contra Supabase (13-state-management.md §5 y §8).
+1. **Sincronización**: reemplazar `LocalRepository` por local-first con Drift +
+   `sync_queue` contra Supabase (13-state-management.md §5 y §8). Auth ya está.
 2. **Buckets de Storage** y sus políticas por prefijo (08-supabase-plan.md §3).
 3. **Gemini**: Edge Function `analyze-meal-photo` con la key del lado del
    servidor; después prender el flag `NM_AI_PHOTO`.

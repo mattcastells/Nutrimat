@@ -5,15 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/error/app_error.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../domain/repositories/auth_gateway.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 
 /// Validaciones de F-01, compartidas por alta e inicio de sesión.
 abstract final class AuthValidation {
@@ -107,8 +110,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    await repo.signIn(AuthValidation.normalizeEmail(_email.text));
+    final email = AuthValidation.normalizeEmail(_email.text);
+    try {
+      await ref
+          .read(authGatewayProvider)
+          .signIn(email: email, password: _password.text);
+    } on AppError catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _formError = error.message;
+      });
+      return;
+    }
+
+    // El perfil local se marca con el correo recién cuando el servidor aceptó
+    // las credenciales: antes, cualquier contraseña equivocada dejaba la app
+    // como si hubiera sesión.
+    await repo.signIn(email);
     if (!mounted) return;
     setState(() => _submitting = false);
     context.go(
@@ -230,15 +249,34 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
 
     setState(() => _submitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final email = AuthValidation.normalizeEmail(_email.text);
+
+    final AuthAccount? account;
+    try {
+      account = await ref
+          .read(authGatewayProvider)
+          .signUp(email: email, password: _password.text);
+    } on AppError catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _formError = error.message;
+      });
+      return;
+    }
+
     await repo.startDemoSession(seeded: false);
-    await repo.signIn(AuthValidation.normalizeEmail(_email.text));
+    await repo.signIn(email);
     if (!mounted) return;
     setState(() => _submitting = false);
-    context.go(
-      '${Routes.checkEmail}?email='
-      '${Uri.encodeComponent(AuthValidation.normalizeEmail(_email.text))}',
-    );
+
+    // Si el alta ya devolvió sesión, el proyecto no exige confirmar el correo
+    // y mandar a "revisá tu casilla" sería mentirle a la persona.
+    if (account != null) {
+      context.go(Routes.onboardingStep('goal'));
+      return;
+    }
+    context.go('${Routes.checkEmail}?email=${Uri.encodeComponent(email)}');
   }
 
   @override
@@ -374,13 +412,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               setState(() => _error = error);
               if (error != null) return;
               setState(() => _submitting = true);
-              await Future<void>.delayed(const Duration(milliseconds: 400));
+
+              final email = AuthValidation.normalizeEmail(_email.text);
+              try {
+                await ref.read(authGatewayProvider).sendPasswordReset(email);
+              } on AppError catch (failure) {
+                if (!context.mounted) return;
+                setState(() {
+                  _submitting = false;
+                  _error = failure.message;
+                });
+                return;
+              }
+
               if (!context.mounted) return;
               setState(() => _submitting = false);
               unawaited(
                 context.push(
                   '${Routes.checkEmail}?intent=reset&email='
-                  '${Uri.encodeComponent(_email.text.trim())}',
+                  '${Uri.encodeComponent(email)}',
                 ),
               );
             },

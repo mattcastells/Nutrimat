@@ -82,13 +82,35 @@ jobs:
           storeFile=nutrimat-upload.jks
           PROPS
 
+      # La conexión a Supabase se compila dentro del APK. Sin estos valores la
+      # app igual arranca, pero en modo local: los datos no salen del teléfono
+      # y no se puede iniciar sesión. Mejor fallar acá que publicar un release
+      # que instala bien y no deja entrar.
+      - name: Armar la configuración de Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Faltan los secretos SUPABASE_URL y/o SUPABASE_PUBLISHABLE_KEY. Ver docs/releases.md."
+            exit 1
+          fi
+          mkdir -p env
+          jq -n \
+            --arg url "$SUPABASE_URL" \
+            --arg key "$SUPABASE_PUBLISHABLE_KEY" \
+            '{SUPABASE_URL: $url, SUPABASE_PUBLISHABLE_KEY: $key}' \
+            > env/ci.json
+
       # El universal anda en cualquier teléfono; es el que instala el updater,
       # porque elegir por ABI exigiría conocer la arquitectura del dispositivo.
       - name: Compilar el APK universal
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=env/ci.json
 
       - name: Compilar los APK por arquitectura
-        run: flutter build apk --release --split-per-abi
+        run: |
+          flutter build apk --release --split-per-abi \
+            --dart-define-from-file=env/ci.json
 
       - name: Juntar los artefactos
         run: |
@@ -111,7 +133,7 @@ jobs:
 
       - name: Borrar las credenciales del runner
         if: always()
-        run: rm -f android/nutrimat-upload.jks android/key.properties
+        run: rm -f android/nutrimat-upload.jks android/key.properties env/ci.json
 
       # `--notes` se antepone a lo que genera `--generate-notes`, así que la
       # explicación de qué archivo bajar queda arriba del changelog.

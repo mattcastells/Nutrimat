@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/config/supabase_config.dart';
 import 'core/utils/dates.dart';
+import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
+import 'data/remote/supabase_auth_gateway.dart';
 import 'data/repositories/local_repository.dart';
+import 'domain/repositories/auth_gateway.dart';
 import 'presentation/providers/app_providers.dart';
+import 'presentation/providers/auth_providers.dart';
 
-/// Arranque: base local, formatos de fecha y el contenedor de providers.
+/// Arranque: base local, formatos de fecha, sesión y contenedor de providers.
 ///
-/// Todavía no hay Supabase, Sentry ni analítica: el entorno es `mock` y la app
-/// corre entera contra `data/mock/` con datos simulados realistas
-/// (19-project-structure.md §5).
+/// Los datos siguen viviendo en el teléfono (`data/local/`). Lo que sí es real
+/// es la **sesión**: si la compilación trae credenciales de Supabase, se
+/// autentica contra el servidor; si no, cae a una sesión local que no
+/// autentica nada y lo dice (19-project-structure.md §5).
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,6 +34,19 @@ Future<void> bootstrap() async {
 
   await initializeDateFormatting(appLocale);
 
+  // Con credenciales, `supabase_flutter` restaura la sesión guardada y se
+  // encarga de refrescar el token. Sin ellas la app arranca igual, en local.
+  final AuthGateway auth;
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+    auth = SupabaseAuthGateway.fromInstance();
+  } else {
+    auth = LocalAuthGateway();
+  }
+
   final store = await LocalStore.open();
 
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
@@ -35,7 +55,10 @@ Future<void> bootstrap() async {
   final repository = LocalRepository(store, onChanged: () => notify());
 
   final container = ProviderContainer(
-    overrides: <Override>[repositoryProvider.overrideWithValue(repository)],
+    overrides: <Override>[
+      repositoryProvider.overrideWithValue(repository),
+      authGatewayProvider.overrideWithValue(auth),
+    ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();
 

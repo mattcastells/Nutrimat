@@ -26,6 +26,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/update_providers.dart';
 import '../activity/duplicate_dialog.dart';
 
@@ -879,6 +880,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               block: true,
               onPressed: canDelete
                   ? () async {
+                      await ref.read(authGatewayProvider).signOut();
                       await repo.signOut();
                       if (!context.mounted) return;
                       context.go(Routes.welcome);

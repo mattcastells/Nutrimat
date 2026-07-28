@@ -1,0 +1,35 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/config/supabase_config.dart';
+import '../../domain/repositories/auth_gateway.dart';
+
+/// Se sobrescribe en `bootstrap.dart` con la implementación que corresponda:
+/// Supabase si la compilación trae credenciales, local si no.
+final authGatewayProvider = Provider<AuthGateway>(
+  (ref) => throw UnimplementedError('authGatewayProvider sin inicializar'),
+);
+
+/// Cuenta con la que está abierta la sesión, o `null`.
+///
+/// Escucha el stream del gateway, así que se actualiza también cuando la
+/// sesión caduca sola o cuando se cierra desde otro lado.
+final authAccountProvider = StreamProvider<AuthAccount?>((ref) {
+  final gateway = ref.watch(authGatewayProvider);
+  return gateway.changes;
+});
+
+/// Cuenta actual de forma síncrona, para decidir a dónde va el splash sin
+/// esperar un frame.
+final currentAccountProvider = Provider<AuthAccount?>((ref) {
+  final gateway = ref.watch(authGatewayProvider);
+  return ref.watch(authAccountProvider).maybeWhen(
+    data: (account) => account,
+    orElse: () => gateway.currentAccount,
+  );
+});
+
+/// `true` cuando la sesión es real contra el servidor. En `false` la app anda
+/// igual, pero los datos no salen del teléfono.
+final isCloudEnabledProvider = Provider<bool>(
+  (ref) => SupabaseConfig.isConfigured,
+);

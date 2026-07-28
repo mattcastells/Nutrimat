@@ -1,0 +1,100 @@
+// Las pantallas donde ahora se cargan los datos que juntaba el onboarding.
+//
+// El onboarding se cayó en el teléfono por un RenderFlex desbordado que ningún
+// test miraba: se renderizaba en el emulador por modo demo, que lo salteaba.
+// Estas pantallas son las que quedaron en su lugar, así que se verifican a
+// tamaño de teléfono real y con la escala de texto subida — que es donde los
+// desbordes aparecen.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:nutrimat/core/theme/app_theme.dart';
+import 'package:nutrimat/core/utils/dates.dart';
+import 'package:nutrimat/data/local/local_auth_gateway.dart';
+import 'package:nutrimat/data/local/local_store.dart';
+import 'package:nutrimat/data/repositories/local_repository.dart';
+import 'package:nutrimat/presentation/providers/app_providers.dart';
+import 'package:nutrimat/presentation/providers/auth_providers.dart';
+import 'package:nutrimat/presentation/screens/profile/body_target_screens.dart';
+import 'package:nutrimat/presentation/screens/settings/water_goal_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<ProviderContainer> _boot() async {
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+  final store = await LocalStore.open();
+  final repository = LocalRepository(store, onChanged: () {});
+  await repository.signIn('yo@nutrimat.test');
+  return ProviderContainer(
+    overrides: <Override>[
+      repositoryProvider.overrideWithValue(repository),
+      authGatewayProvider.overrideWithValue(LocalAuthGateway()),
+    ],
+  );
+}
+
+Widget _wrap(ProviderContainer container, Widget screen, double textScale) =>
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: NmAppTheme.dark(),
+        locale: const Locale('es', 'AR'),
+        home: MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+          child: screen,
+        ),
+      ),
+    );
+
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pump(const Duration(milliseconds: 700));
+}
+
+void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await initializeDateFormatting(appLocale);
+  });
+
+  setUp(() {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    // Un Galaxy real, no los 800×600 por defecto.
+    view.physicalSize = const Size(1080, 2340);
+    view.devicePixelRatio = 2.75;
+  });
+
+  final screens = <String, Widget Function()>{
+    'Perfil corporal': BodyProfileScreen.new,
+    'Objetivo y macros': TargetScreen.new,
+    'Meta de agua': WaterGoalScreen.new,
+  };
+
+  for (final entry in screens.entries) {
+    // 1.0 es el tamaño normal; 1.3 es lo que usa mucha gente en un Samsung.
+    for (final scale in <double>[1.0, 1.3]) {
+      testWidgets(
+        '${entry.key} se dibuja sin desbordes (texto ×$scale)',
+        (tester) async {
+          late ProviderContainer container;
+          await tester.runAsync(() async {
+            container = await _boot();
+          });
+          addTearDown(container.dispose);
+
+          await tester.pumpWidget(
+            _wrap(container, entry.value(), scale),
+          );
+          await _settle(tester);
+
+          // Un RenderFlex desbordado es una excepción: acá se convierte en una
+          // falla del test en vez de en una pantalla rota en el teléfono.
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+}

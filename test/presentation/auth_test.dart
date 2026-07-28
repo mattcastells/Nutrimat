@@ -115,11 +115,6 @@ Widget _wrap(ProviderContainer container) => UncontrolledProviderScope(
           builder: (context, state) => const Scaffold(body: Text('INICIO')),
         ),
         GoRoute(
-          path: '${Routes.onboarding}/:step',
-          builder: (context, state) =>
-              const Scaffold(body: Text('ONBOARDING')),
-        ),
-        GoRoute(
           path: Routes.forgotPassword,
           builder: (context, state) => const Scaffold(body: Text('OLVIDE')),
         ),
@@ -230,8 +225,8 @@ void main() {
     expect(gateway.hasSession, isTrue);
     expect(repository.hasSession, isTrue);
     expect(repository.profile.email, _FakeGateway.validEmail);
-    // Sin onboarding completo, el destino es el onboarding y no Inicio.
-    expect(find.text('ONBOARDING'), findsOneWidget);
+    // Sin asistente de por medio, entrar lleva directo a Inicio.
+    expect(find.text('INICIO'), findsOneWidget);
   });
 
   testWidgets('el correo se normaliza antes de mandarlo', (tester) async {

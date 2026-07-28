@@ -14,8 +14,6 @@ import '../../presentation/screens/history/day_detail_screen.dart';
 import '../../presentation/screens/history/history_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/meal/meal_form_screen.dart';
-import '../../presentation/screens/onboarding/onboarding_controller.dart';
-import '../../presentation/screens/onboarding/onboarding_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
@@ -51,13 +49,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Cualquier ruta protegida sin sesión vuelve a la bienvenida.
       if (!repo.hasSession && !isPublic) return Routes.welcome;
 
-      // Con sesión pero sin perfil completo, el onboarding es obligatorio.
-      if (repo.hasSession &&
-          !repo.profile.profileCompleted &&
-          !location.startsWith(Routes.onboarding) &&
-          !isPublic) {
-        return Routes.onboardingStep('goal');
-      }
       return null;
     },
     routes: <RouteBase>[
@@ -89,13 +80,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           intent: state.uri.queryParameters['intent'] ?? 'signup',
         ),
       ),
-      GoRoute(
-        path: '${Routes.onboarding}/:step',
-        builder: (context, state) => OnboardingScreen(
-          step: OnboardingStep.fromSlug(state.pathParameters['step']),
-        ),
-      ),
-
       // ── Shell autenticado ────────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         parentNavigatorKey: rootKey,

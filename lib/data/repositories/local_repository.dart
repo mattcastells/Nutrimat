@@ -7,14 +7,10 @@ import 'package:uuid/uuid.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/error/app_error.dart';
 import '../../core/utils/dates.dart';
-import '../../domain/calculations/bmr.dart';
-import '../../domain/calculations/calorie_target.dart';
 import '../../domain/calculations/duplicate_score.dart';
 import '../../domain/calculations/exercise_credit.dart';
-import '../../domain/calculations/macros.dart';
 import '../../domain/calculations/met_calories.dart';
 import '../../domain/calculations/pace_met.dart';
-import '../../domain/calculations/tdee.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
 import '../../domain/models/ai_analysis.dart';
@@ -135,120 +131,57 @@ class LocalRepository
     await _commit();
   }
 
-  @override
-  Future<void> completeOnboarding(OnboardingDraft draft) async {
-    final now = DateTime.now();
-    final base = store.profile ?? UserProfile.empty(_uuid.v4());
-
-    final updated = base.copyWith(
-      biologicalSex: draft.biologicalSex,
-      birthDate: draft.birthDate,
-      heightCm: draft.heightCm,
-      activityLevel: draft.activityLevel,
-      exerciseCreditPercentage: draft.exerciseCreditPercentage,
-      exerciseCreditEnabled: true,
-      profileCompleted: true,
-    );
-    store.profile = updated;
-
-    final weightKg = draft.weightKg;
-    if (weightKg != null) {
-      store.weightLogs = <WeightLog>[
-        ...store.weightLogs.where((w) => !isSameDay(w.localDate, now)),
-        WeightLog(
+  /// Deja el perfil en condiciones de usar la app sin pasar por ningún
+  /// asistente: sin datos corporales todavía, pero con un objetivo con el que
+  /// arrancar.
+  ///
+  /// El objetivo inicial es **manual**, no calculado. Sin sexo, altura, edad y
+  /// peso no hay Mifflin-St Jeor, y presentar un número inventado como si
+  /// fuera el resultado de una fórmula es exactamente lo que el producto no
+  /// hace (RN-03). Se marca `targetMethod: manual` para que la pantalla de
+  /// objetivo lo muestre como lo que es: un punto de partida a ajustar.
+  Future<void> _ensureUsableProfile(UserProfile profile) async {
+    store.profile = profile.copyWith(profileCompleted: true);
+    if (store.goals.isEmpty) {
+      store.goals = <Goal>[
+        Goal(
           id: _uuid.v4(),
-          weightKg: weightKg,
-          localDate: dateOnly(now),
-          loggedAt: now,
-          syncStatus: store.writeStatus,
+          goalType: GoalType.maintain,
+          rateKgPerWeek: 0,
+          baseCalorieTarget: defaultCalorieTarget,
+          targetMethod: TargetMethod.manual,
+          proteinG: 120,
+          carbsG: 220,
+          fatG: 65,
+          macroMethod: 'default',
+          startsOn: today(),
         ),
       ];
     }
-
-    store.goals = <Goal>[
-      buildGoalFromDraft(draft, profile: updated, now: now),
-    ];
     await _commit();
   }
 
-  /// Construye el objetivo a partir del borrador. Público para que las
-  /// pantallas puedan previsualizar el cálculo antes de guardar.
-  Goal buildGoalFromDraft(
-    OnboardingDraft draft, {
-    required UserProfile profile,
-    DateTime? now,
-  }) {
-    final reference = now ?? DateTime.now();
-    final weightKg = draft.weightKg ?? store.currentWeightKg ?? 70;
-    final goalType = draft.goalType ?? GoalType.maintain;
-
-    int? bmr;
-    int? tdeeValue;
-    var target = draft.manualTarget ?? 2000;
-
-    if (draft.hasBody) {
-      bmr = bmrMifflinStJeor(
-        weightKg: weightKg,
-        heightCm: draft.heightCm!,
-        ageYears: ageFromBirthDate(draft.birthDate!, on: reference),
-        sex: draft.biologicalSex ?? profile.biologicalSex,
-      );
-      tdeeValue = tdee(
-        bmr: bmr,
-        activityLevel: draft.activityLevel ?? profile.activityLevel,
-      );
-      if (draft.targetMethod == TargetMethod.calculated) {
-        target = calorieTarget(
-          tdee: tdeeValue,
-          goalType: goalType,
-          rateKgPerWeek: goalType == GoalType.maintain
-              ? 0
-              : draft.rateKgPerWeek,
-          sex: draft.biologicalSex ?? profile.biologicalSex,
-        ).target;
-      }
-    }
-
-    final macros = macroTargets(
-      targetKcal: target,
-      weightKg: weightKg,
-      goalType: goalType,
-    );
-
-    return Goal(
-      id: _uuid.v4(),
-      goalType: goalType,
-      rateKgPerWeek: goalType == GoalType.maintain ? 0 : draft.rateKgPerWeek,
-      targetWeightKg: draft.targetWeightKg,
-      baseCalorieTarget: target,
-      targetMethod: draft.targetMethod,
-      bmrKcal: bmr,
-      tdeeKcal: tdeeValue,
-      proteinG: macros.proteinG,
-      carbsG: macros.carbsG,
-      fatG: macros.fatG,
-      macroMethod: 'default',
-      startsOn: dateOnly(reference),
-    );
-  }
+  /// Punto de partida hasta que se carguen los datos corporales. Es un valor
+  /// de referencia, no una estimación: la app lo dice en pantalla.
+  static const int defaultCalorieTarget = 2000;
 
   @override
   Future<void> startDemoSession({required bool seeded}) async {
     if (seeded) {
       store.seed();
-    } else {
-      store.reset(
-        newProfile: UserProfile.empty(_uuid.v4()).copyWith(isDemo: true),
-      );
+      await _commit();
+      return;
     }
-    await _commit();
+    store.reset(
+      newProfile: UserProfile.empty(_uuid.v4()).copyWith(isDemo: true),
+    );
+    await _ensureUsableProfile(store.profile!);
   }
 
   @override
   Future<void> signIn(String email) async {
     final base = store.profile ?? UserProfile.empty(_uuid.v4());
-    store.profile = base.copyWith(email: email, isDemo: false);
-    await _commit();
+    await _ensureUsableProfile(base.copyWith(email: email, isDemo: false));
   }
 
   @override

@@ -18,69 +18,6 @@ import '../models/water.dart';
 /// Los repositorios son local-first: leen de la base local y escriben local
 /// encolando la sincronización (13-state-management.md §5).
 
-/// Lo que el onboarding junta paso a paso (F-02).
-class OnboardingDraft {
-  const OnboardingDraft({
-    this.goalType,
-    this.biologicalSex,
-    this.birthDate,
-    this.heightCm,
-    this.weightKg,
-    this.activityLevel,
-    this.rateKgPerWeek = 0.5,
-    this.targetMethod = TargetMethod.calculated,
-    this.manualTarget,
-    this.exerciseCreditPercentage = 0,
-    this.targetWeightKg,
-  });
-
-  final GoalType? goalType;
-  final BiologicalSex? biologicalSex;
-  final DateTime? birthDate;
-  final double? heightCm;
-  final double? weightKg;
-  final ActivityLevel? activityLevel;
-  final double rateKgPerWeek;
-  final TargetMethod targetMethod;
-  final int? manualTarget;
-  final int exerciseCreditPercentage;
-  final double? targetWeightKg;
-
-  /// El paso `body` es el único que no se puede omitir: sin él no hay BMR.
-  bool get hasBody =>
-      birthDate != null && heightCm != null && weightKg != null;
-
-  OnboardingDraft copyWith({
-    GoalType? goalType,
-    BiologicalSex? biologicalSex,
-    DateTime? birthDate,
-    double? heightCm,
-    double? weightKg,
-    ActivityLevel? activityLevel,
-    double? rateKgPerWeek,
-    TargetMethod? targetMethod,
-    int? manualTarget,
-    int? exerciseCreditPercentage,
-    double? targetWeightKg,
-    bool clearManualTarget = false,
-  }) => OnboardingDraft(
-    goalType: goalType ?? this.goalType,
-    biologicalSex: biologicalSex ?? this.biologicalSex,
-    birthDate: birthDate ?? this.birthDate,
-    heightCm: heightCm ?? this.heightCm,
-    weightKg: weightKg ?? this.weightKg,
-    activityLevel: activityLevel ?? this.activityLevel,
-    rateKgPerWeek: rateKgPerWeek ?? this.rateKgPerWeek,
-    targetMethod: targetMethod ?? this.targetMethod,
-    manualTarget: clearManualTarget
-        ? null
-        : (manualTarget ?? this.manualTarget),
-    exerciseCreditPercentage:
-        exerciseCreditPercentage ?? this.exerciseCreditPercentage,
-    targetWeightKg: targetWeightKg ?? this.targetWeightKg,
-  );
-}
-
 /// Borrador de una actividad en edición (S-10).
 class ActivityDraft {
   const ActivityDraft({
@@ -174,8 +111,6 @@ abstract interface class ProfileRepository {
     required int percentage,
     required bool enabled,
   });
-  Future<void> completeOnboarding(OnboardingDraft draft);
-
   /// Modo demo sin cuenta: usuario local anónimo (D-15).
   Future<void> startDemoSession({required bool seeded});
   Future<void> signIn(String email);

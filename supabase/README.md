@@ -7,11 +7,11 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 
 | Qué | Resultado |
 | --- | --- |
-| Migraciones aplicadas | 18 de 18 |
+| Migraciones aplicadas | 19 de 19 |
 | Tablas | 24 |
 | Tablas con RLS activo | **24 de 24** (ninguna sin RLS) |
 | Políticas | 78 |
-| Buckets de Storage | 3, privados, con política por prefijo `{user_id}/` |
+| Buckets de Storage | 4 (3 de fotos + `backups`), privados, con política por prefijo |
 | `activity_types` sembrados | 15 (D-06) |
 | RPC | `create_meal_with_items`, `get_daily_summary` |
 | pg_cron | habilitado, con los 4 jobs de `08-supabase-plan.md` §7 |

@@ -1,19 +1,22 @@
 # Estado — 28 de julio de 2026
 
-Dónde quedamos y cómo retomar. La app funciona y se puede instalar; el backend
-está creado y verificado. Falta unir las dos cosas.
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.2` en
+GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
 
 ## Lo próximo (por acá se arranca)
 
-**Sincronizar los datos con Supabase.** La sesión ya es real: `supabase_flutter`
-está conectado y el inicio de sesión valida contra el servidor. Lo que todavía
-vive solo en el teléfono son los datos — comidas, actividades, peso.
+**Probar el análisis de foto en un teléfono de verdad.** Es lo único del
+circuito que nunca se ejecutó: el emulador no tiene cámara, así que la subida al
+bucket y la Edge Function de Gemini están escritas y desplegadas pero sin una
+corrida real. Sacar una foto de una comida las ejercita a las dos.
 
-El paso siguiente es reemplazar `LocalRepository` por local-first con Drift y
-una `sync_queue` contra las 24 tablas (13-state-management.md §5 y §8). **Las
-pantallas no se tocan**: esa es toda la ventaja de haber separado las capas.
+Después, si hiciera falta: los datos se respaldan como un documento JSON en
+Storage, no como filas. Eso cubre no perder nada y cambiar de teléfono. Recién
+si se necesita consultar del lado del servidor —estadísticas, varios
+dispositivos a la vez— habría que pasar a sincronización relacional contra las
+24 tablas (13-state-management.md §5 y §8).
 
 Para compilar con servidor hay que pasarle la config:
 
@@ -35,14 +38,17 @@ Functions.
 
 ### La app (Flutter, Android)
 
-40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **110 tests en verde**, `flutter analyze`
-limpio, APK de release firmado con keystore propio y probado en el emulador.
+39 pantallas, el sistema de diseño Nocturne completo, animaciones y
+accesibilidad según el handoff. **136 tests en verde**, `flutter analyze`
+limpio, APK de release firmado y verificado en el emulador contra el proyecto
+real.
 
-Funciona hoy sin backend: comidas, actividades con cálculo MET real, peso,
-medidas, historial, progreso y objetivos, todo local. El catálogo de alimentos
-consulta Open Food Facts de verdad (con prioridad a productos argentinos) y el
-escaneo por código de barras también.
+Comidas, actividades con cálculo MET, peso, medidas, agua, historial, progreso
+y objetivos. El catálogo consulta Open Food Facts (con prioridad a productos
+argentinos) y el escaneo por código de barras también.
+
+No hay asistente inicial: entrar lleva directo a Inicio y los datos del perfil
+se cargan desde Perfil cuando se quiera.
 
 Detalle completo: [`docs/estado-de-la-app.md`](docs/estado-de-la-app.md)
 
@@ -52,10 +58,10 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 18 de 18 aplicadas |
+| Migraciones | 19 de 19 aplicadas |
 | Tablas | 24, **todas con RLS** |
 | Políticas | 78, más 3 de Storage |
-| Buckets | 3, privados, con política por prefijo `{user_id}/` |
+| Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
 | Suite pgTAP | **31 de 31** (22 de RLS + 9 de Storage), en local y contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
@@ -64,9 +70,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio.
+contra un Postgres limpio. Última publicada: **v1.0.2**.
 
-Publicar una versión es empujar un tag `v1.1.0`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.0.3`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -114,6 +120,11 @@ Para no volver a perder tiempo con lo mismo:
    tabs quedan por encima y tapan sus botones.
 6. **El endpoint clásico de Open Food Facts devuelve 503 seguido.** Se usa el
    moderno (`search.openfoodfacts.org`).
+7. **`flutter build apk` puede devolver un APK viejo.** Si el build tarda 5 s en
+   vez de ~140 s, Gradle está reusando un artefacto cacheado y se instala una
+   versión anterior. `flutter clean` antes de verificar algo en el emulador.
+8. **Los buckets restringen los MIME.** Los de fotos solo aceptan imágenes: el
+   respaldo JSON necesitó su propio bucket.
 
 ---
 
@@ -123,7 +134,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 110 tests
+flutter test                              # 136 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -134,19 +145,17 @@ supabase stop
 
 ---
 
-## Después de conectar la app
+## Lo que queda
 
-En orden de lo que más desbloquea:
-
-1. **Sincronización**: reemplazar `LocalRepository` por local-first con Drift +
-   `sync_queue` contra Supabase (13-state-management.md §5 y §8). Auth ya está.
-2. **Buckets de Storage** y sus políticas por prefijo (08-supabase-plan.md §3).
-3. **Gemini**: Edge Function `analyze-meal-photo` con la key del lado del
-   servidor; después prender el flag `NM_AI_PHOTO`.
-4. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
+1. **Probar Gemini en un teléfono** — escrito y desplegado, nunca ejecutado.
+2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
    el cliente). Open Food Facts ya está conectado y no necesita clave.
-5. **Health Connect** de verdad: adaptador nativo, permisos, `minSdk 29`;
-   después prender `NM_HEALTH_SYNC`.
+3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta
+   consultar del lado del servidor. Hoy el respaldo en Storage alcanza.
+
+**Health Connect queda descartado**: con la app usada por una sola persona que
+carga sus actividades a mano, importar desde Samsung Health aporta poco y trae
+riesgo de doble conteo. El flag y las pantallas quedan por si cambia.
 
 ---
 

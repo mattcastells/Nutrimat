@@ -96,6 +96,15 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
+                  title: 'Respaldo en la nube',
+                  subtitle: ref.watch(isCloudEnabledProvider)
+                      ? 'Se guarda solo cada vez que registrás algo'
+                      : 'Esta compilación no tiene servidor',
+                  leading: Icon(PhosphorIcons.cloudArrowUp()),
+                  onTap: () => context.push(Routes.cloudBackup),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
                   title: 'Actualizaciones',
                   subtitle: 'Buscar una versión nueva en GitHub',
                   leading: Icon(PhosphorIcons.downloadSimple()),

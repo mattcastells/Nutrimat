@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +11,11 @@ import 'core/config/supabase_config.dart';
 import 'core/utils/dates.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
+import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
 import 'data/repositories/local_repository.dart';
 import 'domain/repositories/auth_gateway.dart';
+import 'domain/services/cloud_backup_service.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
 
@@ -49,15 +53,33 @@ Future<void> bootstrap() async {
 
   final store = await LocalStore.open();
 
+  // Con servidor, cada cambio local dispara un respaldo a la nube. Sin
+  // servidor no hay a dónde subir y el servicio queda en null: el respaldo
+  // sigue siendo el archivo JSON de Configuración → Privacidad.
+  final CloudBackupService? backup = SupabaseConfig.isConfigured
+      ? CloudBackupService(
+          client: CloudBackupClient.fromInstance(),
+          auth: auth,
+          readDocument: () => jsonEncode(store.toDocument()),
+        )
+      : null;
+
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
   // después de crear el contenedor para evitar la dependencia circular.
   void Function() notify = () {};
-  final repository = LocalRepository(store, onChanged: () => notify());
+  final repository = LocalRepository(
+    store,
+    onChanged: () {
+      notify();
+      backup?.markDirty();
+    },
+  );
 
   final container = ProviderContainer(
     overrides: <Override>[
       repositoryProvider.overrideWithValue(repository),
       authGatewayProvider.overrideWithValue(auth),
+      if (backup != null) cloudBackupProvider.overrideWithValue(backup),
     ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();

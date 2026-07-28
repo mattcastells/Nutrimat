@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/supabase_config.dart';
 import '../../domain/repositories/auth_gateway.dart';
+import '../../domain/services/cloud_backup_service.dart';
 
 /// Se sobrescribe en `bootstrap.dart` con la implementación que corresponda:
 /// Supabase si la compilación trae credenciales, local si no.
@@ -33,3 +36,24 @@ final currentAccountProvider = Provider<AuthAccount?>((ref) {
 final isCloudEnabledProvider = Provider<bool>(
   (ref) => SupabaseConfig.isConfigured,
 );
+
+/// Servicio de respaldo a la nube. Se sobrescribe en `bootstrap.dart` solo
+/// cuando hay servidor; sin él, la app no respalda sola y lo dice en Ajustes.
+final cloudBackupProvider = Provider<CloudBackupService?>((ref) => null);
+
+/// Estado del respaldo para la UI.
+final backupStateProvider = StreamProvider<BackupState>((ref) {
+  final service = ref.watch(cloudBackupProvider);
+  if (service == null) {
+    return Stream<BackupState>.value(
+      BackupUnavailable(
+        SupabaseConfig.unavailableReason ?? 'Sin servidor configurado.',
+      ),
+    );
+  }
+  return service.states.transform(
+    StreamTransformer<BackupState, BackupState>.fromHandlers(
+      handleData: (data, sink) => sink.add(data),
+    ),
+  );
+});

@@ -21,6 +21,7 @@ import '../../presentation/screens/profile/body_target_screens.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
 import '../../presentation/screens/progress/progress_screen.dart';
+import '../../presentation/screens/settings/cloud_backup_screen.dart';
 import '../../presentation/screens/settings/settings_screens.dart';
 import '../../presentation/screens/settings/updates_screen.dart';
 import '../../presentation/screens/settings/water_goal_screen.dart';
@@ -216,6 +217,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: Routes.cloudBackup,
+        builder: (context, state) => const CloudBackupScreen(),
       ),
       GoRoute(
         path: Routes.water,

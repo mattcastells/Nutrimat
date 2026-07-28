@@ -11,9 +11,7 @@ import 'package:nutrimat/domain/repositories/auth_gateway.dart';
 import 'package:nutrimat/domain/services/cloud_backup_service.dart';
 
 class _FakeAuth implements AuthGateway {
-  _FakeAuth({this.account = const AuthAccount(id: 'u1', email: 'yo@test')});
-
-  AuthAccount? account;
+  AuthAccount? account = const AuthAccount(id: 'u1', email: 'yo@test');
 
   @override
   AuthAccount? get currentAccount => account;
@@ -56,8 +54,6 @@ class _FakeClient implements CloudBackupClient {
   @override
   Future<CloudBackupInfo?> info(String userId) async => null;
 
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

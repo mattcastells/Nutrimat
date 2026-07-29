@@ -1,6 +1,6 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.4.3` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.5.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -30,13 +30,16 @@ visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
 borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
 nombre.
 
-Después, si hiciera falta: los datos se respaldan como un documento JSON en
-Storage, no como filas. Desde la 1.4.3 con **historial**: `{uid}/backup.json`
-es la última y `{uid}/history/backup-<fecha>.json` guarda las diez anteriores,
-que no se pisan nunca. Eso cubre no perder nada y cambiar de teléfono. Recién
-si se necesita consultar del lado del servidor —estadísticas, varios
-dispositivos a la vez— habría que pasar a sincronización relacional contra las
-24 tablas (13-state-management.md §5 y §8).
+**Verificar las filas contra uso real.** Desde la 1.5.0 los datos se guardan
+por **dos caminos a la vez**: el documento JSON en Storage (con historial de
+diez copias fechadas desde la 1.4.3) y **filas en las tablas**. El documento
+sigue siendo la fuente de verdad de la app; las filas se llenan en paralelo
+para poder compararlas sin arriesgar nada.
+
+Lo que falta es mirar unos días de uso y confirmar que las filas coinciden con
+el documento. Recién ahí se invierte la prioridad —que es cambiar el orden en
+`splash_screen.dart`, no una reescritura— y las tablas pasan a mandar
+(13-state-management.md §5 y §8).
 
 Para compilar con servidor hay que pasarle la config:
 
@@ -59,7 +62,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **227 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **235 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -112,8 +115,8 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 22 de 22 aplicadas |
-| Tablas | 24, **todas con RLS** |
+| Migraciones | 23 de 23 aplicadas |
+| Tablas | 25, **todas con RLS** — agua, sueño y recordatorios entraron en la 23; salieron cuatro de fuerza que nunca se usaron |
 | Políticas | 78, más 3 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
 | Pals | vínculo por código; `shared_days` es la **única** superficie compartida |
@@ -125,9 +128,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.4.3**.
+contra un Postgres limpio. Última publicada: **v1.5.0**.
 
-Publicar una versión es empujar un tag `v1.4.4`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.5.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -253,7 +256,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 227 tests
+flutter test                              # 235 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -268,12 +271,13 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. **Sincronización relacional** contra las 24 tablas. Sigue siendo el
-   trabajo grande pendiente: hoy todo cuelga de un documento JSON en Storage.
-   Desde la 1.4.3 ese documento tiene historial —diez copias fechadas, además
-   de la última— y no se sube nada que no se pueda releer, así que un error ya
-   no borra lo único que quedaba. Pero un solo mecanismo sigue siendo un solo
-   mecanismo.
+2. **Dar vuelta la fuente de verdad.** Desde la 1.5.0 cada cambio se escribe
+   en las tablas *además* del documento JSON, y al entrar con el teléfono
+   vacío los datos se traen de las tablas. Pero el documento **sigue siendo la
+   fuente de verdad de la app**: las filas se llenan en paralelo para poder
+   verificarlas contra uso real sin arriesgar nada. Cuando estén verificadas,
+   invertir la prioridad es cambiar el orden en `splash_screen.dart`, no una
+   reescritura.
 
 **Health Connect queda descartado**: con la app usada por una sola persona que
 carga sus actividades a mano, importar desde Samsung Health aporta poco y trae

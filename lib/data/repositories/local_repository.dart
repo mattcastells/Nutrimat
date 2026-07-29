@@ -1659,6 +1659,18 @@ class LocalRepository
     return summary;
   }
 
+  /// Aplica un documento ya armado, sin pasar por JSON.
+  ///
+  /// Lo usa la lectura desde las tablas: la sincronización relacional devuelve
+  /// exactamente la misma forma que el documento local, así que se aprovecha
+  /// la lectura tolerante de `restoreDocument` —un registro raro se saltea y
+  /// el resto sobrevive— en vez de escribir un segundo lector.
+  @override
+  Future<void> importDocument(Map<String, dynamic> document) async {
+    store.restoreDocument(document);
+    await _commit();
+  }
+
   Map<String, dynamic> _parseBackup(String json) {
     Map<String, dynamic> document;
     try {

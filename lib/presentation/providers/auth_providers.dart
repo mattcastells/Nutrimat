@@ -8,6 +8,7 @@ import '../../domain/models/pal.dart';
 import '../../domain/repositories/auth_gateway.dart';
 import '../../domain/services/cloud_backup_service.dart';
 import '../../domain/services/photo_sync_service.dart';
+import '../../domain/services/relational_sync_service.dart';
 
 /// Se sobrescribe en `bootstrap.dart` con la implementación que corresponda:
 /// Supabase si la compilación trae credenciales, local si no.
@@ -60,6 +61,10 @@ final backupStateProvider = StreamProvider<BackupState>((ref) {
     ),
   );
 });
+
+/// Persistencia relacional: las mismas cosas del respaldo, como filas en las
+/// tablas. Null sin servidor.
+final relationalSyncProvider = Provider<RelationalSyncService?>((ref) => null);
 
 /// Sube y sirve las fotos del bucket. Null sin servidor: las fotos quedan
 /// solo en este teléfono.

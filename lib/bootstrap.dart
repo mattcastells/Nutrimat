@@ -16,6 +16,7 @@ import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/gemini_analysis_client.dart';
 import 'data/remote/pals_client.dart';
 import 'data/remote/photo_storage_client.dart';
+import 'data/remote/relational_sync_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
 import 'data/remote/usda_food_client.dart';
 import 'data/repositories/local_repository.dart';
@@ -24,6 +25,7 @@ import 'domain/repositories/auth_gateway.dart';
 import 'domain/services/cloud_backup_service.dart';
 import 'domain/services/pal_publisher.dart';
 import 'domain/services/photo_sync_service.dart';
+import 'domain/services/relational_sync_service.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/reminder_providers.dart';
@@ -86,6 +88,18 @@ Future<void> bootstrap() async {
         )
       : null;
 
+  // Persistencia relacional: lo mismo que va al respaldo JSON, además como
+  // filas en las tablas. Los dos escriben en paralelo; el documento sigue
+  // siendo la fuente de verdad hasta que las filas estén verificadas contra
+  // varios días de uso real.
+  final RelationalSyncService? relationalSync = SupabaseConfig.isConfigured
+      ? RelationalSyncService(
+          client: RelationalSyncClient.fromInstance(),
+          auth: auth,
+          store: store,
+        )
+      : null;
+
   // Lo que ven los pals. Se arma acá y no en el repositorio para que quede a
   // la vista qué se publica: momento, nombre y calorías por comida, más
   // minutos y sesiones. Nada de peso, medidas, ítems ni fotos.
@@ -109,6 +123,7 @@ Future<void> bootstrap() async {
     onChanged: () {
       notify();
       backup?.markDirty();
+      relationalSync?.markDirty();
       palPublisher?.markDirty();
     },
   );
@@ -147,6 +162,8 @@ Future<void> bootstrap() async {
       repositoryProvider.overrideWithValue(repository),
       authGatewayProvider.overrideWithValue(auth),
       if (backup != null) cloudBackupProvider.overrideWithValue(backup),
+      if (relationalSync != null)
+        relationalSyncProvider.overrideWithValue(relationalSync),
       if (photos != null) photoSyncProvider.overrideWithValue(photos),
       if (palsClient != null) palsClientProvider.overrideWithValue(palsClient),
       if (reminderScheduler != null)

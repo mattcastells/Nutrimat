@@ -382,6 +382,10 @@ abstract interface class BackupRepository {
 
   /// Reemplaza el contenido local por el del respaldo.
   Future<BackupSummary> importJson(String json);
+
+  /// Aplica un documento ya armado. Lo usa la lectura desde las tablas, que
+  /// devuelve la misma forma que el documento del respaldo.
+  Future<void> importDocument(Map<String, dynamic> document);
 }
 
 abstract interface class ConnectivityRepository {

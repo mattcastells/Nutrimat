@@ -17,8 +17,10 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/ai_analysis.dart';
+import '../../../domain/models/analysis_stage.dart';
 import '../../../domain/models/meal.dart';
 import '../../components/activity/badges.dart';
+import '../../components/feedback/analysis_progress.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/food_widgets.dart';
 import '../../components/system/buttons.dart';
@@ -231,11 +233,26 @@ class PhotoAnalyzingScreen extends ConsumerStatefulWidget {
 
 class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
     with SingleTickerProviderStateMixin {
+  /// Qué se cuenta mientras el modelo trabaja, y desde qué segundo.
+  ///
+  /// Los cortes salen de medir el circuito real, no de tantear: la mediana de
+  /// la llamada es 12,3 s y el percentil 90 está en 24,9 s (`AnalysisTiming`).
+  ///
+  /// El aviso de demora estaba en 15 s y **saltaba durante el funcionamiento
+  /// normal**: a los 15 s la mitad de los análisis buenos siguen corriendo. Un
+  /// cartel de alarma que aparece cuando todo va bien enseña a ignorarlo, así
+  /// que se corrió al percentil 90 — recién ahí es cierto que se demora.
+  ///
+  /// Los tiempos son relativos al inicio del paso `analyzing`: preparar y
+  /// subir tienen su propio texto, que sale de `AnalysisStage`.
   static const List<(int, String)> _phases = <(int, String)>[
-    (0, 'Buscando alimentos…'),
-    (2500, 'Estimando porciones…'),
-    (6000, 'Casi listo'),
-    (15000, 'Está tardando más de lo normal'),
+    (0, 'Buscando alimentos en la foto…'),
+    (2500, 'Reconociendo las preparaciones…'),
+    (5000, 'Estimando el tamaño de las porciones…'),
+    (8000, 'Calculando calorías y macros…'),
+    (11000, 'Revisando que los números cierren…'),
+    (14500, 'Terminando'),
+    (24900, 'Está tardando más de lo normal'),
   ];
 
   late final AnimationController _sweep = AnimationController(
@@ -246,6 +263,11 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   final List<Timer> _timers = <Timer>[];
   String _phase = _phases.first.$2;
   bool _cancelled = false;
+
+  /// En qué paso real va el circuito, y desde cuándo. Los dos alimentan la
+  /// barra: el paso da el tramo y el reloj estima dentro de él.
+  AnalysisStage _stage = AnalysisStage.preparing;
+  DateTime _stageStartedAt = DateTime.now();
 
   /// Qué falló. Sin esto, un análisis que se cae dejaba la pantalla girando
   /// para siempre en "Está tardando más de lo normal": `analyze` lanzaba, nadie
@@ -265,6 +287,22 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
       timer.cancel();
     }
     _timers.clear();
+    _stage = AnalysisStage.preparing;
+    _stageStartedAt = DateTime.now();
+
+    // Un tick corto mantiene viva la estimación del tramo del modelo. No es
+    // una animación: es el reloj real contra el que se dibuja la barra.
+    _timers.add(
+      Timer.periodic(const Duration(milliseconds: 250), (_) {
+        if (mounted && _error == null) setState(() {});
+      }),
+    );
+    unawaited(_run());
+  }
+
+  /// Arranca los mensajes recién cuando empieza el trabajo del modelo: contar
+  /// "estimando porciones" mientras todavía se sube la foto sería inventar.
+  void _startPhaseMessages() {
     for (final phase in _phases.skip(1)) {
       _timers.add(
         Timer(Duration(milliseconds: phase.$1), () {
@@ -272,18 +310,28 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
         }),
       );
     }
-    unawaited(_run());
+  }
+
+  void _onStage(AnalysisStage stage) {
+    if (!mounted) return;
+    setState(() {
+      _stage = stage;
+      _stageStartedAt = DateTime.now();
+      if (stage == AnalysisStage.analyzing) {
+        _phase = _phases.first.$2;
+        _startPhaseMessages();
+      }
+    });
   }
 
   Future<void> _run() async {
     final path = ref.read(photoPathProvider);
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (!mounted || _cancelled) return;
 
     try {
       final analysis = await ref
           .read(repositoryProvider)
-          .analyze(photoPath: path ?? '');
+          .analyze(photoPath: path ?? '', onStage: _onStage);
       if (!mounted || _cancelled) return;
 
       ref.read(analysisProvider.notifier).state = analysis;
@@ -414,19 +462,37 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                   },
                 ),
               ] else ...<Widget>[
+                AnalysisProgress(
+                  stage: _stage,
+                  elapsedInStage: DateTime.now().difference(_stageStartedAt),
+                ),
+                const SizedBox(height: NmSpace.s5),
                 Semantics(
                   liveRegion: true,
                   child: AnimatedSwitcher(
                     duration: context.motion.fade(NmMotion.fast),
                     child: Text(
-                      _phase,
-                      key: ValueKey<String>(_phase),
+                      _stage == AnalysisStage.analyzing
+                          ? _phase
+                          : _stage.label,
+                      key: ValueKey<String>(
+                        _stage == AnalysisStage.analyzing
+                            ? _phase
+                            : _stage.label,
+                      ),
                       style: NmTextStyles.from(NmType.h3, color: nm.text),
                     ),
                   ),
                 ),
-                const SizedBox(height: NmSpace.s4),
-                const SkeletonList(rows: 3, withAvatar: false),
+                const SizedBox(height: NmSpace.s3),
+                Text(
+                  'El tiempo restante es una estimación: cuánto tarda el '
+                  'modelo no lo decidimos nosotros.',
+                  style: NmTextStyles.from(
+                    NmType.caption,
+                    color: nm.textMuted,
+                  ),
+                ),
                 const SizedBox(height: NmSpace.s6),
                 NmButton.secondary(
                   label: 'Cancelar',
@@ -657,7 +723,15 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   }
 }
 
-class _AiItemRow extends StatelessWidget {
+/// Una fila editable del análisis.
+///
+/// Tiene que ser `StatefulWidget` y el controlador vivir acá adentro. Antes se
+/// creaba un `TextEditingController` nuevo **en cada build**, y como cada tecla
+/// dispara un `setState` del padre, pasaba esto: se rehacía el campo, el texto
+/// se volvía a calcular desde la cantidad ya modificada y el cursor saltaba al
+/// principio. Escribir "150" daba cualquier cosa menos 150, y encima cada
+/// controlador quedaba sin liberar.
+class _AiItemRow extends StatefulWidget {
   const _AiItemRow({
     required this.item,
     required this.onChanged,
@@ -669,8 +743,54 @@ class _AiItemRow extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
+  State<_AiItemRow> createState() => _AiItemRowState();
+}
+
+class _AiItemRowState extends State<_AiItemRow> {
+  late final TextEditingController _quantity = TextEditingController(
+    text: _format(widget.item.quantity),
+  );
+
+  /// La cantidad con la que se calcularon los macros que están en pantalla.
+  /// Se guarda al empezar a editar para que reescalar sea siempre contra el
+  /// original y no contra el resultado del tecleo anterior.
+  late final double _base = widget.item.quantity;
+  late final AiAnalysisItem _baseItem = widget.item;
+
+  static String _format(double q) => q == q.roundToDouble()
+      ? q.toInt().toString()
+      : q.toString().replaceAll('.', ',');
+
+  @override
+  void dispose() {
+    _quantity.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String raw) {
+    final parsed = double.tryParse(raw.replaceAll(',', '.'));
+    // Campo vacío o a medio escribir ("1," mientras se tipea "1,5"): no se
+    // toca nada todavía. Antes cualquier tecla intermedia reescalaba los
+    // macros y el número quedaba arrastrado.
+    if (parsed == null || parsed <= 0) return;
+    if (_base <= 0) return;
+
+    final ratio = parsed / _base;
+    widget.onChanged(
+      _baseItem.copyWith(
+        quantity: parsed,
+        kcal: (_baseItem.kcal * ratio).round(),
+        proteinG: _baseItem.proteinG * ratio,
+        carbsG: _baseItem.carbsG * ratio,
+        fatG: _baseItem.fatG * ratio,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final nm = context.nm;
+    final item = widget.item;
     final low = item.confidence < 0.5;
 
     return Padding(
@@ -690,7 +810,7 @@ class _AiItemRow extends StatelessWidget {
                 ConfidenceBadge(value: item.confidence),
                 NmIconButton(
                   icon: PhosphorIcons.trash(),
-                  onPressed: onRemove,
+                  onPressed: widget.onRemove,
                   tooltip: 'Quitar ${item.name}',
                   size: NmIconSize.md,
                 ),
@@ -702,30 +822,12 @@ class _AiItemRow extends StatelessWidget {
                 Expanded(
                   child: NmTextField(
                     label: 'Cantidad',
-                    value: item.quantity.toString(),
-                    controller: TextEditingController(
-                      text: item.quantity == item.quantity.roundToDouble()
-                          ? item.quantity.toInt().toString()
-                          : item.quantity.toString(),
-                    ),
+                    controller: _quantity,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     error: low ? 'Revisá esta cantidad' : null,
-                    onChanged: (raw) {
-                      final parsed = double.tryParse(raw.replaceAll(',', '.'));
-                      if (parsed == null || parsed <= 0) return;
-                      final ratio = parsed / item.quantity;
-                      onChanged(
-                        item.copyWith(
-                          quantity: parsed,
-                          kcal: (item.kcal * ratio).round(),
-                          proteinG: item.proteinG * ratio,
-                          carbsG: item.carbsG * ratio,
-                          fatG: item.fatG * ratio,
-                        ),
-                      );
-                    },
+                    onChanged: _onChanged,
                   ),
                 ),
                 const SizedBox(width: NmSpace.s3),

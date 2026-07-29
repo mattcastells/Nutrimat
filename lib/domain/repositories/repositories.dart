@@ -4,6 +4,7 @@ import '../calculations/duplicate_score.dart';
 import '../enums/enums.dart';
 import '../models/activity.dart';
 import '../models/ai_analysis.dart';
+import '../models/analysis_stage.dart';
 import '../models/body.dart';
 import '../models/food.dart';
 import '../models/goal.dart';
@@ -322,7 +323,12 @@ abstract interface class AiPhotoRepository {
   /// Cuota diaria de análisis (D-18).
   int get quotaLimit;
   int get quotaUsed;
-  Future<AiAnalysis> analyze({required String photoPath});
+  /// [onStage] avisa en qué paso real va el circuito, para que la pantalla de
+  /// espera muestre lo que está pasando y no una animación decorativa.
+  Future<AiAnalysis> analyze({
+    required String photoPath,
+    void Function(AnalysisStage stage)? onStage,
+  });
 
   /// Estima una comida a partir de una descripción escrita. Comparte la cuota
   /// diaria con el análisis por foto: las dos gastan lo mismo del proveedor.

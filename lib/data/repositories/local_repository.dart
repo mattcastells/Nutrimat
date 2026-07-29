@@ -14,6 +14,7 @@ import '../../domain/calculations/pace_met.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
 import '../../domain/models/ai_analysis.dart';
+import '../../domain/models/analysis_stage.dart';
 import '../../domain/models/body.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
@@ -1536,13 +1537,18 @@ class LocalRepository
   }
 
   @override
-  Future<AiAnalysis> analyze({required String photoPath}) async {
+  Future<AiAnalysis> analyze({
+    required String photoPath,
+    void Function(AnalysisStage stage)? onStage,
+  }) async {
     final client = aiAnalysis;
     if (client != null) {
+      onStage?.call(AnalysisStage.preparing);
       // La foto tiene que estar en el bucket antes: la función la descarga de
       // ahí. Si la subida falló, esto devuelve la ruta local y la función
       // responde "no encontramos esa foto", que es correcto y se muestra tal
       // cual.
+      onStage?.call(AnalysisStage.uploading);
       final remotePath =
           await photos?.ensureUploaded(
             bucket: PhotoBucket.meal,
@@ -1552,6 +1558,7 @@ class LocalRepository
           ) ??
           photoPath;
 
+      onStage?.call(AnalysisStage.analyzing);
       final analysis = await client.analyze(photoPath: remotePath);
       _quotaUsed++;
       return analysis;

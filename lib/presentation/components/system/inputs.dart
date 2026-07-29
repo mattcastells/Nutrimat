@@ -14,7 +14,6 @@ class NmTextField extends StatelessWidget {
   const NmTextField({
     required this.label,
     this.controller,
-    this.value,
     this.onChanged,
     this.error,
     this.hint,
@@ -36,8 +35,12 @@ class NmTextField extends StatelessWidget {
   });
 
   final String label;
+  /// El controlador lo pone quien usa el campo, y **tiene que sobrevivir a los
+  /// rebuilds**: crearlo dentro de un `build` hace que cada tecla lo reemplace
+  /// y el cursor vuelva al principio. Antes había además un parámetro `value`
+  /// que no se usaba en ningún lado y sugería que se podía manejar el texto
+  /// sin controlador; se sacó para que no invite a repetir el error.
   final TextEditingController? controller;
-  final String? value;
   final ValueChanged<String>? onChanged;
   final String? error;
   final String? hint;

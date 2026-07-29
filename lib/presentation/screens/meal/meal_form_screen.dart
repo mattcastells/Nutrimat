@@ -18,6 +18,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import 'edit_portion_sheet.dart';
 import 'meal_draft.dart';
 
 /// S-15 · Nueva comida. Compone una comida a partir de ítems.
@@ -220,11 +221,28 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                           NmCard(
                             child: Column(
                               children: <Widget>[
-                                for (final item in draft.items)
+                                for (var i = 0; i < draft.items.length; i++)
                                   MealItemRow(
-                                    item: item,
-                                    onRemove: () =>
-                                        controller.removeItem(item.id),
+                                    item: draft.items[i],
+                                    // El lápiz existía en el componente y
+                                    // nadie se lo pasaba, así que la cantidad
+                                    // de un ítem ya cargado no se podía
+                                    // corregir: había que borrarlo y volver a
+                                    // buscarlo. Es lo primero que uno quiere
+                                    // hacer con lo que estima la IA.
+                                    onEditPortion: () async {
+                                      final index = i;
+                                      final editado =
+                                          await showEditPortionSheet(
+                                            context,
+                                            item: draft.items[index],
+                                          );
+                                      if (editado == null) return;
+                                      controller.replaceItem(index, editado);
+                                    },
+                                    onRemove: () => controller.removeItem(
+                                      draft.items[i].id,
+                                    ),
                                   ),
                               ],
                             ),

@@ -140,6 +140,13 @@ abstract interface class MealRepository {
   Future<Meal> duplicateMeal(String id, DateTime date, MealSlot slot);
   Future<void> toggleMealFavorite(String id);
   List<Meal> favoriteMeals();
+
+  /// Las comidas que se repiten, para volver a cargarlas en dos toques.
+  /// Con [slot] se prioriza el del momento sin esconder las de otros.
+  List<Meal> frequentMeals({MealSlot? slot, int limit});
+
+  /// Cuántas veces se registró una comida con ese título.
+  int mealUseCount(Meal meal);
 }
 
 abstract interface class ActivityRepository {
@@ -316,6 +323,10 @@ abstract interface class AiPhotoRepository {
   int get quotaLimit;
   int get quotaUsed;
   Future<AiAnalysis> analyze({required String photoPath});
+
+  /// Estima una comida a partir de una descripción escrita. Comparte la cuota
+  /// diaria con el análisis por foto: las dos gastan lo mismo del proveedor.
+  Future<AiAnalysis> analyzeText({required String description});
 }
 
 /// Qué trajo un archivo de respaldo, para poder contarlo antes y después.

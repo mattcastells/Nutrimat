@@ -1,0 +1,4538 @@
+[
+ {
+  "id": "argenfoods:164",
+  "name": "Abadejo, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 72,
+  "proteinG": 15.8,
+  "carbsG": 0.2,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:148",
+  "name": "Aceite comestible mezcla Lira, 85% girasol, 15% oliva",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:149",
+  "name": "Aceite comestible mezcla Patito, 94% girasol, 6% maiz",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:150",
+  "name": "Aceite de canola",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:151",
+  "name": "Aceite de girasol Familiar",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:152",
+  "name": "Aceite de girasol Ideal",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:153",
+  "name": "Aceite de girasol Natura",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:154",
+  "name": "Aceite de maiz Arcor",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:155",
+  "name": "Aceite de maiz Cocinero",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:156",
+  "name": "Aceite de maiz Mazzola",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:157",
+  "name": "Aceite de oliva Cocinero",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:158",
+  "name": "Aceite de uva Cocinero",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 900,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 100,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:496",
+  "name": "Aceituna de monte",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 93,
+  "proteinG": 1.6,
+  "carbsG": 19.4,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:119",
+  "name": "Aceituna verde, pulpa, encurtida",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 144,
+  "proteinG": 1.5,
+  "carbsG": 4,
+  "fatG": 13.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:484",
+  "name": "Amaranto, semilla, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 384,
+  "proteinG": 15.3,
+  "carbsG": 63.6,
+  "fatG": 7.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:486",
+  "name": "Amaranto, semilla, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 381,
+  "proteinG": 14.4,
+  "carbsG": 64.3,
+  "fatG": 7.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:483",
+  "name": "Amaranto, semilla, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 388,
+  "proteinG": 15.4,
+  "carbsG": 62.7,
+  "fatG": 8.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:485",
+  "name": "Amaranto, semillia, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 384,
+  "proteinG": 15.6,
+  "carbsG": 63.4,
+  "fatG": 7.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:398",
+  "name": "Amarillo, fresco, a la parrilla, músculo dorsal Pimedolus clarias maculatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 183,
+  "proteinG": 21.3,
+  "carbsG": 2.2,
+  "fatG": 10.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:397",
+  "name": "Amarillo, fresco, al horno, músculo dorsal Pimedolus clarias maculatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 233,
+  "proteinG": 19.9,
+  "carbsG": 2,
+  "fatG": 17,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:395",
+  "name": "Amarillo, fresco, crudo, músculo dorsal Pimedolus clarias maculatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 141,
+  "proteinG": 17.3,
+  "carbsG": 1.1,
+  "fatG": 8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:399",
+  "name": "Amarillo, fresco, frito, músculo dorsal Pimedolus clarias maculatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 232,
+  "proteinG": 22.8,
+  "carbsG": 1.9,
+  "fatG": 15.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:396",
+  "name": "Amarillo, fresco, hervido, músculo dorsal Pimedolus clarias maculatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 180,
+  "proteinG": 18.7,
+  "carbsG": 1.1,
+  "fatG": 11.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:121",
+  "name": "Ananá enlatado, contenido envase",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 87,
+  "proteinG": 0.4,
+  "carbsG": 21.1,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:120",
+  "name": "Ananá, pulpa, fresco",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 58,
+  "proteinG": 0.4,
+  "carbsG": 13.7,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:211",
+  "name": "Ancho, pasta",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 202,
+  "proteinG": 20.2,
+  "carbsG": 4.3,
+  "fatG": 11.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:165",
+  "name": "Anchoa, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 92,
+  "proteinG": 21.5,
+  "carbsG": 0.5,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:166",
+  "name": "Anchoita, fresca, cruda, carne Engraulis anchoita hubbs larini",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 129,
+  "proteinG": 19.2,
+  "carbsG": 0.8,
+  "fatG": 5.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:403",
+  "name": "Armado, fresco, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 128,
+  "proteinG": 23.7,
+  "carbsG": 1.9,
+  "fatG": 3.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:400",
+  "name": "Armado, fresco, crudo, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 75,
+  "proteinG": 15.4,
+  "carbsG": 1.2,
+  "fatG": 1.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:401",
+  "name": "Armado, fresco, crudo, músculo ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 103,
+  "proteinG": 14.6,
+  "carbsG": 1,
+  "fatG": 4.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:404",
+  "name": "Armado, fresco, frito, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 130,
+  "proteinG": 21.4,
+  "carbsG": 2.2,
+  "fatG": 4.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:402",
+  "name": "Armado, fresco, hervido, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 102,
+  "proteinG": 20.8,
+  "carbsG": 1.2,
+  "fatG": 2.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:1",
+  "name": "Arroz, grano, blanco, pulido, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 339,
+  "proteinG": 6.9,
+  "carbsG": 79.2,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:2",
+  "name": "Arroz, grano, blanco, pulido, hervido",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 82,
+  "proteinG": 1.4,
+  "carbsG": 19.4,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:3",
+  "name": "Avena , grano, arrollada, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 383,
+  "proteinG": 15.6,
+  "carbsG": 62.5,
+  "fatG": 7.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:4",
+  "name": "Avena, grano, arrollada, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 343,
+  "proteinG": 12.8,
+  "carbsG": 56.9,
+  "fatG": 7.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:5",
+  "name": "Avena, grano, arrollada, hervida",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 86,
+  "proteinG": 3.8,
+  "carbsG": 15.8,
+  "fatG": 1.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:122",
+  "name": "Banana, pulpa, fresca",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 99,
+  "proteinG": 1.2,
+  "carbsG": 23,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:167",
+  "name": "Besugo, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 100,
+  "proteinG": 20.4,
+  "carbsG": 0,
+  "fatG": 2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:242",
+  "name": "Bife, cocido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 233,
+  "proteinG": 36,
+  "carbsG": 0.1,
+  "fatG": 9.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:250",
+  "name": "Bife, cocido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 236,
+  "proteinG": 36.5,
+  "carbsG": 0.3,
+  "fatG": 9.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:243",
+  "name": "Bife, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 120,
+  "proteinG": 20.7,
+  "carbsG": 4.3,
+  "fatG": 2.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:251",
+  "name": "Bife, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 120,
+  "proteinG": 21.1,
+  "carbsG": 3.2,
+  "fatG": 2.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:408",
+  "name": "Boga, fresca, a la parrilla, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 150,
+  "proteinG": 23.7,
+  "carbsG": 2,
+  "fatG": 6.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:407",
+  "name": "Boga, fresca, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 150,
+  "proteinG": 25.1,
+  "carbsG": 2.4,
+  "fatG": 5.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:405",
+  "name": "Boga, fresca, cruda, músculo ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 180,
+  "proteinG": 18.5,
+  "carbsG": 1.2,
+  "fatG": 11.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:409",
+  "name": "Boga, fresca, frita, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 168,
+  "proteinG": 24.3,
+  "carbsG": 2.4,
+  "fatG": 7.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:406",
+  "name": "Boga, fresca, hervida, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 158,
+  "proteinG": 22.7,
+  "carbsG": 1.1,
+  "fatG": 7.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:169",
+  "name": "Bonito, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 219,
+  "proteinG": 22,
+  "carbsG": 0,
+  "fatG": 14.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:170",
+  "name": "Brótola, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 83,
+  "proteinG": 17.6,
+  "carbsG": 0.4,
+  "fatG": 1.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:171",
+  "name": "Caballa, fresca, cruda, carne Pneumatophorus japonicus marplatensis",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 232,
+  "proteinG": 22,
+  "carbsG": 0.4,
+  "fatG": 15.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:212",
+  "name": "Caballa, tronco Scomber japonicus marplatensis",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 212,
+  "proteinG": 26.5,
+  "carbsG": 0,
+  "fatG": 11.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:203",
+  "name": "Calamar, fresco, crudo (tubo aletas y tentáculos)",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 79,
+  "proteinG": 18.4,
+  "carbsG": 0,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:202",
+  "name": "Calamar, fresco, entero, crudo",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 80,
+  "proteinG": 18.5,
+  "carbsG": 0,
+  "fatG": 0.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:204",
+  "name": "Camarón, fresco, crudo, carne de cola",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 91,
+  "proteinG": 21,
+  "carbsG": 0,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:173",
+  "name": "Castañeta, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 95,
+  "proteinG": 18.4,
+  "carbsG": 0.3,
+  "fatG": 2.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:172",
+  "name": "Castañeta, fresca, cruda, entera",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 170,
+  "proteinG": 17,
+  "carbsG": 0.5,
+  "fatG": 11.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:7",
+  "name": "Cebada, grano, mondado, perlado, hervido",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 82,
+  "proteinG": 3.8,
+  "carbsG": 19.3,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:9",
+  "name": "Centeno, harina, clara, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 332,
+  "proteinG": 8.9,
+  "carbsG": 78.5,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:206",
+  "name": "Centolla, fresca (carne de pata solamente)",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 83,
+  "proteinG": 18.8,
+  "carbsG": 0,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:205",
+  "name": "Centolla, fresca, carne, cruda",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 66,
+  "proteinG": 13.9,
+  "carbsG": 0,
+  "fatG": 1.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:218",
+  "name": "Cerdo, chorizo, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 454,
+  "proteinG": 13,
+  "carbsG": 1.1,
+  "fatG": 44.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:213",
+  "name": "Cerdo, costilla flaca, cruda",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 250,
+  "proteinG": 19.9,
+  "carbsG": 0,
+  "fatG": 18.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:214",
+  "name": "Cerdo, costilla, a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 320,
+  "proteinG": 25.2,
+  "carbsG": 0,
+  "fatG": 24.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:216",
+  "name": "Cerdo, jamón cocido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 211,
+  "proteinG": 20.3,
+  "carbsG": 0,
+  "fatG": 14.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:215",
+  "name": "Cerdo, jamón crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 473,
+  "proteinG": 18,
+  "carbsG": 0,
+  "fatG": 44.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:217",
+  "name": "Cerdo, panceta",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 670,
+  "proteinG": 8.3,
+  "carbsG": 0,
+  "fatG": 70.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:123",
+  "name": "Cereza, pulpa, fresca Prunus avium L",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 68,
+  "proteinG": 1.1,
+  "carbsG": 14.8,
+  "fatG": 0.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:125",
+  "name": "Ciruela, pasa, cruda Prunus domestica L",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 255,
+  "proteinG": 1.9,
+  "carbsG": 61.6,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:126",
+  "name": "Ciruela, pasa, hervida Prunus domestica L",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 165,
+  "proteinG": 1,
+  "carbsG": 40.1,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:124",
+  "name": "Ciruela, pulpa, fresca Prunus domestica L",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 56,
+  "proteinG": 0.7,
+  "carbsG": 12.9,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:127",
+  "name": "Coco, pulpa, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 382,
+  "proteinG": 3.4,
+  "carbsG": 14,
+  "fatG": 34.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:174",
+  "name": "Congrio, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 107,
+  "proteinG": 17.2,
+  "carbsG": 0.7,
+  "fatG": 4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:219",
+  "name": "Cordero, carne de la paleta, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 99,
+  "proteinG": 18.7,
+  "carbsG": 0,
+  "fatG": 2.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:220",
+  "name": "Cordero, carne de la paleta, flaca, a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 182,
+  "proteinG": 28,
+  "carbsG": 0,
+  "fatG": 7.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:175",
+  "name": "Cornalito, fresco, crudo, entero",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 86,
+  "proteinG": 16,
+  "carbsG": 0.6,
+  "fatG": 2.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:176",
+  "name": "Corvina blanca, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 97,
+  "proteinG": 19.5,
+  "carbsG": 0.4,
+  "fatG": 1.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:177",
+  "name": "Corvina negra, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 84,
+  "proteinG": 18.8,
+  "carbsG": 0.4,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:128",
+  "name": "Damasco, pulpa, fresco, crudo Prunus Armeniaca L.",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 57,
+  "proteinG": 1,
+  "carbsG": 12.9,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:542",
+  "name": "Doca",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 49,
+  "proteinG": 1.6,
+  "carbsG": 11.5,
+  "fatG": 1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:179",
+  "name": "Dorado, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 80,
+  "proteinG": 18.8,
+  "carbsG": 0.1,
+  "fatG": 0.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:130",
+  "name": "Durazno, pulpa, envasado al natural",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 75,
+  "proteinG": 0.4,
+  "carbsG": 18.2,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:129",
+  "name": "Durazno, pulpa, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 51,
+  "proteinG": 0.5,
+  "carbsG": 12,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:132",
+  "name": "Frutilla pulpa, fresca, cruda Fragarta h chiloensis Duch Var, ananassa B.",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 41,
+  "proteinG": 0.8,
+  "carbsG": 8.1,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:180",
+  "name": "Gatuso, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 72,
+  "proteinG": 17.4,
+  "carbsG": 0.1,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:133",
+  "name": "Granada, pulpa, fresca",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 75,
+  "proteinG": 0.6,
+  "carbsG": 17.7,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:159",
+  "name": "Grasa de cerdo",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 898,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 99.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:160",
+  "name": "Grasa Vacuna",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 899,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 99.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:497",
+  "name": "Guaraniná, Brumelia obtusifolia",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 147,
+  "proteinG": 1.6,
+  "carbsG": 23.7,
+  "fatG": 3.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:558",
+  "name": "Hamburguesas light asada",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 199,
+  "proteinG": 21,
+  "carbsG": 2.7,
+  "fatG": 12.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:134",
+  "name": "Higo, pulpa, fresca",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 88,
+  "proteinG": 1.4,
+  "carbsG": 19.6,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:350",
+  "name": "Huevo de codorniz, entero, crudo",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 174,
+  "proteinG": 13.6,
+  "carbsG": 0.1,
+  "fatG": 13.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:347",
+  "name": "Huevo de gallina, clara, cocido",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 54,
+  "proteinG": 12.8,
+  "carbsG": 0,
+  "fatG": 0.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:345",
+  "name": "Huevo de gallina, clara, cruda",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 48,
+  "proteinG": 11.6,
+  "carbsG": 0,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:344",
+  "name": "Huevo de gallina, entero, crudo",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 156,
+  "proteinG": 12,
+  "carbsG": 0.4,
+  "fatG": 11.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:348",
+  "name": "Huevo de gallina, frito",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 196,
+  "proteinG": 16.3,
+  "carbsG": 0,
+  "fatG": 14.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:349",
+  "name": "Huevo de gallina, poché",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 152,
+  "proteinG": 13.4,
+  "carbsG": 0,
+  "fatG": 10.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:346",
+  "name": "Huevo de gallina, yema, cruda",
+  "source": "argenfoods",
+  "category": "Huevos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 325,
+  "proteinG": 16.6,
+  "carbsG": 0,
+  "fatG": 28.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:522",
+  "name": "Jamon cocido \"Villafranca Novissimo\".El Bierzo. Reducido en colesterol",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 98,
+  "proteinG": 18,
+  "carbsG": 3.1,
+  "fatG": 2.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:181",
+  "name": "Jurel, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 149,
+  "proteinG": 19,
+  "carbsG": 0.2,
+  "fatG": 8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:135",
+  "name": "Kaki, pulpa, fresco Diospyrus Kaki L.",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 87,
+  "proteinG": 0.8,
+  "carbsG": 20,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:136",
+  "name": "Kinoto, pulpa y cáscara, fresco, crudo Fortunella spp.",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 73,
+  "proteinG": 0.9,
+  "carbsG": 17.1,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:207",
+  "name": "Langostino, fresco, crudo, carne de cola",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 97,
+  "proteinG": 22,
+  "carbsG": 0.2,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:182",
+  "name": "Lenguado, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 78,
+  "proteinG": 17.5,
+  "carbsG": 0.2,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:137",
+  "name": "Limón, pulpa, fresco",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 44,
+  "proteinG": 0.9,
+  "carbsG": 8.7,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:183",
+  "name": "Lisa, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 146,
+  "proteinG": 17.9,
+  "carbsG": 1.1,
+  "fatG": 7.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:523",
+  "name": "Lomo ahumado de cerdo cocido \"Villafranca Novissimo\". El Bierzo. Reducido en sodio y en colesterol",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 95,
+  "proteinG": 19,
+  "carbsG": 4.3,
+  "fatG": 2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:490",
+  "name": "Maiz amarillo, pisingallo, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 345,
+  "proteinG": 10.9,
+  "carbsG": 74.6,
+  "fatG": 0.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:488",
+  "name": "Maiz, amarillo Leales, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 346,
+  "proteinG": 10.6,
+  "carbsG": 74.1,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:489",
+  "name": "Maiz, amarillo trópico 327, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 344,
+  "proteinG": 9.8,
+  "carbsG": 73.6,
+  "fatG": 1.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:487",
+  "name": "Maiz, blanco 8 rayas, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 340,
+  "proteinG": 7.3,
+  "carbsG": 77.7,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:482",
+  "name": "Maiz, blanco perla, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 335,
+  "proteinG": 9,
+  "carbsG": 74.8,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:12",
+  "name": "Maiz, choclo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 97,
+  "proteinG": 3.7,
+  "carbsG": 20.5,
+  "fatG": 1.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:13",
+  "name": "Maiz, grano, entero (Zea mays spp)",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 346,
+  "proteinG": 9.5,
+  "carbsG": 74.9,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:14",
+  "name": "Maiz, harina amarilla (polenta), cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 369,
+  "proteinG": 11.1,
+  "carbsG": 73.9,
+  "fatG": 3.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:16",
+  "name": "Maiz, harina amarilla (polenta), hervida",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 68,
+  "proteinG": 3.2,
+  "carbsG": 13.7,
+  "fatG": 0.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:17",
+  "name": "Maiz, pan",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 275,
+  "proteinG": 9.1,
+  "carbsG": 53.2,
+  "fatG": 2.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:138",
+  "name": "Manzana, pulpa, fresca, cruda",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 64,
+  "proteinG": 0.3,
+  "carbsG": 14.9,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:162",
+  "name": "Margarina 100% vegetal Delicia",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 747,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 83,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:161",
+  "name": "Margarina 100% vegetal Manty (en pote y en pan)",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 747,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 83,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:163",
+  "name": "Margarina reducida en calorias",
+  "source": "argenfoods",
+  "category": "Grasas y aceites",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 504,
+  "proteinG": 0,
+  "carbsG": 0,
+  "fatG": 56,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:209",
+  "name": "Mejillón, fresco, crudo (capturado en primavera) Mytilus platensis spp",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 95,
+  "proteinG": 17.6,
+  "carbsG": 2.5,
+  "fatG": 1.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:208",
+  "name": "Mejillón, fresco, crudo, carne Mytilus platensis spp",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 64,
+  "proteinG": 11.9,
+  "carbsG": 1.7,
+  "fatG": 1.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:140",
+  "name": "Melón, pulpa, fresco",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 28,
+  "proteinG": 0.6,
+  "carbsG": 5.9,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:141",
+  "name": "Membrillo, pulpa, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 58,
+  "proteinG": 0.3,
+  "carbsG": 13.9,
+  "fatG": 0.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:184",
+  "name": "Merluza, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 81,
+  "proteinG": 17.1,
+  "carbsG": 0.1,
+  "fatG": 1.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:185",
+  "name": "Mero, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 83,
+  "proteinG": 17.9,
+  "carbsG": 0.5,
+  "fatG": 1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:413",
+  "name": "Moncholo, fresco, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 189,
+  "proteinG": 22,
+  "carbsG": 1.9,
+  "fatG": 11.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:410",
+  "name": "Moncholo, fresco, crudo, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 112,
+  "proteinG": 17.5,
+  "carbsG": 1.1,
+  "fatG": 4.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:411",
+  "name": "Moncholo, fresco, crudo, músculo ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 148,
+  "proteinG": 16.7,
+  "carbsG": 1.1,
+  "fatG": 9.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:412",
+  "name": "Moncholo, fresco, hervido, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 187,
+  "proteinG": 16.7,
+  "carbsG": 0.9,
+  "fatG": 13.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:142",
+  "name": "Mora, fresca Morus spp.",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 69,
+  "proteinG": 1.2,
+  "carbsG": 14.6,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:524",
+  "name": "Mortadela\" Villafranca Novissimo\". El Bierzo - reducida en grasa y en sodio",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 139,
+  "proteinG": 16,
+  "carbsG": 4,
+  "fatG": 5.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:244",
+  "name": "Nalga, cocida",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 197,
+  "proteinG": 38.6,
+  "carbsG": 0.7,
+  "fatG": 4.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:252",
+  "name": "Nalga, cocida",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 177,
+  "proteinG": 35.1,
+  "carbsG": 0.6,
+  "fatG": 3.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:253",
+  "name": "Nalga, cruda",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 103,
+  "proteinG": 21,
+  "carbsG": 2.5,
+  "fatG": 1.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:502",
+  "name": "Ñandapirí",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 70,
+  "proteinG": 1.7,
+  "carbsG": 14.3,
+  "fatG": 0.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:246",
+  "name": "Paleta, cocida",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 207,
+  "proteinG": 37,
+  "carbsG": 0.4,
+  "fatG": 6.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:254",
+  "name": "Paleta, cocida",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 192,
+  "proteinG": 35.5,
+  "carbsG": 0.9,
+  "fatG": 5.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:247",
+  "name": "Paleta, cruda",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 107,
+  "proteinG": 19,
+  "carbsG": 0.2,
+  "fatG": 3.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:255",
+  "name": "Paleta, cruda",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 106,
+  "proteinG": 18.4,
+  "carbsG": 2,
+  "fatG": 2.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:186",
+  "name": "Palometa, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 215,
+  "proteinG": 20.1,
+  "carbsG": 0.4,
+  "fatG": 14.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:143",
+  "name": "Palta, pulpa, fresca",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 258,
+  "proteinG": 1.7,
+  "carbsG": 3.3,
+  "fatG": 26.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:187",
+  "name": "Pargo, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 113,
+  "proteinG": 19.1,
+  "carbsG": 0.3,
+  "fatG": 3.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:525",
+  "name": "Pastron ahumado \"Villafranca Novissimo\". El Bierzo. Reducido en sodio y en colesterol",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 79,
+  "proteinG": 16,
+  "carbsG": 3.4,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:416",
+  "name": "Patí, fresco, a la parrilla, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 169,
+  "proteinG": 22.6,
+  "carbsG": 2.5,
+  "fatG": 8.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:415",
+  "name": "Patí, fresco, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 183,
+  "proteinG": 20.6,
+  "carbsG": 2.2,
+  "fatG": 11.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:188",
+  "name": "Patí, fresco, crudo (carne entre dorsal y ventral)",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 3,
+  "proteinG": 1.2,
+  "carbsG": 0,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:189",
+  "name": "Patí, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 90,
+  "proteinG": 18.2,
+  "carbsG": 0.3,
+  "fatG": 1.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:428",
+  "name": "Patí, fresco, crudo, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 161,
+  "proteinG": 15.9,
+  "carbsG": 1,
+  "fatG": 10.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:429",
+  "name": "Patí, fresco, crudo, músculo ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 159,
+  "proteinG": 15.2,
+  "carbsG": 1,
+  "fatG": 10.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:417",
+  "name": "Patí, fresco, frito, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 215,
+  "proteinG": 23,
+  "carbsG": 2.2,
+  "fatG": 13.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:414",
+  "name": "Patí, fresco, hervido, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 133,
+  "proteinG": 19.6,
+  "carbsG": 1,
+  "fatG": 6.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:190",
+  "name": "Pejerrey agua dulce, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 77,
+  "proteinG": 18.3,
+  "carbsG": 1.3,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:191",
+  "name": "Pejerrey mar, fresco, crudo, carne Atherinidas",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 86,
+  "proteinG": 18.6,
+  "carbsG": 0.2,
+  "fatG": 1.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:145",
+  "name": "Pera, orejón, crudo",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 299,
+  "proteinG": 2.3,
+  "carbsG": 71.6,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:144",
+  "name": "Pera, pulpa, fresca, cruda",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 70,
+  "proteinG": 0.7,
+  "carbsG": 15.8,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:192",
+  "name": "Pescadilla, fresca, crudo, carne Cynosción striatus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 97,
+  "proteinG": 17.8,
+  "carbsG": 0.2,
+  "fatG": 2.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:193",
+  "name": "Pez Gallo, fresco, crudo, carne Callorhynchus",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 84,
+  "proteinG": 20.2,
+  "carbsG": 2.4,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:194",
+  "name": "Pez palo, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 96,
+  "proteinG": 20.1,
+  "carbsG": 0,
+  "fatG": 1.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:224",
+  "name": "Pollo, asado a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 168,
+  "proteinG": 29.8,
+  "carbsG": 0,
+  "fatG": 5.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:223",
+  "name": "Pollo, asado al horno",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 162,
+  "proteinG": 28.4,
+  "carbsG": 0,
+  "fatG": 5.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:221",
+  "name": "Pollo, carne-pellejo-menudos, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 88,
+  "proteinG": 16.3,
+  "carbsG": 0,
+  "fatG": 2.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:222",
+  "name": "Pollo, hervido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 198,
+  "proteinG": 23.1,
+  "carbsG": 0,
+  "fatG": 11.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:225",
+  "name": "Rana, carne de la pata, fresca, cruda",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 64,
+  "proteinG": 15.5,
+  "carbsG": 0,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:195",
+  "name": "Rubio, fresco, crudo, carne Helicolenus dactylopterus labillei",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 109,
+  "proteinG": 17.1,
+  "carbsG": 2,
+  "fatG": 4.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:422",
+  "name": "Sábalo, fresco, a la parrilla, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 130,
+  "proteinG": 23.4,
+  "carbsG": 2.6,
+  "fatG": 4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:421",
+  "name": "Sábalo, fresco, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 153,
+  "proteinG": 25.1,
+  "carbsG": 3.2,
+  "fatG": 5.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:418",
+  "name": "Sábalo, fresco, crudo, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 145,
+  "proteinG": 18,
+  "carbsG": 1.2,
+  "fatG": 8.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:419",
+  "name": "Sábalo, fresco, crudo, músculo ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 151,
+  "proteinG": 17.5,
+  "carbsG": 1.2,
+  "fatG": 9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:423",
+  "name": "Sábalo, fresco, frito, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 166,
+  "proteinG": 24.9,
+  "carbsG": 2.6,
+  "fatG": 7.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:420",
+  "name": "Sábalo, fresco, hervido, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 130,
+  "proteinG": 20.5,
+  "carbsG": 1.2,
+  "fatG": 5.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:526",
+  "name": "Salame \"Villafranca Novissimo\".El Bierzo.Reducido en sodio y en colesterol",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 134,
+  "proteinG": 22,
+  "carbsG": 3.9,
+  "fatG": 4.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:147",
+  "name": "Sandía, pulpa, fresca, cruda Citrullus vulgaris Schard",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 31,
+  "proteinG": 0.5,
+  "carbsG": 6.9,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:196",
+  "name": "Sardina fueguina, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 136,
+  "proteinG": 14,
+  "carbsG": 0,
+  "fatG": 8.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:426",
+  "name": "Surubí, fresco, al horno, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 255,
+  "proteinG": 23.5,
+  "carbsG": 3.2,
+  "fatG": 17.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:199",
+  "name": "Surubí, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 110,
+  "proteinG": 18.2,
+  "carbsG": 0.2,
+  "fatG": 4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:198",
+  "name": "Surubí, fresco, crudo, carne zona dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 1,
+  "proteinG": 1.2,
+  "carbsG": 0,
+  "fatG": 1.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:197",
+  "name": "Surubí, fresco, crudo, carne zona ventral",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 2,
+  "proteinG": 0.7,
+  "carbsG": 0,
+  "fatG": 0.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:424",
+  "name": "Surubí, fresco, crudo, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 187,
+  "proteinG": 17.6,
+  "carbsG": 1.1,
+  "fatG": 13,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:427",
+  "name": "Surubí, fresco, frito, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 269,
+  "proteinG": 26.7,
+  "carbsG": 3.7,
+  "fatG": 18,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:425",
+  "name": "Surubí, fresco, hervido, músculo dorsal",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 186,
+  "proteinG": 23.4,
+  "carbsG": 1.2,
+  "fatG": 10.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:200",
+  "name": "Tararira, fresca, cruda, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 79,
+  "proteinG": 18.1,
+  "carbsG": 0.4,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:201",
+  "name": "Testolin, fresco, crudo, carne",
+  "source": "argenfoods",
+  "category": "Pescados y mariscos",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 98,
+  "proteinG": 18.9,
+  "carbsG": 0.2,
+  "fatG": 2.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:19",
+  "name": "Trigo, bizcochos \"Bay Biscuit\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 382,
+  "proteinG": 5.9,
+  "carbsG": 72.5,
+  "fatG": 10.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:21",
+  "name": "Trigo, bizcochos, vainillas",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 401,
+  "proteinG": 10.2,
+  "carbsG": 70,
+  "fatG": 8.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:22",
+  "name": "Trigo, galleta de campo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 300,
+  "proteinG": 9.8,
+  "carbsG": 63,
+  "fatG": 1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:23",
+  "name": "Trigo, galleta marinera",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 361,
+  "proteinG": 12.8,
+  "carbsG": 75.9,
+  "fatG": 0.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:24",
+  "name": "Trigo, galletitas de agua \"Express\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 442,
+  "proteinG": 13.5,
+  "carbsG": 62,
+  "fatG": 15.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:25",
+  "name": "Trigo, galletitas de agua \"Traviata\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 437,
+  "proteinG": 12.2,
+  "carbsG": 67.6,
+  "fatG": 13.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:26",
+  "name": "Trigo, galletitas de harina blanca",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 410,
+  "proteinG": 12.2,
+  "carbsG": 64.2,
+  "fatG": 11.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:27",
+  "name": "Trigo, galletitas de harina integral",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 411,
+  "proteinG": 10.6,
+  "carbsG": 56.5,
+  "fatG": 15.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:28",
+  "name": "Trigo, galletitas dulces \"Manón\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 417,
+  "proteinG": 8.5,
+  "carbsG": 73,
+  "fatG": 10.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:29",
+  "name": "Trigo, galletitas dulces \"Minue\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 419,
+  "proteinG": 8.2,
+  "carbsG": 67,
+  "fatG": 13.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:30",
+  "name": "Trigo, galletitas oblea \"Opera\"",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 442,
+  "proteinG": 4.9,
+  "carbsG": 58,
+  "fatG": 21.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:18",
+  "name": "Trigo, grano entero, crudo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 347,
+  "proteinG": 12.4,
+  "carbsG": 69.8,
+  "fatG": 2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:31",
+  "name": "Trigo, grisines",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 342,
+  "proteinG": 12.5,
+  "carbsG": 72.6,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:33",
+  "name": "Trigo, harina cuatro ceros",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 348,
+  "proteinG": 10.2,
+  "carbsG": 70.8,
+  "fatG": 2.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:34",
+  "name": "Trigo, harina integral",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 308,
+  "proteinG": 11.4,
+  "carbsG": 58.8,
+  "fatG": 3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:32",
+  "name": "Trigo, harina tres cero",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 340,
+  "proteinG": 10.3,
+  "carbsG": 68.7,
+  "fatG": 2.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:38",
+  "name": "Trigo, pan alemán",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 264,
+  "proteinG": 8.9,
+  "carbsG": 56.7,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:39",
+  "name": "Trigo, pan criollo",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 280,
+  "proteinG": 8.7,
+  "carbsG": 60.7,
+  "fatG": 0.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:41",
+  "name": "Trigo, pan de salvado",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 223,
+  "proteinG": 9.8,
+  "carbsG": 42.3,
+  "fatG": 1.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:40",
+  "name": "Trigo, pan de Viena",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 307,
+  "proteinG": 9.8,
+  "carbsG": 62.6,
+  "fatG": 1.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:37",
+  "name": "Trigo, pan francés",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 268,
+  "proteinG": 8.4,
+  "carbsG": 57,
+  "fatG": 0.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:36",
+  "name": "Trigo, pan francés",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 269,
+  "proteinG": 9.3,
+  "carbsG": 57.4,
+  "fatG": 0.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:42",
+  "name": "Trigo, pan negro con levadura agria",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 271,
+  "proteinG": 8.4,
+  "carbsG": 58.3,
+  "fatG": 0.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:43",
+  "name": "Trigo, pan negro con levadura comprimida",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 269,
+  "proteinG": 9.5,
+  "carbsG": 52.4,
+  "fatG": 2.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:44",
+  "name": "Trigo, pan negro sin levadura",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 269,
+  "proteinG": 9.6,
+  "carbsG": 56.3,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:35",
+  "name": "Trigo, salvado",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 171,
+  "proteinG": 16.3,
+  "carbsG": 14,
+  "fatG": 5.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:45",
+  "name": "Trigo, sémola, cruda",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 349,
+  "proteinG": 11.7,
+  "carbsG": 73.4,
+  "fatG": 0.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:47",
+  "name": "Trigo, tallarines, frescos, hervidos",
+  "source": "argenfoods",
+  "category": "Cereales y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 98,
+  "proteinG": 4.1,
+  "carbsG": 16.9,
+  "fatG": 1.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:545",
+  "name": "Ubajay",
+  "source": "argenfoods",
+  "category": "Frutas",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 49,
+  "proteinG": 1.1,
+  "carbsG": 8.1,
+  "fatG": 1.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:248",
+  "name": "Vacío, cocido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 231,
+  "proteinG": 41.1,
+  "carbsG": 1.2,
+  "fatG": 6.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:256",
+  "name": "Vacío, cocido",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 203,
+  "proteinG": 38.4,
+  "carbsG": 1.2,
+  "fatG": 5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:249",
+  "name": "Vacío, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 105,
+  "proteinG": 18.4,
+  "carbsG": 3.1,
+  "fatG": 2.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:257",
+  "name": "Vacío, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 107,
+  "proteinG": 18.4,
+  "carbsG": 2.7,
+  "fatG": 2.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:226",
+  "name": "Vacuno, asado, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 170,
+  "proteinG": 18.4,
+  "carbsG": 0,
+  "fatG": 10.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:503",
+  "name": "Vacuno, bife angosto c/c de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 190,
+  "proteinG": 21,
+  "carbsG": 0,
+  "fatG": 12,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:227",
+  "name": "Vacuno, bife, a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 189,
+  "proteinG": 24.6,
+  "carbsG": 0,
+  "fatG": 10.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:504",
+  "name": "Vacuno, bola de lomo de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 114,
+  "proteinG": 22,
+  "carbsG": 0,
+  "fatG": 3.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:505",
+  "name": "Vacuno, brazuelo de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 120,
+  "proteinG": 21,
+  "carbsG": 0,
+  "fatG": 3.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:228",
+  "name": "Vacuno, caracú (médula de hueso largo), crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 785,
+  "proteinG": 0.5,
+  "carbsG": 0,
+  "fatG": 87,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:506",
+  "name": "Vacuno, colita de cuadril de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 143,
+  "proteinG": 21,
+  "carbsG": 0,
+  "fatG": 6.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:507",
+  "name": "Vacuno, corazón de cuadril de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 116,
+  "proteinG": 22,
+  "carbsG": 0,
+  "fatG": 2.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:229",
+  "name": "Vacuno, cuadril y bife angosto flaco, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 111,
+  "proteinG": 21,
+  "carbsG": 0,
+  "fatG": 3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:230",
+  "name": "Vacuno, en conserva, enlatado",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 224,
+  "proteinG": 23.7,
+  "carbsG": 0,
+  "fatG": 14.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:554",
+  "name": "Vacuno, hamburguesas cocidas",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 248,
+  "proteinG": 20.5,
+  "carbsG": 2.6,
+  "fatG": 18.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:553",
+  "name": "Vacuno, hamburguesas crudas",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 218,
+  "proteinG": 17.3,
+  "carbsG": 2.6,
+  "fatG": 16.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:556",
+  "name": "Vacuno, hamburguesas light cocidas",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 199,
+  "proteinG": 21,
+  "carbsG": 2.7,
+  "fatG": 12.8,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:555",
+  "name": "Vacuno, hamburguesas light crudas",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 175,
+  "proteinG": 18.4,
+  "carbsG": 2.4,
+  "fatG": 11.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:231",
+  "name": "Vacuno, hígado, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 132,
+  "proteinG": 19.7,
+  "carbsG": 6,
+  "fatG": 3.2,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:232",
+  "name": "Vacuno, jugo de carne",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 33,
+  "proteinG": 6.8,
+  "carbsG": 0,
+  "fatG": 0.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:233",
+  "name": "Vacuno, lomo, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 116,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:510",
+  "name": "Vacuno, nalga de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 106,
+  "proteinG": 22,
+  "carbsG": 0,
+  "fatG": 1.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:234",
+  "name": "Vacuno, nalga, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 97,
+  "proteinG": 21.2,
+  "carbsG": 0,
+  "fatG": 1.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:511",
+  "name": "Vacuno, paleta de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 125,
+  "proteinG": 19,
+  "carbsG": 0,
+  "fatG": 5.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:512",
+  "name": "Vacuno, paletín o marucha de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 132,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 6.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:513",
+  "name": "Vacuno, palomita de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 116,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 3.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:235",
+  "name": "Vacuno, pasta de hígado",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 335,
+  "proteinG": 14,
+  "carbsG": 0,
+  "fatG": 31,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:514",
+  "name": "Vacuno, peceto de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 125,
+  "proteinG": 23,
+  "carbsG": 0,
+  "fatG": 1.9,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:515",
+  "name": "Vacuno, pecho de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 139,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 6.5,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:236",
+  "name": "Vacuno, riñon, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 137,
+  "proteinG": 15,
+  "carbsG": 0.9,
+  "fatG": 8.1,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:521",
+  "name": "Vacuno, tapa de cuadril de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 211,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 15,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:237",
+  "name": "Vacuno, ternera, costilla flaca, a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 139,
+  "proteinG": 27.2,
+  "carbsG": 0,
+  "fatG": 3.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:238",
+  "name": "Vacuno, ternera, costilla flaca, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 95,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 1.7,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:516",
+  "name": "Vacuno, tortuguita de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 154,
+  "proteinG": 22,
+  "carbsG": 0,
+  "fatG": 7.6,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:517",
+  "name": "Vacuno, vacío de novillito, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 174,
+  "proteinG": 20,
+  "carbsG": 0,
+  "fatG": 11,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:239",
+  "name": "Vacuno, vacío flaco, fresco, crudo",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 171,
+  "proteinG": 23.8,
+  "carbsG": 0,
+  "fatG": 8.4,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:240",
+  "name": "Vacuno, vacío, a la parrilla",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 258,
+  "proteinG": 25.6,
+  "carbsG": 0,
+  "fatG": 17.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "argenfoods:241",
+  "name": "Vacuno, vacío, al horno",
+  "source": "argenfoods",
+  "category": "Carnes y derivados",
+  "servingSize": 100,
+  "servingUnit": "g",
+  "kcal": 241,
+  "proteinG": 28.1,
+  "carbsG": 0,
+  "fatG": 14.3,
+  "portions": [
+   {
+    "label": "100 g",
+    "grams": 100
+   }
+  ]
+ }
+]

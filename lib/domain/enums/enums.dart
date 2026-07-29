@@ -124,16 +124,25 @@ enum MealSlot {
 enum MealSource {
   manual('manual', 'Manual'),
   aiPhoto('ai_photo', 'Estimado por IA'),
+  // Misma estimación, sin foto: sale de una descripción escrita. Se distingue
+  // de `aiPhoto` porque no hay imagen que adjuntar ni que volver a mirar.
+  aiText('ai_text', 'Estimado por IA'),
   barcode('barcode', 'Código de barras'),
   duplicate('duplicate', 'Duplicado');
 
   const MealSource(this.wire, this.label);
   final String wire;
   final String label;
+
+  bool get isAi => this == aiPhoto || this == aiText;
 }
 
 enum FoodSource {
   user('user', 'Tuyo'),
+  // Tabla de Composición de Alimentos Argentinos (UNLu, proyecto INFOODS de
+  // FAO). Es la referencia local: cortes de carne argentinos, aceites de acá,
+  // frutas de estación. Viaja dentro del APK, así que anda sin conexión.
+  argenfoods('argenfoods', 'ARGENFOODS'),
   usda('usda', 'USDA'),
   off('off', 'Open Food Facts'),
   ai('ai', 'Estimado por IA');
@@ -141,6 +150,16 @@ enum FoodSource {
   const FoodSource(this.wire, this.label);
   final String wire;
   final String label;
+
+  /// De dónde salen los números, para mostrarlo sin abreviaturas crípticas.
+  String get attribution => switch (this) {
+    FoodSource.argenfoods => 'Tabla de composición de alimentos argentinos '
+        '(ARGENFOODS, UNLu)',
+    FoodSource.usda => 'USDA FoodData Central',
+    FoodSource.off => 'Open Food Facts',
+    FoodSource.ai => 'Estimado por IA',
+    FoodSource.user => 'Cargado por vos',
+  };
 }
 
 enum ActivityCategory {

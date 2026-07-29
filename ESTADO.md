@@ -1,6 +1,6 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.3` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.4.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -57,7 +57,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **202 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **220 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -73,6 +73,25 @@ semanal de una sola vez (`domain/calculations/goal_presets.dart` explica de
 dónde sale cada número). Se elige al crear la cuenta y se cambia desde Perfil.
 Las calorías del día se editan desde la propia tarjeta de Inicio, de a 50 kcal
 o escribiendo el valor.
+
+**Catálogo de alimentos.** Tres fuentes que no se pisan:
+
+| Fuente | Qué cubre | Dónde vive |
+| --- | --- | --- |
+| **ARGENFOODS** (UNLu) | 252 alimentos argentinos verificados | dentro del APK, anda sin conexión |
+| **Open Food Facts** | productos envasados, por código de barras | consulta directa, Argentina primero |
+| **USDA** | alimentos genéricos y crudos | Edge Function `food-search` |
+
+La tabla argentina se extrajo de los PDF de ARGENFOODS y **cada fila se valida
+contra Atwater** (4/4/9) y contra la suma de componentes, en el parser y otra
+vez en `test/data/argenfoods_catalog_test.dart`. No es paranoia: el primer
+intento dio "aceite de oliva, 100 g de proteína" —las columnas corridas— y ese
+número en el historial de alguien es peor que no tener el alimento.
+
+**Comidas frecuentes y descripción por texto.** Lo que se repite aparece arriba
+del "+" de cada slot para cargarlo de una. Y se puede escribir "dos empanadas
+de carne y una coca": lo estima la Edge Function `analyze-meal-text`, que
+comparte validación y cuota con la de foto.
 
 **Medidas corporales.** Tres grupos, como los entrega una nutricionista:
 perímetros en cm, pliegues cutáneos en mm y bioimpedancia. Se cargan todos
@@ -104,9 +123,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.3.3**.
+contra un Postgres limpio. Última publicada: **v1.4.0**.
 
-Publicar una versión es empujar un tag `v1.3.4`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.4.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -231,7 +250,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 202 tests
+flutter test                              # 220 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -246,9 +265,7 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir
-   en el cliente). Open Food Facts ya está conectado y no necesita clave.
-3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta
+2. **Sincronización relacional** contra las 24 tablas, si algún día hace falta
    consultar del lado del servidor. Hoy el respaldo en Storage alcanza.
 
 **Health Connect queda descartado**: con la app usada por una sola persona que

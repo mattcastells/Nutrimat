@@ -17,6 +17,7 @@ import 'data/remote/gemini_analysis_client.dart';
 import 'data/remote/pals_client.dart';
 import 'data/remote/photo_storage_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
+import 'data/remote/usda_food_client.dart';
 import 'data/repositories/local_repository.dart';
 import 'domain/models/pal.dart';
 import 'domain/repositories/auth_gateway.dart';
@@ -98,6 +99,12 @@ Future<void> bootstrap() async {
     photos: photos,
     aiAnalysis: SupabaseConfig.isConfigured
         ? GeminiAnalysisClient.fromInstance()
+        : null,
+    // Alimentos genéricos por Edge Function: la clave de USDA no baja al
+    // teléfono. Sin servidor, la búsqueda sigue con Open Food Facts y con la
+    // tabla argentina que viaja adentro del APK.
+    usdaFoods: SupabaseConfig.isConfigured
+        ? UsdaFoodClient.fromInstance()
         : null,
     onChanged: () {
       notify();

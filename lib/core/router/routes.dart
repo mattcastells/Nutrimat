@@ -56,6 +56,9 @@ abstract final class Routes {
   static const String about = '/settings/about';
 
   static const String mealNew = '/meal/new';
+
+  /// Estimar una comida a partir de una descripción escrita.
+  static const String mealDescribe = '/meal/describe';
   static String meal(String id) => '/meal/$id';
   static String mealEdit(String id) => '/meal/$id/edit';
   static const String photoCapture = '/meal/photo/capture';

@@ -31,6 +31,7 @@ import '../local/local_store.dart';
 import '../remote/gemini_analysis_client.dart';
 import '../remote/open_food_facts_client.dart';
 import '../remote/photo_storage_client.dart';
+import '../remote/usda_food_client.dart';
 
 const _uuid = Uuid();
 
@@ -62,6 +63,7 @@ class LocalRepository
     OpenFoodFactsClient? foodCatalog,
     this.photos,
     this.aiAnalysis,
+    this.usdaFoods,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
 
   final LocalStore store;
@@ -73,6 +75,10 @@ class LocalRepository
 
   /// Análisis de foto por la Edge Function. Null sin servidor.
   final GeminiAnalysisClient? aiAnalysis;
+
+  /// Alimentos genéricos de USDA por la Edge Function. Null sin servidor: la
+  /// búsqueda sigue andando con Open Food Facts y con la tabla argentina.
+  final UsdaFoodClient? usdaFoods;
 
   Future<void> _commit() async {
     await store.persist();
@@ -347,6 +353,68 @@ class LocalRepository
   @override
   List<Meal> favoriteMeals() =>
       store.meals.where((m) => m.isFavorite && !m.isDeleted).toList();
+
+  /// Lo que se repite: primero lo marcado con la estrella, después lo más
+  /// registrado en el último tiempo.
+  ///
+  /// El desayuno es el mismo casi todos los días, y volver a armarlo ítem por
+  /// ítem es la fricción más grande de una app de registro. Se agrupa por
+  /// título normalizado y de cada grupo se devuelve la versión **más
+  /// reciente**, que es la que ya tiene las cantidades como las come hoy.
+  ///
+  /// El slot no filtra pero sí ordena: un café con leche puede ser desayuno o
+  /// merienda, así que esconderlo por estar en otro slot sería adivinar mal.
+  @override
+  List<Meal> frequentMeals({MealSlot? slot, int limit = 8}) {
+    final candidates = store.meals
+        .where((m) => !m.isDeleted && m.items.isNotEmpty)
+        .toList();
+    if (candidates.isEmpty) return const <Meal>[];
+
+    String key(Meal m) => m.title.trim().toLowerCase();
+
+    final newest = <String, Meal>{};
+    final uses = <String, int>{};
+    for (final meal in candidates) {
+      final k = key(meal);
+      uses[k] = (uses[k] ?? 0) + 1;
+      final current = newest[k];
+      if (current == null || meal.loggedAt.isAfter(current.loggedAt)) {
+        newest[k] = meal;
+      }
+    }
+
+    final result = newest.values.toList()
+      ..sort((a, b) {
+        // Estrella primero: es una elección explícita y gana a cualquier conteo.
+        final fav = (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0);
+        if (fav != 0) return fav;
+        if (slot != null) {
+          final s = (b.slot == slot ? 1 : 0) - (a.slot == slot ? 1 : 0);
+          if (s != 0) return s;
+        }
+        final byUse = (uses[key(b)] ?? 0).compareTo(uses[key(a)] ?? 0);
+        if (byUse != 0) return byUse;
+        return b.loggedAt.compareTo(a.loggedAt);
+      });
+
+    // Una comida cargada una sola vez y sin estrella no es "frecuente": sin
+    // este filtro la lista se llenaría de cosas que nunca se van a repetir.
+    final worth = result
+        .where((m) => m.isFavorite || (uses[key(m)] ?? 0) > 1)
+        .toList();
+
+    return worth.take(limit).toList();
+  }
+
+  /// Cuántas veces se registró una comida con ese título.
+  @override
+  int mealUseCount(Meal meal) {
+    final k = meal.title.trim().toLowerCase();
+    return store.meals
+        .where((m) => !m.isDeleted && m.title.trim().toLowerCase() == k)
+        .length;
+  }
 
   // ── Actividad ──────────────────────────────────────────────────────────
 
@@ -734,8 +802,22 @@ class LocalRepository
     return matches;
   }
 
-  /// Consulta el catálogo externo y cachea lo que trae, para que la próxima
-  /// búsqueda —y el modo sin conexión— lo encuentren local.
+  /// Consulta los catálogos externos y cachea lo que traen, para que la
+  /// próxima búsqueda —y el modo sin conexión— lo encuentren local.
+  ///
+  /// Dos fuentes que no se pisan:
+  ///
+  /// - **Open Food Facts**: productos envasados, por código de barras. Un
+  ///   yogur de una marca.
+  /// - **USDA** (por Edge Function): alimentos genéricos y crudos. "Pechuga de
+  ///   pollo", "arroz cocido". Es lo que OFF no tiene y es la mitad de lo que
+  ///   come cualquiera.
+  ///
+  /// Los alimentos argentinos no salen de acá: la tabla de ARGENFOODS viaja
+  /// dentro del APK y ya la resolvió [search] sin tocar la red.
+  ///
+  /// Si una fuente falla, la otra igual contesta. Que se caiga USDA no puede
+  /// dejar sin buscar a alguien que quería un producto de góndola.
   @override
   Future<List<Food>> searchOnline(String query) async {
     if (!FeatureFlags.onlineFoodCatalog || store.offline) {
@@ -743,7 +825,20 @@ class LocalRepository
     }
     if (query.trim().length < 2) return const <Food>[];
 
-    final results = await _foodCatalog.search(query);
+    final responses = await Future.wait<List<Food>>(<Future<List<Food>>>[
+      _foodCatalog.search(query).catchError((_) => const <Food>[]),
+      if (usdaFoods != null)
+        usdaFoods!.search(query).catchError((_) => const <Food>[])
+      else
+        Future<List<Food>>.value(const <Food>[]),
+    ]);
+
+    // Sin ids repetidos: el mismo alimento puede venir de las dos.
+    final byId = <String, Food>{};
+    for (final food in responses.expand((r) => r)) {
+      byId.putIfAbsent(food.id, () => food);
+    }
+    final results = byId.values.toList();
     if (results.isEmpty) return results;
 
     store.cacheFoods(results);
@@ -1424,6 +1519,21 @@ class LocalRepository
 
   @override
   int get quotaUsed => _quotaUsed;
+
+  @override
+  Future<AiAnalysis> analyzeText({required String description}) async {
+    final client = aiAnalysis;
+    if (client == null) {
+      throw const AppError(
+        code: ApiErrorCode.providerUnavailable,
+        message: 'Esta compilación no tiene servidor: la estimación con IA '
+            'necesita cuenta.',
+      );
+    }
+    final analysis = await client.analyzeText(description: description);
+    _quotaUsed++;
+    return analysis;
+  }
 
   @override
   Future<AiAnalysis> analyze({required String photoPath}) async {

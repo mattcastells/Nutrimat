@@ -99,7 +99,10 @@ class AiAnalysis {
   });
 
   final String id;
-  final String photoPath;
+
+  /// `null` cuando la estimación salió de una descripción escrita: no hay
+  /// imagen que adjuntar ni que mostrar.
+  final String? photoPath;
   final AiAnalysisStatus status;
   final String model;
   final String promptVersion;

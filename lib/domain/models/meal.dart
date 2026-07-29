@@ -149,10 +149,8 @@ class Meal {
   /// "Milanesa con puré · 2 ítems".
   String get title => name ?? (items.isEmpty ? slot.label : items.first.name);
 
-  DataOrigin get origin => switch (source) {
-    MealSource.aiPhoto => DataOrigin.ai,
-    _ => DataOrigin.manual,
-  };
+  DataOrigin get origin =>
+      source.isAi ? DataOrigin.ai : DataOrigin.manual;
 
   Meal copyWith({
     MealSlot? slot,

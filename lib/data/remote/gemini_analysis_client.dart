@@ -22,12 +22,47 @@ class GeminiAnalysisClient {
 
   static const String functionName = 'analyze-meal-photo';
 
+  /// La hermana por texto: misma validación y misma cuota, sin foto.
+  static const String textFunctionName = 'analyze-meal-text';
+
   /// La función se corta sola a los 25 s contra Gemini; esto cubre eso más la
   /// descarga de la foto y la red.
   ///
   /// `invoke` **no trae timeout propio**: sin esto, una función que muere deja
   /// la pantalla girando para siempre, sin error y sin forma de salir.
   static const Duration timeout = Duration(seconds: 45);
+
+  /// Estima una comida a partir de una descripción escrita.
+  ///
+  /// Es lo que el catálogo de productos envasados no puede contestar: "dos
+  /// empanadas de carne" no tiene código de barras.
+  Future<AiAnalysis> analyzeText({required String description}) async {
+    final FunctionResponse response;
+    try {
+      response = await _functions
+          .invoke(
+            textFunctionName,
+            body: <String, dynamic>{'description': description},
+          )
+          .timeout(timeout);
+    } on FunctionException catch (error) {
+      throw _translate(error);
+    } on TimeoutException {
+      throw const AppError(
+        code: ApiErrorCode.upstreamTimeout,
+        message:
+            'La estimación tardó demasiado. Probá de nuevo o cargá la comida '
+            'a mano.',
+      );
+    } on Exception {
+      throw const AppError(
+        code: ApiErrorCode.offline,
+        message: 'No pudimos estimar la comida: revisá tu conexión.',
+      );
+    }
+
+    return _toAnalysis(response.data, photoPath: null);
+  }
 
   /// Analiza una foto **ya subida al bucket**.
   Future<AiAnalysis> analyze({required String photoPath}) async {
@@ -57,13 +92,17 @@ class GeminiAnalysisClient {
       );
     }
 
-    final data = response.data;
+    return _toAnalysis(response.data, photoPath: photoPath);
+  }
+
+  /// Misma forma de respuesta para foto y texto: una sola lectura.
+  static AiAnalysis _toAnalysis(Object? data, {required String? photoPath}) {
     if (data is! Map) {
       throw const AppError(
         code: ApiErrorCode.aiInvalidResponse,
         message:
             'El análisis devolvió algo que no pudimos leer. Cargá la comida a '
-            'mano; la foto queda adjunta.',
+            'mano.',
       );
     }
 

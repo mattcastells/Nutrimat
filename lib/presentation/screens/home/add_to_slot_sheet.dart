@@ -6,17 +6,24 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/config/feature_flags.dart';
 import '../../../core/config/supabase_config.dart';
 import '../../../core/router/routes.dart';
+import '../../../core/theme/nm_theme.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
+import '../../../core/utils/formats.dart';
 import '../../../domain/enums/enums.dart';
+import '../../../domain/models/meal.dart';
 import '../../components/system/overlays.dart';
+import '../../components/system/surfaces.dart';
+import '../../providers/app_providers.dart';
 import '../photo/photo_screens.dart';
 
 /// Qué se agrega a un slot concreto (Desayuno, Almuerzo, Cena, Snacks).
 ///
 /// El "+" de cada sección antes iba derecho al buscador de alimentos, así que
 /// la foto con IA solo existía en el menú general de Agregar — y ahí no se
-/// elige el slot, se adivina por la hora. Este sheet ofrece las dos entradas
-/// **con el slot y el día ya resueltos**: lo que se cargue cae donde se tocó.
+/// elige el slot, se adivina por la hora. Este sheet ofrece las entradas **con
+/// el slot y el día ya resueltos**: lo que se cargue cae donde se tocó.
 Future<void> showAddToSlotSheet(
   BuildContext context, {
   required MealSlot slot,
@@ -34,9 +41,21 @@ class _AddToSlotSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final nm = context.nm;
+    final repo = ref.watch(repositoryProvider);
+    ref.watch(appRevisionProvider);
+    final frequent = repo.frequentMeals(slot: slot, limit: 5);
+
     void go(String location) {
       Navigator.of(context).pop();
       context.push(location);
+    }
+
+    Future<void> repeat(Meal meal) async {
+      Navigator.of(context).pop();
+      await repo.duplicateMeal(meal.id, date, slot);
+      if (!context.mounted) return;
+      NmSnackbar.show(context, '${meal.title} agregada');
     }
 
     return NmSheet(
@@ -44,7 +63,40 @@ class _AddToSlotSheet extends ConsumerWidget {
       subtitle: friendlyDay(date),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // Lo que se repite, arriba de todo: el desayuno es casi siempre el
+          // mismo y volver a armarlo ítem por ítem es la fricción más grande
+          // de registrar todos los días.
+          if (frequent.isNotEmpty) ...<Widget>[
+            const Padding(
+              padding: EdgeInsets.only(
+                left: NmSpace.s3,
+                bottom: NmSpace.s2,
+              ),
+              child: NmSectionHeader(title: 'De lo que repetís'),
+            ),
+            for (final meal in frequent)
+              ActionRow(
+                icon: meal.isFavorite
+                    ? PhosphorIcons.star(PhosphorIconsStyle.fill)
+                    : PhosphorIcons.arrowCounterClockwise(),
+                label: meal.title,
+                subtitle:
+                    '${Fmt.kcal(meal.totalKcal)} · '
+                    '${meal.items.length} '
+                    '${meal.items.length == 1 ? 'ítem' : 'ítems'}',
+                onTap: () => repeat(meal),
+              ),
+            const Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: NmSpace.s3,
+                vertical: NmSpace.s2,
+              ),
+              child: NmDivider(),
+            ),
+          ],
+
           ActionRow(
             icon: PhosphorIcons.forkKnife(),
             label: 'Buscar alimentos',
@@ -52,6 +104,20 @@ class _AddToSlotSheet extends ConsumerWidget {
             onTap: () => go(
               '${Routes.mealNew}?slot=${slot.wire}&date=${isoDate(date)}',
             ),
+          ),
+          ActionRow(
+            icon: PhosphorIcons.chatText(),
+            label: 'Describir lo que comiste',
+            subtitle: '"dos empanadas de carne y una coca"',
+            enabled: FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
+            disabledNote: 'La estimación con IA necesita servidor configurado',
+            onTap: () {
+              ref.read(photoTargetProvider.notifier).state = PhotoTarget(
+                slot: slot,
+                date: date,
+              );
+              go(Routes.mealDescribe);
+            },
           ),
           ActionRow(
             icon: PhosphorIcons.camera(),
@@ -70,6 +136,18 @@ class _AddToSlotSheet extends ConsumerWidget {
               go(Routes.photoCapture);
             },
           ),
+
+          if (frequent.isEmpty) ...<Widget>[
+            const SizedBox(height: NmSpace.s3),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: NmSpace.s3),
+              child: Text(
+                'Cuando repitas una comida va a aparecer acá arriba para '
+                'cargarla de una. También podés marcarla con la estrella.',
+                style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+              ),
+            ),
+          ],
         ],
       ),
     );

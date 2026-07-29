@@ -85,7 +85,25 @@ aparte:
 
 ```bash
 supabase functions deploy analyze-meal-photo --project-ref ifincvqdsotorvmwzpos
+supabase functions deploy analyze-meal-text  --project-ref ifincvqdsotorvmwzpos
+supabase functions deploy food-search        --project-ref ifincvqdsotorvmwzpos
 ```
+
+Las tres funciones:
+
+| Función | Qué hace | Secreto que necesita |
+| --- | --- | --- |
+| `analyze-meal-photo` | Estima los ítems de una foto | `GEMINI_API_KEY` |
+| `analyze-meal-text` | Lo mismo desde una descripción escrita | `GEMINI_API_KEY` |
+| `food-search` | Alimentos genéricos de USDA | `USDA_API_KEY` |
+
+`analyze-meal-photo` y `analyze-meal-text` comparten el contrato de salida, la
+validación y la cuota en `_shared/estimation.ts`. Si tocás una, **desplegá las
+dos**: el bundler copia el módulo compartido dentro de cada función, así que
+una queda con la versión vieja hasta que la subas.
+
+La clave de USDA se saca gratis en <https://api.data.gov/signup> (el dato es de
+dominio público, CC0). El límite es de 1.000 consultas por hora por IP.
 
 A diferencia de las migraciones, esto **sí** necesita autenticarse con la
 plataforma: `supabase login` (abre el navegador) o un *personal access token*
@@ -96,7 +114,11 @@ Los secretos de la función van por separado y tampoco viajan con el código:
 
 ```bash
 supabase secrets set GEMINI_API_KEY=... --project-ref ifincvqdsotorvmwzpos
+supabase secrets set USDA_API_KEY=...   --project-ref ifincvqdsotorvmwzpos
 ```
+
+Sin `USDA_API_KEY` la función contesta 503 y la búsqueda sigue andando con Open
+Food Facts y con la tabla argentina: se pierde lo genérico, no la pantalla.
 
 ## Lo que falta
 

@@ -13,6 +13,7 @@ import '../../presentation/screens/food/food_screens.dart';
 import '../../presentation/screens/history/day_detail_screen.dart';
 import '../../presentation/screens/history/history_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
+import '../../presentation/screens/meal/meal_describe_screen.dart';
 import '../../presentation/screens/meal/meal_form_screen.dart';
 import '../../presentation/screens/pals/pal_day_screen.dart';
 import '../../presentation/screens/pals/pals_screen.dart';
@@ -255,6 +256,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               ? null
               : DateTime.parse(state.uri.queryParameters['date']!),
         ),
+      ),
+      GoRoute(
+        path: Routes.mealDescribe,
+        builder: (context, state) => const MealDescribeScreen(),
       ),
       GoRoute(
         path: '/meal/:mealId',

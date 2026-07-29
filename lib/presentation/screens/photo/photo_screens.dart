@@ -489,7 +489,11 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
       ..start(
         slot: _slot,
         date: date,
-        source: MealSource.aiPhoto,
+        // Sin foto, la estimación salió de una descripción escrita: se guarda
+        // como tal para que el origen del dato no diga algo que no pasó.
+        source: ref.read(photoPathProvider) == null
+            ? MealSource.aiText
+            : MealSource.aiPhoto,
         photoPath: ref.read(photoPathProvider),
         aiAnalysisId: analysis?.id,
       );

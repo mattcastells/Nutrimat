@@ -162,9 +162,34 @@ class LocalStore {
         .toList();
 
     final foodsRaw = await rootBundle.loadString('assets/mock/foods.json');
-    catalogFoods = (jsonDecode(foodsRaw) as List<dynamic>)
+    final semilla = (jsonDecode(foodsRaw) as List<dynamic>)
         .map((e) => Food.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    // La tabla de composición de alimentos argentinos viaja adentro del APK.
+    //
+    // Es una referencia estática y pública: no cambia entre usuarios, no
+    // necesita cuenta y no tiene por qué salir a la red. Al estar acá, buscar
+    // "milanesa" o "arroz" anda sin conexión y al instante, que es justo lo
+    // que Open Food Facts no puede dar — su base son productos envasados con
+    // código de barras, y casi nada de lo que se cocina en una casa tiene uno.
+    //
+    // Un registro que no se pueda leer no puede tumbar el catálogo entero.
+    final argentinos = <Food>[];
+    try {
+      final raw = await rootBundle.loadString('assets/data/argenfoods.json');
+      for (final entry in jsonDecode(raw) as List<dynamic>) {
+        try {
+          argentinos.add(Food.fromJson(entry as Map<String, dynamic>));
+        } on Object {
+          continue;
+        }
+      }
+    } on Object {
+      // Sin la tabla local la app sigue andando con el resto de las fuentes.
+    }
+
+    catalogFoods = <Food>[...semilla, ...argentinos];
   }
 
   /// Copia intacta del documento cuando no se pudo leer del todo.

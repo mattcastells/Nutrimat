@@ -7,75 +7,24 @@
 // La clave de Gemini vive **solo acá**, en los secretos del proyecto. Ese es el
 // motivo de que esta función exista en vez de que la app llame a Gemini
 // directo: una clave dentro de un APK es una clave regalada.
+//
+// El contrato de salida, la validación y la llamada al modelo son los mismos
+// que usa `analyze-meal-text` y viven en `_shared/estimation.ts`: las dos
+// estiman la misma cosa y solo cambia qué se le manda al modelo.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { PROMPT_V3 } from './prompts/v3.ts';
-
-// El 2.5-flash que fijaba el handoff quedó retirado para proyectos nuevos.
-// Se fija una versión concreta y no `gemini-flash-latest`: un alias que cambia
-// solo puede alterar las estimaciones sin que nadie toque el prompt.
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.6-flash';
-const PROMPT_VERSION = Deno.env.get('GEMINI_PROMPT_VERSION') ?? 'v3';
-
-/** Cuota diaria por usuario (D-18). */
-const DAILY_QUOTA = 20;
-
-/** El proveedor puede tardar; más de esto es una app colgada. */
-const GEMINI_TIMEOUT_MS = 25_000;
-
-const PROMPT = PROMPT_V3;
-
-/**
- * Mismo contrato que `docs/handoff/gemini-output-schema.json`, en el dialecto
- * que entiende Gemini. Se pasa como `responseSchema` para que el modelo no
- * pueda devolver otra forma, y **igual** se valida después: que el proveedor
- * prometa un formato no es garantía de que lo cumpla.
- */
-const RESPONSE_SCHEMA = {
-  type: 'OBJECT',
-  required: ['items', 'overallConfidence'],
-  properties: {
-    items: {
-      type: 'ARRAY',
-      maxItems: 12,
-      items: {
-        type: 'OBJECT',
-        required: [
-          'name', 'quantity', 'unit', 'kcal',
-          'proteinG', 'carbsG', 'fatG', 'confidence',
-        ],
-        properties: {
-          name: { type: 'STRING' },
-          quantity: { type: 'NUMBER' },
-          unit: {
-            type: 'STRING',
-            enum: ['g', 'ml', 'unidad', 'taza', 'cucharada', 'rebanada', 'porcion'],
-          },
-          kcal: { type: 'INTEGER' },
-          proteinG: { type: 'NUMBER' },
-          carbsG: { type: 'NUMBER' },
-          fatG: { type: 'NUMBER' },
-          confidence: { type: 'NUMBER' },
-          preparation: { type: 'STRING' },
-          visualReference: { type: 'STRING' },
-        },
-      },
-    },
-    overallConfidence: { type: 'NUMBER' },
-  },
-};
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-};
-
-function fail(code: string, message: string, status = 400): Response {
-  return new Response(
-    JSON.stringify({ error: { code, message } }),
-    { status, headers: { ...CORS, 'Content-Type': 'application/json' } },
-  );
-}
+import {
+  CORS,
+  DAILY_QUOTA,
+  GEMINI_MODEL,
+  PROMPT_VERSION,
+  callGemini,
+  fail,
+  ok,
+  rateLimitedResponse,
+  validate,
+} from '../_shared/estimation.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -154,116 +103,38 @@ Deno.serve(async (req) => {
   const base64 = toBase64(bytes);
 
   // ── Gemini ─────────────────────────────────────────────────────────────
-  const startedAt = Date.now();
-  let parsed: unknown = null;
-  let lastError = '';
-  let rateLimited = false;
+  const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
+    geminiKey,
+    [
+      { text: PROMPT_V3 },
+      { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+    ],
+  );
 
-  // Un JSON inválido se reintenta una vez con temperature 0; el segundo
-  // intento es determinista, así que insistir más no aportaría nada.
-  for (const temperature of [0.2, 0]) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-        {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': geminiKey,
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: PROMPT },
-                { inlineData: { mimeType: 'image/jpeg', data: base64 } },
-              ],
-            }],
-            generationConfig: {
-              temperature,
-              responseMimeType: 'application/json',
-              responseSchema: RESPONSE_SCHEMA,
-            },
-          }),
-        },
-      );
-      clearTimeout(timer);
-
-      if (!response.ok) {
-        // El cuerpo dice *por qué*; sin él, un 404 puede ser el modelo, la
-        // clave o la URL y no hay forma de distinguirlos.
-        const detail = await response.text().catch(() => '');
-        lastError = `Gemini ${response.status}: ${detail.slice(0, 300)}`;
-
-        // 429 = pasaste el límite del plan de Gemini (en el gratuito son
-        // pocas consultas por minuto y por día). 503 = el modelo está
-        // saturado. Ninguno de los dos es "la foto está mal", y decirlo así
-        // manda a probar con otra foto cuando lo único que hay que hacer es
-        // esperar. Se reintenta una vez con una espera corta, porque el
-        // límite por minuto se libera solo.
-        if (response.status === 429 || response.status === 503) {
-          rateLimited = true;
-          await new Promise((r) => setTimeout(r, 2000));
-          continue;
-        }
-        continue;
-      }
-      rateLimited = false;
-
-      const payload = await response.json();
-      const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) {
-        lastError = 'Gemini no devolvió contenido';
-        continue;
-      }
-
-      parsed = JSON.parse(text);
-      break;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-    }
-  }
-
-  const latencyMs = Date.now() - startedAt;
-
-  // El límite del proveedor tiene su propio código y su propio texto: no es un
-  // problema de la foto ni del prompt, y la app no debería sugerir sacar otra.
-  if (parsed === null && rateLimited) {
-    await supabase.from('ai_analyses').insert({
+  const registrar = (errorCode: string) =>
+    supabase.from('ai_analyses').insert({
       id: crypto.randomUUID(),
       user_id: user.id,
       photo_path: photoPath,
       status: 'failed',
       model: GEMINI_MODEL,
       prompt_version: PROMPT_VERSION,
-      error_code: 'ERR_AI_RATE_LIMITED',
+      error_code: errorCode,
       latency_ms: latencyMs,
     });
-    return fail(
-      'ERR_AI_RATE_LIMITED',
-      'El servicio de análisis está al límite por ahora. Esperá un minuto y '
-        'probá de nuevo, o cargá la comida a mano: la foto queda adjunta.',
-      429,
-    );
+
+  // El límite del proveedor tiene su propio código y su propio texto: no es un
+  // problema de la foto ni del prompt, y la app no debería sugerir sacar otra.
+  if (parsed === null && rateLimited) {
+    await registrar('ERR_AI_RATE_LIMITED');
+    return rateLimitedResponse();
   }
 
   const items = validate(parsed);
   if (items === null) {
     // Queda registrado el fallo: es lo que permite saber si el prompt empeoró
     // sin depender de que alguien lo reporte.
-    await supabase.from('ai_analyses').insert({
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      photo_path: photoPath,
-      status: 'failed',
-      model: GEMINI_MODEL,
-      prompt_version: PROMPT_VERSION,
-      error_code: 'ERR_AI_INVALID_RESPONSE',
-      latency_ms: latencyMs,
-    });
+    await registrar('ERR_AI_INVALID_RESPONSE');
     return fail(
       'ERR_AI_INVALID_RESPONSE',
       `No pudimos leer la foto (${lastError}). Cargá la comida a mano; la foto queda adjunta.`,
@@ -296,17 +167,14 @@ Deno.serve(async (req) => {
     latency_ms: latencyMs,
   });
 
-  return new Response(
-    JSON.stringify({
-      id,
-      items,
-      overallConfidence: Number(confidenceAvg.toFixed(2)),
-      model: GEMINI_MODEL,
-      promptVersion: PROMPT_VERSION,
-      latencyMs,
-    }),
-    { headers: { ...CORS, 'Content-Type': 'application/json' } },
-  );
+  return ok({
+    id,
+    items,
+    overallConfidence: Number(confidenceAvg.toFixed(2)),
+    model: GEMINI_MODEL,
+    promptVersion: PROMPT_VERSION,
+    latencyMs,
+  });
 });
 
 /**
@@ -324,82 +192,4 @@ function toBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   }
   return btoa(binary);
-}
-
-interface AnalysisItem {
-  name: string;
-  quantity: number;
-  unit: string;
-  kcal: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  confidence: number;
-  preparation?: string;
-  visualReference?: string;
-}
-
-const UNITS = ['g', 'ml', 'unidad', 'taza', 'cucharada', 'rebanada', 'porcion'];
-
-/**
- * Valida la respuesta contra el contrato y descarta los ítems que no cumplen.
- *
- * Devuelve `null` solo si la respuesta entera es inservible. Un ítem con un
- * número imposible se tira y los demás siguen: perder un alimento es mejor que
- * perder el análisis completo, y **muchísimo** mejor que meterle a alguien un
- * "9000 kcal" al historial.
- */
-function validate(raw: unknown): AnalysisItem[] | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const rawItems = (raw as { items?: unknown }).items;
-  if (!Array.isArray(rawItems)) return null;
-
-  const clean: AnalysisItem[] = [];
-  for (const entry of rawItems.slice(0, 12)) {
-    if (!entry || typeof entry !== 'object') continue;
-    const i = entry as Record<string, unknown>;
-
-    const name = typeof i.name === 'string' ? i.name.trim() : '';
-    if (!name || name.length > 120) continue;
-
-    const quantity = Number(i.quantity);
-    const kcal = Number(i.kcal);
-    const proteinG = Number(i.proteinG);
-    const carbsG = Number(i.carbsG);
-    const fatG = Number(i.fatG);
-    const confidence = Number(i.confidence);
-    const unit = typeof i.unit === 'string' ? i.unit : '';
-
-    const inRange = (v: number, min: number, max: number) =>
-      Number.isFinite(v) && v >= min && v <= max;
-
-    if (!inRange(quantity, 0.1, 5000)) continue;
-    if (!inRange(kcal, 0, 3000)) continue;
-    if (!inRange(proteinG, 0, 500)) continue;
-    if (!inRange(carbsG, 0, 500)) continue;
-    if (!inRange(fatG, 0, 500)) continue;
-    if (!inRange(confidence, 0, 1)) continue;
-    if (!UNITS.includes(unit)) continue;
-
-    clean.push({
-      name,
-      quantity,
-      unit,
-      kcal: Math.round(kcal),
-      proteinG,
-      carbsG,
-      fatG,
-      confidence,
-      preparation: typeof i.preparation === 'string'
-        ? i.preparation.slice(0, 60)
-        : undefined,
-      visualReference: typeof i.visualReference === 'string'
-        ? i.visualReference.slice(0, 120)
-        : undefined,
-    });
-  }
-
-  // El array vacío es una respuesta válida — significa "no hay comida" — y por
-  // eso se distingue de `null`, que es "la respuesta no se pudo leer".
-  return clean;
 }

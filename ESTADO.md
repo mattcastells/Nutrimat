@@ -1,6 +1,6 @@
-# Estado — 28 de julio de 2026
+# Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.2.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -99,9 +99,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.2.0**.
+contra un Postgres limpio. Última publicada: **v1.3.0**.
 
-Publicar una versión es empujar un tag `v1.2.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.3.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -137,10 +137,13 @@ Para no volver a perder tiempo con lo mismo:
 1. **El APK de release no llevaba `android.permission.INTERNET`.** Flutter la
    inyecta sola en debug, así que el catálogo online andaba al desarrollar y
    habría estado muerto en el teléfono. Ya está en el manifest.
-2. **`supabase db push` no funciona desde esta máquina**: el host directo de
-   Supabase es IPv6 puro y acá no hay IPv6. Las migraciones se aplican con
-   `psql` contra el *session pooler* — el procedimiento exacto está en
-   `supabase/README.md`.
+2. **`supabase db push --linked` no funciona desde esta máquina**: resuelve el
+   host directo de Supabase, que es IPv6 puro, y acá no hay IPv6. Pero
+   pasándole el *session pooler* con `--db-url` anda, sin Docker y sin
+   `supabase login` — el comando exacto está en `supabase/README.md`. Sin
+   Docker tira warnings de `failed to connect to the docker API`: son del
+   caché opcional del catálogo, no de la migración. Confirmar siempre con
+   `supabase migration list`.
 3. **RLS sin `GRANT` no hace nada útil**: `authenticated` recibe *permission
    denied* y las políticas ni se evalúan. Los grants están en la migración 14.
 4. **El compilador incremental de Kotlin** falla en Windows cuando el proyecto

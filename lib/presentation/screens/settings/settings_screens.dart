@@ -951,7 +951,6 @@ class AboutScreen extends ConsumerWidget {
                   label: 'Sistema de diseño',
                   value: 'Nocturne 1.0.0',
                 ),
-                const ValueRow(label: 'Idioma', value: 'Español rioplatense'),
               ],
             ),
           ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -235,9 +236,21 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
                       body: hasQuery
                           ? 'Podés crearlo con tus propios valores o sacarle '
                                 'una foto a la comida.'
-                          : 'Los alimentos que uses o crees van a aparecer acá.',
-                      primaryLabel: 'Crear alimento',
-                      onPrimary: () => context.push(Routes.foodNew),
+                          : switch (_tab) {
+                              _SearchTab.recent =>
+                                'Los alimentos que uses van a aparecer acá.',
+                              _SearchTab.favorites =>
+                                'Marcá con la estrella los que uses seguido.',
+                              _SearchTab.own =>
+                                'Los que crees a mano van a aparecer acá.',
+                            },
+                      // Sin buscar, "Crear alimento" ya está en la barra de
+                      // abajo: repetirlo acá hacía que los dos botones se
+                      // pisaran en pantalla.
+                      primaryLabel: hasQuery ? 'Crear alimento' : null,
+                      onPrimary: hasQuery
+                          ? () => context.push(Routes.foodNew)
+                          : null,
                       secondaryLabel: hasQuery ? 'Sacar una foto' : null,
                       onSecondary: hasQuery
                           ? () => context.push(Routes.photoCapture)
@@ -697,8 +710,11 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
   }
 }
 
-/// Escanear código de barras. En el MVP la cámara no lee el código: se ingresa
-/// el EAN a mano (fuera de alcance §5 del PRD).
+/// Escanear código de barras con la cámara.
+///
+/// El campo de texto se queda igual: una etiqueta arrugada, con brillo o mal
+/// impresa no se lee, y sin esa salida la pantalla sería un callejón sin
+/// salida.
 class FoodScanScreen extends ConsumerStatefulWidget {
   const FoodScanScreen({super.key});
 
@@ -708,8 +724,37 @@ class FoodScanScreen extends ConsumerStatefulWidget {
 
 class _FoodScanScreenState extends ConsumerState<FoodScanScreen> {
   final TextEditingController _ean = TextEditingController();
+  late final MobileScannerController _camera = MobileScannerController(
+    // Solo los formatos que usan los productos de góndola: acota los falsos
+    // positivos y acelera la detección.
+    formats: const <BarcodeFormat>[
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+    ],
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+
   String? _error;
   bool _searching = false;
+
+  /// La cámara sigue emitiendo mientras se consulta el catálogo; sin esto, un
+  /// código bien leído dispara la búsqueda varias veces.
+  bool _handled = false;
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_handled || _searching) return;
+    for (final barcode in capture.barcodes) {
+      final value = barcode.rawValue;
+      if (value == null || value.length < 8) continue;
+      _handled = true;
+      _ean.text = value;
+      unawaited(_camera.stop());
+      unawaited(_lookup());
+      return;
+    }
+  }
 
   Future<void> _lookup() async {
     final ean = _ean.text.trim();
@@ -733,6 +778,7 @@ class _FoodScanScreenState extends ConsumerState<FoodScanScreen> {
           () => _error = 'Ese código no está en el catálogo. Podés crear el '
               'alimento a mano con los datos de la etiqueta.',
         );
+        _resumeCamera();
         return;
       }
       context.pushReplacement(Routes.food(food.id));
@@ -742,12 +788,21 @@ class _FoodScanScreenState extends ConsumerState<FoodScanScreen> {
         _searching = false;
         _error = error.message;
       });
+      _resumeCamera();
     }
+  }
+
+  /// Vuelve a leer tras un fallo: si la cámara quedara parada habría que salir
+  /// y entrar de nuevo para reintentar.
+  void _resumeCamera() {
+    _handled = false;
+    unawaited(_camera.start());
   }
 
   @override
   void dispose() {
     _ean.dispose();
+    unawaited(_camera.dispose());
     super.dispose();
   }
 
@@ -760,33 +815,53 @@ class _FoodScanScreenState extends ConsumerState<FoodScanScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SizedBox(height: NmSpace.s6),
-          Container(
-            height: 180,
-            width: double.infinity,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: nm.surfaceRaised,
-              borderRadius: NmRadius.brMd,
-              border: Border.all(color: nm.divider),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  PhosphorIcons.barcode(),
-                  size: NmIconSize.xl,
-                  color: nm.textMuted,
-                ),
-                const SizedBox(height: NmSpace.s3),
-                Text(
-                  'La lectura con cámara llega en una próxima versión.',
-                  style: NmTextStyles.from(
-                    NmType.caption,
-                    color: nm.textMuted,
+          ClipRRect(
+            borderRadius: NmRadius.brMd,
+            child: SizedBox(
+              height: 260,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  MobileScanner(
+                    controller: _camera,
+                    onDetect: _onDetect,
+                    errorBuilder: (context, error) => Container(
+                      color: nm.surfaceRaised,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(NmSpace.s4),
+                      child: Text(
+                        'No pudimos abrir la cámara. Escribí el código abajo.',
+                        textAlign: TextAlign.center,
+                        style: NmTextStyles.from(
+                          NmType.bodySm,
+                          color: nm.textMuted,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  // Marco de puntería: sin una guía, no se sabe a qué
+                  // distancia poner el envase.
+                  IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        height: 110,
+                        width: 240,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: nm.accent, width: 2),
+                          borderRadius: NmRadius.brSm,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: NmSpace.s3),
+          Text(
+            'Apuntá al código de barras del envase.',
+            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
           ),
           const SizedBox(height: NmSpace.s6),
           NmNumberField(

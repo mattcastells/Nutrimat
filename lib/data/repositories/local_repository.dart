@@ -806,12 +806,23 @@ class LocalRepository
 
   @override
   Future<void> toggleFoodFavorite(String id) async {
-    store.userFoods = store.userFoods
-        .map((f) => f.id == id ? f.copyWith(isFavorite: !f.isFavorite) : f)
+    // Las tres listas, no dos: lo que viene de Open Food Facts queda en
+    // `cachedFoods`, y saltearla hacía que marcar un producto del catálogo
+    // externo no tuviera ningún efecto.
+    //
+    // El valor nuevo se calcula una sola vez y se aplica a todas: si un id
+    // estuviera en más de una lista, invertir cada una por separado lo dejaría
+    // marcado en unas y desmarcado en otras.
+    final current = byId(id)?.isFavorite ?? false;
+    final next = !current;
+
+    List<Food> apply(List<Food> foods) => foods
+        .map((f) => f.id == id ? f.copyWith(isFavorite: next) : f)
         .toList();
-    store.catalogFoods = store.catalogFoods
-        .map((f) => f.id == id ? f.copyWith(isFavorite: !f.isFavorite) : f)
-        .toList();
+
+    store.userFoods = apply(store.userFoods);
+    store.catalogFoods = apply(store.catalogFoods);
+    store.cachedFoods = apply(store.cachedFoods);
     await _commit();
   }
 

@@ -15,6 +15,11 @@
          paquetes, y el updater tendría que limitarse a avisar. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
+    <!-- Lectura de códigos de barras. La foto de comida no la necesita: usa el
+         intent de cámara del sistema, que no exige permiso. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
     <!-- `open_filex` declara permisos de lectura de la galería porque su caso
          de uso general es abrir archivos del almacenamiento compartido.
          Nutrimat solo lo usa para abrir el APK que acaba de escribir en su

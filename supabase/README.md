@@ -76,6 +76,28 @@ Solo se aplican las migraciones pendientes, y cada una queda registrada en
 - **`pgtap` quedó instalado** en el proyecto por la suite de tests. Es solo el
   framework de aserciones; si molesta, `drop extension pgtap`.
 
+## Desplegar una Edge Function
+
+⚠️ **Ni el release de la app ni `db push` tocan las funciones.** Cambiar
+`supabase/functions/**` y publicar una versión de la app deja el código nuevo
+en el repositorio y el viejo corriendo en el servidor. Hay que desplegarlo
+aparte:
+
+```bash
+supabase functions deploy analyze-meal-photo --project-ref ifincvqdsotorvmwzpos
+```
+
+A diferencia de las migraciones, esto **sí** necesita autenticarse con la
+plataforma: `supabase login` (abre el navegador) o un *personal access token*
+en `SUPABASE_ACCESS_TOKEN`. Hoy esta máquina no tiene ninguno de los dos, así
+que el despliegue es manual.
+
+Los secretos de la función van por separado y tampoco viajan con el código:
+
+```bash
+supabase secrets set GEMINI_API_KEY=... --project-ref ifincvqdsotorvmwzpos
+```
+
 ## Lo que falta
 
 1. La `anon key` en `.env.local` para conectar la app.

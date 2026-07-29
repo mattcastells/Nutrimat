@@ -318,7 +318,9 @@ class _DayRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: NmSpace.s2),
       child: NmCard(
-        onTap: day.hasRecords ? onTap : null,
+        // Todos los días se abren, tengan registros o no: entrar a un día vacío
+        // es justamente por dónde se carga lo que falta.
+        onTap: onTap,
         padding: const EdgeInsets.all(NmSpace.s4),
         child: Row(
           children: <Widget>[
@@ -389,6 +391,12 @@ class _DayRow extends StatelessWidget {
                   ),
                 ],
               ),
+            const SizedBox(width: NmSpace.s2),
+            Icon(
+              PhosphorIcons.caretRight(),
+              size: NmIconSize.sm,
+              color: nm.textMuted,
+            ),
           ],
         ),
       ),

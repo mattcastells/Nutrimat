@@ -146,6 +146,11 @@ final currentWeightProvider = Provider<double?>((ref) {
   return ref.watch(repositoryProvider).currentWeightKg;
 });
 
+final activityGoalsProvider = Provider<List<ActivityGoal>>((ref) {
+  ref.watch(appRevisionProvider);
+  return ref.watch(repositoryProvider).activityGoals;
+});
+
 final offlineProvider = Provider<bool>((ref) {
   ref.watch(appRevisionProvider);
   return ref.watch(repositoryProvider).isOffline;

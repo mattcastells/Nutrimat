@@ -7,10 +7,23 @@ GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ## Lo próximo (por acá se arranca)
 
+**La versión con el arreglo del updater hay que instalarla a mano una vez.**
+El que está instalado en el teléfono no puede pedir el permiso de instalación
+(ver "Cosas que ya nos mordieron" §9), así que no puede traerse el arreglo solo:
+hay que bajar el `-universal.apk` del release desde el navegador. De ahí en más
+Configuración → Actualizaciones funciona sin salir de la app.
+
 **Probar el análisis de foto en un teléfono de verdad.** Es lo único del
 circuito que nunca se ejecutó: el emulador no tiene cámara, así que la subida al
 bucket y la Edge Function de Gemini están escritas y verificadas contra el
 servidor, pero sin una foto real de por medio.
+
+**Cambiar el nombre de la cuenta de prueba.** La migración
+`20260801002100_display_name_no_email` ya está aplicada, así que ninguna cuenta
+nueva vuelve a quedar con la parte del correo anterior a la arroba como nombre
+visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
+borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
+nombre.
 
 Después, si hiciera falta: los datos se respaldan como un documento JSON en
 Storage, no como filas. Eso cubre no perder nada y cambiar de teléfono. Recién
@@ -38,8 +51,8 @@ Functions.
 
 ### La app (Flutter, Android)
 
-39 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **159 tests en verde**, `flutter analyze`
+40 pantallas, el sistema de diseño Nocturne completo, animaciones y
+accesibilidad según el handoff. **189 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -49,8 +62,21 @@ argentinos) y el escáner lee el código de barras con la cámara. Recordatorios
 locales de agua y de registro con horario configurable, sueño por noche y
 planificación de comidas hasta tres días adelante.
 
-No hay asistente inicial: entrar lleva directo a Inicio y los datos del perfil
-se cargan desde Perfil cuando se quiera.
+**Objetivos.** Cuatro: bajar de peso, mantener, subir de peso y ganar músculo.
+Elegir uno deja configurado el ritmo, las calorías, los macros y la actividad
+semanal de una sola vez (`domain/calculations/goal_presets.dart` explica de
+dónde sale cada número). Se elige al crear la cuenta y se cambia desde Perfil.
+Las calorías del día se editan desde la propia tarjeta de Inicio, de a 50 kcal
+o escribiendo el valor.
+
+**Medidas corporales.** Tres grupos, como los entrega una nutricionista:
+perímetros en cm, pliegues cutáneos en mm y bioimpedancia. Se cargan todos
+juntos por fecha, no de a uno. El peso y la altura quedan afuera a propósito:
+tienen su propio registro y alimentan el cálculo de BMR.
+
+No hay asistente inicial: al crear la cuenta se pide el nombre y el objetivo, y
+de ahí se entra directo a Inicio. El resto de los datos del perfil se cargan
+desde Perfil cuando se quiera.
 
 Detalle completo: [`docs/estado-de-la-app.md`](docs/estado-de-la-app.md)
 
@@ -60,7 +86,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 21 de 21 aplicadas |
+| Migraciones | 22 de 22 aplicadas |
 | Tablas | 24, **todas con RLS** |
 | Políticas | 78, más 3 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
@@ -140,6 +166,16 @@ Para no volver a perder tiempo con lo mismo:
    miente.
 8. **Los buckets restringen los MIME.** Los de fotos solo aceptan imágenes: el
    respaldo JSON necesitó su propio bucket.
+9. **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza para instalar.**
+   Desde Android 8 el permiso solo habilita a *pedir*; quien autoriza es la
+   persona, **por app instaladora**, en Ajustes → Apps → Nutrimat → Instalar
+   apps desconocidas. Sin eso `startActivity` con el APK devuelve éxito y el
+   sistema descarta la instalación sin decir nada: la app mostraba "Android
+   está instalando" y el teléfono no instalaba nada. Ahora se consulta
+   `canRequestPackageInstalls()` antes de bajar los 25 MB y hay un botón que
+   lleva a la pantalla exacta. El instalador dejó de depender de `open_filex`
+   (que no contempla ese chequeo) y vive en `MainActivity.kt` con su propio
+   `FileProvider` (`${applicationId}.updates`).
 
 ---
 
@@ -149,7 +185,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 159 tests
+flutter test                              # 189 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

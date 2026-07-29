@@ -371,6 +371,8 @@ class ValueRow extends StatelessWidget {
     this.emphasis = false,
     this.valueColor,
     this.muted = false,
+    this.onEdit,
+    this.editTooltip = 'Editar',
     super.key,
   });
 
@@ -380,6 +382,12 @@ class ValueRow extends StatelessWidget {
   final bool emphasis;
   final Color? valueColor;
   final bool muted;
+
+  /// Con esto la fila se vuelve tocable y muestra un lápiz al final: sirve
+  /// para los valores que la persona puede cambiar y que, sin la señal, se
+  /// leen como resultados de un cálculo intocable.
+  final VoidCallback? onEdit;
+  final String editTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -400,41 +408,59 @@ class ValueRow extends StatelessWidget {
             .tnum
             .copyWith(color: valueColor);
 
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: <Widget>[
+                Flexible(child: Text(label, style: labelStyle)),
+                if (caption != null) ...<Widget>[
+                  const SizedBox(width: NmSpace.s2),
+                  Flexible(
+                    child: Text(
+                      caption!,
+                      style: NmTextStyles.from(
+                        NmType.micro,
+                        color: nm.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: NmSpace.s3),
+          Text(value, style: valueStyle),
+          if (onEdit != null) ...<Widget>[
+            const SizedBox(width: NmSpace.s2),
+            Icon(
+              PhosphorIcons.pencilSimple(),
+              size: NmIconSize.sm,
+              color: nm.isDark ? nm.accentText : nm.accent,
+            ),
+          ],
+        ],
+      ),
+    );
+
     return Semantics(
       label: '$label: $value${caption == null ? '' : ', $caption'}',
+      button: onEdit != null,
+      onTapHint: onEdit == null ? null : editTooltip,
       child: ExcludeSemantics(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: <Widget>[
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: <Widget>[
-                    Flexible(child: Text(label, style: labelStyle)),
-                    if (caption != null) ...<Widget>[
-                      const SizedBox(width: NmSpace.s2),
-                      Flexible(
-                        child: Text(
-                          caption!,
-                          style: NmTextStyles.from(
-                            NmType.micro,
-                            color: nm.textMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+        child: onEdit == null
+            ? row
+            : InkWell(
+                onTap: onEdit,
+                borderRadius: NmRadius.brSm,
+                child: row,
               ),
-              const SizedBox(width: NmSpace.s3),
-              Text(value, style: valueStyle),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -73,11 +73,18 @@ enum ThemeModeSetting {
 enum GoalType {
   lose('lose', 'Bajar de peso'),
   maintain('maintain', 'Mantener'),
-  gain('gain', 'Subir de peso');
+  gain('gain', 'Subir de peso'),
+  // Subir de peso y ganar músculo comparten la dirección pero no el plan: el
+  // superávit es igual de chico, la proteína sube a 2 g/kg y el objetivo de
+  // actividad pasa a contar entrenamientos de fuerza.
+  gainMuscle('gain_muscle', 'Ganar músculo');
 
   const GoalType(this.wire, this.label);
   final String wire;
   final String label;
+
+  /// Los dos objetivos que suman peso, para las reglas que no distinguen.
+  bool get isSurplus => this == gain || this == gainMuscle;
 
   static GoalType fromWire(String w) =>
       values.firstWhere((e) => e.wire == w, orElse: () => maintain);
@@ -247,19 +254,221 @@ enum GoalPeriod {
   final String label;
 }
 
-enum MeasurementMetric {
-  waist('waist', 'Cintura', 'cm'),
-  hip('hip', 'Cadera', 'cm'),
-  chest('chest', 'Pecho', 'cm'),
-  arm('arm', 'Brazo', 'cm'),
-  thigh('thigh', 'Muslo', 'cm'),
-  neck('neck', 'Cuello', 'cm'),
-  bodyFatPct('body_fat_pct', 'Grasa corporal', 'pct');
+/// Cómo se agrupan las medidas corporales en pantalla.
+///
+/// Son tres cosas distintas que se toman con instrumentos distintos: la cinta
+/// métrica, el plicómetro y la balanza de bioimpedancia. Mezclarlas en una sola
+/// lista de veinte chips no se puede usar.
+enum MeasurementGroup {
+  perimeters('Perímetros', 'Con cinta métrica, en centímetros'),
+  skinfolds(
+    'Pliegues cutáneos',
+    'Con plicómetro, en milímetros. Siempre del mismo lado y con la misma '
+        'técnica: comparar contra vos mismo es lo único que tiene sentido.',
+  ),
+  composition(
+    'Bioimpedancia',
+    'Lo que devuelve la balanza. Es una estimación indirecta: cambia con la '
+        'hidratación y con la hora del día.',
+  );
 
-  const MeasurementMetric(this.wire, this.label, this.unit);
+  const MeasurementGroup(this.label, this.help);
+  final String label;
+  final String help;
+}
+
+/// Medidas corporales, en el orden de la planilla que entrega una nutricionista
+/// (perímetros → pliegues → bioimpedancia).
+///
+/// El peso y la talla **no** están acá: el peso tiene su propio registro diario
+/// (uno por día, D-16) y la altura vive en el perfil corporal, porque alimenta
+/// el cálculo de BMR. Duplicarlos daría dos números que se contradicen.
+enum MeasurementMetric {
+  // ── Perímetros (cm) ────────────────────────────────────────────────────
+  arm(
+    'arm',
+    'Brazo relajado',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 10,
+    max: 100,
+  ),
+  armFlexed(
+    'arm_flexed',
+    'Brazo flexionado',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 10,
+    max: 100,
+  ),
+  chest('chest', 'Pecho', 'cm', MeasurementGroup.perimeters, min: 40, max: 200),
+  waist(
+    'waist',
+    'Cintura (mínima)',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 40,
+    max: 200,
+  ),
+  hip(
+    'hip',
+    'Cadera (máxima)',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 40,
+    max: 200,
+  ),
+  thigh(
+    'thigh',
+    'Muslo',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 20,
+    max: 120,
+  ),
+  calf(
+    'calf',
+    'Pantorrilla (máxima)',
+    'cm',
+    MeasurementGroup.perimeters,
+    min: 15,
+    max: 80,
+  ),
+  neck('neck', 'Cuello', 'cm', MeasurementGroup.perimeters, min: 20, max: 80),
+
+  // ── Pliegues cutáneos (mm) ─────────────────────────────────────────────
+  tricepsFold(
+    'triceps_fold',
+    'Tríceps',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  subscapularFold(
+    'subscapular_fold',
+    'Subescapular',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  bicepsFold(
+    'biceps_fold',
+    'Bíceps',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  iliacCrestFold(
+    'iliac_crest_fold',
+    'Cresta ilíaca',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  supraspinaleFold(
+    'supraspinale_fold',
+    'Supraespinal',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  abdominalFold(
+    'abdominal_fold',
+    'Abdominal',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+  thighFold(
+    'thigh_fold',
+    'Muslo medial',
+    'mm',
+    MeasurementGroup.skinfolds,
+    min: 1,
+    max: 80,
+  ),
+
+  // ── Bioimpedancia ──────────────────────────────────────────────────────
+  bodyFatPct(
+    'body_fat_pct',
+    'Grasa corporal',
+    'pct',
+    MeasurementGroup.composition,
+    min: 3,
+    max: 70,
+  ),
+  musclePct(
+    'muscle_pct',
+    'Músculo',
+    'pct',
+    MeasurementGroup.composition,
+    min: 10,
+    max: 70,
+  ),
+  muscleKg(
+    'muscle_kg',
+    'Músculo',
+    'kg',
+    MeasurementGroup.composition,
+    min: 5,
+    max: 120,
+  ),
+  visceralFat(
+    'visceral_fat',
+    'Grasa visceral',
+    'index',
+    MeasurementGroup.composition,
+    min: 1,
+    max: 60,
+  );
+
+  const MeasurementMetric(
+    this.wire,
+    this.label,
+    this.unit,
+    this.group, {
+    required this.min,
+    required this.max,
+  });
+
   final String wire;
   final String label;
+
+  /// Unidad de almacenamiento: `cm`, `mm`, `kg`, `pct` o `index`.
   final String unit;
+  final MeasurementGroup group;
+
+  /// Rango aceptado. No es una regla clínica: es el filtro para atajar un cero
+  /// de más al tipear.
+  final double min;
+  final double max;
+
+  /// Cómo se muestra la unidad.
+  String get unitLabel => switch (unit) {
+    'pct' => '%',
+    'index' => '',
+    final u => u,
+  };
+
+  /// Dos metros con el mismo nombre en distinta unidad ("Músculo" en % y en
+  /// kg) necesitan desambiguarse en las listas.
+  String get longLabel =>
+      unitLabel.isEmpty ? label : '$label ($unitLabel)';
+
+  static MeasurementMetric fromWire(String w) =>
+      values.firstWhere((e) => e.wire == w, orElse: () => waist);
+
+  static List<MeasurementMetric> inGroup(MeasurementGroup group) =>
+      values.where((m) => m.group == group).toList();
+
+  /// Los pliegues que entran en la sumatoria.
+  static List<MeasurementMetric> get folds => inGroup(MeasurementGroup.skinfolds);
 }
 
 enum AiAnalysisStatus {

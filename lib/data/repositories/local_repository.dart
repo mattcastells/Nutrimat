@@ -1028,6 +1028,13 @@ class LocalRepository
         ..sort((a, b) => a.localDate.compareTo(b.localDate));
 
   @override
+  Map<MeasurementMetric, BodyMeasurement> measurementsOn(DateTime date) =>
+      <MeasurementMetric, BodyMeasurement>{
+        for (final m in store.measurements)
+          if (isSameDay(m.localDate, date)) m.metric: m,
+      };
+
+  @override
   Future<void> logMeasurement({
     required MeasurementMetric metric,
     required double value,

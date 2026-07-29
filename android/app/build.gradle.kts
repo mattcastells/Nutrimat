@@ -79,4 +79,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // `FileProvider`, para entregarle el APK de la actualización al instalador
+    // de paquetes como `content://`. Va explícita y no de arrastre: lo que
+    // llega transitivamente de un AAR no queda en el classpath de compilación.
+    implementation("androidx.core:core-ktx:1.13.1")
 }

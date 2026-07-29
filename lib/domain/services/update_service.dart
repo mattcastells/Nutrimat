@@ -4,6 +4,16 @@ import '../models/app_release.dart';
 /// Instala un APK ya descargado. La implementación real depende de la
 /// plataforma; se inyecta para poder probar el servicio sin tocar Android.
 abstract interface class ApkInstaller {
+  /// Si el sistema tiene a esta app habilitada como origen de instalación.
+  ///
+  /// Es un permiso que se concede **por app instaladora** desde Android 8, no
+  /// algo que alcance con declarar en el manifest. Mientras sea `false` el
+  /// instalador se abre y se cierra sin instalar nada.
+  Future<bool> canInstall();
+
+  /// Abre la pantalla de Ajustes donde se habilita a esta app.
+  Future<void> openInstallSettings();
+
   /// Guarda los bytes y le pide al sistema que abra el instalador de paquetes.
   ///
   /// Devuelve cuando el diálogo del sistema quedó a la vista: si la persona
@@ -41,6 +51,12 @@ class UpdateService {
     }
     return UpToDate(current);
   }
+
+  /// Si Android ya tiene a Nutrimat habilitada como origen de instalación.
+  Future<bool> canInstall() => _installer.canInstall();
+
+  /// Lleva a la pantalla de Ajustes donde se habilita.
+  Future<void> openInstallSettings() => _installer.openInstallSettings();
 
   Future<void> downloadAndInstall(
     AppRelease release, {

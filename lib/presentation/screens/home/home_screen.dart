@@ -21,8 +21,10 @@ import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../components/water/water_card.dart';
 import '../../providers/app_providers.dart';
+import '../profile/calorie_target_sheet.dart';
 import '../weight/weight_sheet.dart';
 import 'add_sheet.dart';
+import 'add_to_slot_sheet.dart';
 import 'daily_breakdown_sheet.dart';
 import 'date_picker_sheet.dart';
 
@@ -125,6 +127,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   showDailyBreakdownSheet(context, summary),
                               onChangeCredit: () =>
                                   context.push(Routes.exerciseCredit),
+                              onEditTarget: () =>
+                                  showCalorieTargetSheet(context),
                             ),
                             const SizedBox(height: NmSpace.s6),
                             NmCard(child: MacroBar(macros: summary.macros)),
@@ -163,9 +167,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   meals: summary.mealsFor(slot),
                                   // Los días futuros dentro de la ventana se
                                   // pueden cargar: es la planificación.
-                                  onAdd: () => context.push(
-                                    '${Routes.mealNew}?slot=${slot.wire}'
-                                    '&date=${isoDate(date)}',
+                                  onAdd: () => showAddToSlotSheet(
+                                    context,
+                                    slot: slot,
+                                    date: date,
                                   ),
                                   onOpenMeal: (meal) =>
                                       context.push(Routes.meal(meal.id)),

@@ -130,6 +130,17 @@ La primera vez, Android pide habilitar a Nutrimat como origen de instalación
 (`Ajustes → Apps → Nutrimat → Instalar apps desconocidas`). Eso lo concede la
 persona, una sola vez, y no se puede evitar.
 
+⚠️ **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza**: solo habilita a
+*pedir* ese permiso. Hasta la 1.3.0 la app no lo chequeaba, y como lanzar el
+intent devuelve éxito igual —el sistema descarta la instalación sin avisar—, la
+pantalla decía "Android está instalando" y no pasaba nada. Desde la 1.3.0 el
+instalador vive en `MainActivity.kt` con su propio `FileProvider`, consulta
+`canRequestPackageInstalls()` **antes** de descargar y ofrece un botón que abre
+esa pantalla de Ajustes ya filtrada por la app.
+
+Como consecuencia, **una versión instalada anterior a la 1.3.0 no puede
+actualizarse sola**: hay que bajar el `-universal.apk` a mano una vez.
+
 ### Si el repositorio pasara a privado
 
 El updater deja de funcionar y **no alcanza con ponerle un token al cliente**.
@@ -148,5 +159,5 @@ limitarse a avisar que hay versión nueva y abrir la ficha de Play.
 
 [`ci.yml`](../.github/workflows/ci.yml) corre en cada push a `main` y en cada
 pull request: `flutter analyze --fatal-infos`, `flutter test`, y las suites
-pgTAP de RLS y Storage contra un Postgres limpio con las 18 migraciones
+pgTAP de RLS y Storage contra un Postgres limpio con las 22 migraciones
 aplicadas desde cero.

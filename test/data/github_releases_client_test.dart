@@ -44,6 +44,14 @@ GithubReleasesClient _clientReturning(String body, {int status = 200}) =>
 class _FakeInstaller implements ApkInstaller {
   List<int>? installed;
   String? name;
+  bool allowed = true;
+  int settingsOpened = 0;
+
+  @override
+  Future<bool> canInstall() async => allowed;
+
+  @override
+  Future<void> openInstallSettings() async => settingsOpened++;
 
   @override
   Future<void> install(List<int> apkBytes, {required String fileName}) async {

@@ -20,10 +20,11 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
-    <!-- `open_filex` declara permisos de lectura de la galería porque su caso
-         de uso general es abrir archivos del almacenamiento compartido.
-         Nutrimat solo lo usa para abrir el APK que acaba de escribir en su
-         propio directorio privado, y para eso no hace falta ningún permiso.
+    <!-- Alguna dependencia puede declarar permisos de lectura de la galería
+         porque su caso de uso general es abrir archivos del almacenamiento
+         compartido. Nutrimat no lee nada de ahí: el APK de la actualización lo
+         escribe en su propio directorio privado y las fotos las trae el
+         selector del sistema, que no exige permiso.
 
          Se quitan del manifest final: pedir acceso a las fotos, los videos y
          el audio de alguien "por las dudas" contradice todo lo que la pantalla
@@ -69,6 +70,20 @@
                 <data android:scheme="nutrimat"/>
             </intent-filter>
         </activity>
+        <!-- Le pasa al instalador de paquetes una URI `content://` del APK
+             recién descargado. Un `file://` haría que Android lance
+             FileExposedException desde API 24; el provider concede lectura
+             solo sobre ese archivo y solo mientras dura el intent. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/nm_update_paths" />
+        </provider>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

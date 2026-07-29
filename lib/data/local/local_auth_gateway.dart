@@ -57,6 +57,7 @@ class LocalAuthGateway implements AuthGateway {
   Future<AuthAccount?> signUp({
     required String email,
     required String password,
+    String? displayName,
   }) => signIn(email: email, password: password);
 
   @override

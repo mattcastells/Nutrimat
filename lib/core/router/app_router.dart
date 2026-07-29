@@ -18,6 +18,7 @@ import '../../presentation/screens/pals/pal_day_screen.dart';
 import '../../presentation/screens/pals/pals_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
+import '../../presentation/screens/profile/goal_picker_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
 import '../../presentation/screens/progress/progress_screen.dart';
@@ -156,6 +157,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.profileBody,
         builder: (context, state) => const BodyProfileScreen(),
+      ),
+      GoRoute(
+        path: Routes.profileGoal,
+        builder: (context, state) => const GoalPickerScreen(),
+      ),
+      GoRoute(
+        path: Routes.welcomeGoal,
+        builder: (context, state) => const GoalPickerScreen(isFirstTime: true),
       ),
       GoRoute(
         path: Routes.profileTarget,

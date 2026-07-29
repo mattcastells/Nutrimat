@@ -12,11 +12,15 @@ import '../../components/activity/activity_cards.dart';
 import '../../components/charts/macro_bar.dart';
 import '../../components/food/daily_summary_card.dart';
 import '../../components/food/food_widgets.dart';
+import '../../components/sleep/sleep_card.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
+import '../../components/water/water_card.dart';
 import '../../providers/app_providers.dart';
+import '../home/add_to_slot_sheet.dart';
 import '../home/daily_breakdown_sheet.dart';
+import '../profile/calorie_target_sheet.dart';
 import '../weight/weight_sheet.dart';
 
 /// S-22 · Detalle del día. La misma tarjeta que Inicio, editable (D-20).
@@ -41,9 +45,14 @@ class DayDetailScreen extends ConsumerWidget {
             summary: summary,
             onBreakdown: () => showDailyBreakdownSheet(context, summary),
             onChangeCredit: () => context.push(Routes.exerciseCredit),
+            onEditTarget: () => showCalorieTargetSheet(context),
           ),
           const SizedBox(height: NmSpace.s6),
           NmCard(child: MacroBar(macros: summary.macros)),
+          const SizedBox(height: NmSpace.s6),
+          WaterCard(date: date),
+          const SizedBox(height: NmSpace.s4),
+          SleepCard(date: date),
           const SizedBox(height: NmSpace.s8),
 
           const NmSectionHeader(title: 'Comidas'),
@@ -53,9 +62,7 @@ class DayDetailScreen extends ConsumerWidget {
               child: MealSection(
                 slot: slot,
                 meals: summary.mealsFor(slot),
-                onAdd: () => context.push(
-                  '${Routes.mealNew}?slot=${slot.wire}&date=${isoDate(date)}',
-                ),
+                onAdd: () => showAddToSlotSheet(context, slot: slot, date: date),
                 onOpenMeal: (meal) => context.push(Routes.meal(meal.id)),
                 onDeleteMeal: (meal) async {
                   await repo.deleteMeal(meal.id);
@@ -67,6 +74,11 @@ class DayDetailScreen extends ConsumerWidget {
                     undo: true,
                     onAction: () => repo.restoreMeal(meal.id),
                   );
+                },
+                onDuplicateMeal: (meal) async {
+                  await repo.duplicateMeal(meal.id, date, meal.slot);
+                  if (!context.mounted) return;
+                  NmSnackbar.show(context, 'Comida duplicada');
                 },
               ),
             ),

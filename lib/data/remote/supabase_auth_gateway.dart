@@ -63,10 +63,21 @@ class SupabaseAuthGateway implements AuthGateway {
   Future<AuthAccount?> signUp({
     required String email,
     required String password,
+    String? displayName,
   }) async {
+    final name = displayName?.trim();
     final AuthResponse response;
     try {
-      response = await _auth.signUp(email: email, password: password);
+      response = await _auth.signUp(
+        email: email,
+        password: password,
+        // Lo lee el trigger `handle_new_user` para poblar
+        // `profiles.display_name`; sin esto queda la parte del mail previa a
+        // la arroba y eso es lo que terminan viendo los pals.
+        data: name == null || name.isEmpty
+            ? null
+            : <String, dynamic>{'display_name': name},
+      );
     } on AuthException catch (error) {
       throw _translate(error);
     } on Exception {

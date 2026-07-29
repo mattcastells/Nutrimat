@@ -20,12 +20,17 @@ class DailySummaryCard extends StatelessWidget {
     required this.summary,
     required this.onBreakdown,
     required this.onChangeCredit,
+    this.onEditTarget,
     super.key,
   });
 
   final DailySummary summary;
   final VoidCallback onBreakdown;
   final VoidCallback onChangeCredit;
+
+  /// Editar las calorías del día. Sin esto el objetivo base se lee como un
+  /// número que la app decidió y no se puede tocar.
+  final VoidCallback? onEditTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +53,8 @@ class DailySummaryCard extends StatelessWidget {
           ValueRow(
             label: 'Objetivo base',
             value: Fmt.integer(summary.baseTarget),
+            onEdit: onEditTarget,
+            editTooltip: 'Cambiar las calorías por día',
           ),
           const NmDivider(),
           ValueRow(

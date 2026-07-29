@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/theme/nm_theme.dart';
+import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
 import '../../../core/utils/formats.dart';
@@ -19,6 +21,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../weight/measurement_sheet.dart';
 import '../weight/weight_sheet.dart';
 
 const _uuid = Uuid();
@@ -407,15 +410,28 @@ class MeasurementsScreen extends ConsumerStatefulWidget {
 }
 
 class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
+  MeasurementGroup _group = MeasurementGroup.perimeters;
   MeasurementMetric _metric = MeasurementMetric.waist;
+
+  void _selectGroup(MeasurementGroup group) => setState(() {
+    _group = group;
+    // La métrica elegida tiene que pertenecer al grupo visible, si no el
+    // gráfico muestra una serie que no está en ninguna de las opciones.
+    if (_metric.group != group) _metric = MeasurementMetric.inGroup(group).first;
+  });
 
   @override
   Widget build(BuildContext context) {
+    final nm = context.nm;
     final repo = ref.watch(repositoryProvider);
+    // Se lee para que la pantalla se redibuje al guardar desde el sheet.
+    ref.watch(appRevisionProvider);
+
     final entries = repo.measurements(_metric);
     final points = entries
         .map((m) => ChartPoint(m.localDate, m.value))
         .toList();
+    final last = entries.isEmpty ? null : entries.last;
 
     return NmScreen(
       title: 'Medidas corporales',
@@ -423,13 +439,28 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SizedBox(height: NmSpace.s4),
+          NmSegmentedControl<MeasurementGroup>(
+            options: const <(MeasurementGroup, String)>[
+              (MeasurementGroup.perimeters, 'Perímetros'),
+              (MeasurementGroup.skinfolds, 'Pliegues'),
+              (MeasurementGroup.composition, 'Balanza'),
+            ],
+            value: _group,
+            onChanged: _selectGroup,
+          ),
+          const SizedBox(height: NmSpace.s3),
+          Text(
+            _group.help,
+            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+          ),
+          const SizedBox(height: NmSpace.s4),
           Wrap(
             spacing: NmSpace.s2,
             runSpacing: NmSpace.s2,
             children: <Widget>[
-              for (final metric in MeasurementMetric.values)
+              for (final metric in MeasurementMetric.inGroup(_group))
                 NmChip(
-                  label: metric.label,
+                  label: metric.longLabel,
                   selected: metric == _metric,
                   semanticsInRadioGroup: true,
                   onTap: () => setState(() => _metric = metric),
@@ -437,14 +468,29 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
             ],
           ),
           const SizedBox(height: NmSpace.s6),
+
+          if (last != null) ...<Widget>[
+            NmCard(
+              child: ValueRow(
+                label: 'Último registro',
+                caption: friendlyDay(last.localDate),
+                value: '${Fmt.decimal1(last.value)} ${last.unit}'.trim(),
+                emphasis: true,
+              ),
+            ),
+            const SizedBox(height: NmSpace.s4),
+          ],
+
           if (points.length < 2)
             EmptyState(
               compact: true,
               icon: PhosphorIcons.ruler(),
-              title: 'Sin registros de ${_metric.label.toLowerCase()}',
+              title: last == null
+                  ? 'Sin registros de ${_metric.label.toLowerCase()}'
+                  : 'Falta un registro más',
               body: 'Con dos registros ya podemos dibujar la serie.',
-              primaryLabel: 'Registrar medida',
-              onPrimary: () => showMeasurementSheet(context),
+              primaryLabel: 'Registrar medidas',
+              onPrimary: () => showMeasurementSheet(context, group: _group),
             )
           else ...<Widget>[
             NmCard(
@@ -461,18 +507,26 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
                   for (final entry in entries.reversed.take(12))
                     ValueRow(
                       label: friendlyDay(entry.localDate),
-                      value: '${Fmt.decimal1(entry.value)} ${entry.unit}',
+                      value: '${Fmt.decimal1(entry.value)} ${entry.unit}'
+                          .trim(),
                     ),
                 ],
               ),
             ),
             const SizedBox(height: NmSpace.s6),
             NmButton(
-              label: 'Registrar medida',
+              label: 'Registrar medidas',
               block: true,
-              onPressed: () => showMeasurementSheet(context),
+              onPressed: () => showMeasurementSheet(context, group: _group),
             ),
           ],
+
+          const SizedBox(height: NmSpace.s6),
+          Text(
+            'El peso se registra desde Inicio y la altura en Perfil corporal: '
+            'los dos alimentan otros cálculos, así que viven ahí y no acá.',
+            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+          ),
         ],
       ),
     );

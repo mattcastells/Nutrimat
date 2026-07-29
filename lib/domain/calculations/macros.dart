@@ -1,5 +1,6 @@
 import '../../core/error/app_error.dart';
 import '../enums/enums.dart';
+import 'goal_presets.dart';
 import 'rounding.dart';
 
 /// Objetivos de macronutrientes en gramos.
@@ -57,7 +58,7 @@ bool macrosAreInconsistent({
 /// Objetivos de macros por defecto (§19).
 ///
 /// ```
-/// proteínaG = round(1,6 × pesoKg)     (2,0 si goalType = 'lose')
+/// proteínaG = round(1,6 × pesoKg)     (2,0 si goalType = 'lose' o 'gain_muscle')
 /// grasaG    = round(objetivoKcal × 0,25 ÷ 9)
 /// carbosG   = round((objetivoKcal − proteínaG×4 − grasaG×9) ÷ 4)
 /// ```
@@ -84,7 +85,11 @@ MacroTargets macroTargets({
     );
   }
 
-  final proteinPerKg = goalType == GoalType.lose ? 2.0 : 1.6;
+  // 2 g/kg en déficit (protege la masa magra) y al ganar músculo (es el
+  // insumo de lo que se quiere construir). En el resto, 1,6 alcanza. El valor
+  // sale del preset del objetivo para que la pantalla de objetivos y este
+  // cálculo no puedan decir cosas distintas.
+  final proteinPerKg = GoalPreset.of(goalType).proteinGPerKg;
 
   MacroTargets attempt(double gramsPerKg) {
     final protein = roundHalfUp(gramsPerKg * weightKg);

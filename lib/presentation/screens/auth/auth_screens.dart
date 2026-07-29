@@ -222,6 +222,7 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
   bool _terms = false;
@@ -232,6 +233,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   void dispose() {
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -239,6 +241,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   bool get _canSubmit =>
       _terms &&
+      _name.text.trim().length >= 2 &&
       AuthValidation.email(_email.text) == null &&
       AuthValidation.password(_password.text) == null;
 
@@ -261,12 +264,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _submitting = true);
     final email = AuthValidation.normalizeEmail(_email.text);
+    final name = _name.text.trim();
 
     final AuthAccount? account;
     try {
       account = await ref
           .read(authGatewayProvider)
-          .signUp(email: email, password: _password.text);
+          .signUp(email: email, password: _password.text, displayName: name);
     } on AppError catch (error) {
       if (!mounted) return;
       setState(() {
@@ -278,12 +282,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     await repo.startDemoSession(seeded: false);
     await repo.signIn(email);
+    await repo.updateProfile(
+      repo.profile.copyWith(displayName: name),
+    );
     if (!mounted) return;
     setState(() => _submitting = false);
 
-    // Si el alta ya devolvió sesión, el proyecto no pide confirmar el correo.
+    // Si el alta ya devolvió sesión, el proyecto no pide confirmar el correo:
+    // se puede seguir de largo a elegir el objetivo.
     if (account != null) {
-      context.go(Routes.home);
+      context.go(Routes.welcomeGoal);
       return;
     }
     context.go('${Routes.checkEmail}?email=${Uri.encodeComponent(email)}');
@@ -310,6 +318,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             _FormErrorSummary(message: _formError!),
             const SizedBox(height: NmSpace.s4),
           ],
+          NmTextField(
+            label: 'Tu nombre',
+            controller: _name,
+            hint: 'Como querés que te vean',
+            helper: 'Es lo único que ven tus pals. Podés cambiarlo después.',
+            textInputAction: TextInputAction.next,
+            autofillHints: const <String>[AutofillHints.givenName],
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: NmSpace.s4),
           NmTextField(
             label: 'Correo',
             controller: _email,

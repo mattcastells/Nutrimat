@@ -48,10 +48,16 @@ abstract final class CalorieTargetRules {
 }
 
 /// ```
-/// objetivoBase(lose)     = tdee − ajusteDiario
-/// objetivoBase(gain)     = tdee + ajusteDiario × 0,5   (superávit conservador, D-04)
-/// objetivoBase(maintain) = tdee
+/// objetivoBase(lose)        = tdee − ajusteDiario
+/// objetivoBase(gain)        = tdee + ajusteDiario × 0,5   (superávit conservador, D-04)
+/// objetivoBase(gain_muscle) = tdee + ajusteDiario
+/// objetivoBase(maintain)    = tdee
 /// ```
+///
+/// `gain_muscle` usa el superávit completo y no la mitad: el recorte de D-04
+/// existe para que subir de peso no sea subir grasa, y ahí el freno lo pone el
+/// ritmo, que por defecto es 0,25 kg/semana (≈ 275 kcal). Recortarlo otra vez
+/// dejaría un superávit tan chico que no alcanza para construir tejido.
 CalorieTargetResult calorieTarget({
   required int tdee,
   required GoalType goalType,
@@ -78,6 +84,7 @@ CalorieTargetResult calorieTarget({
     GoalType.lose => tdee - adjustment,
     // Medio superávit: un superávit completo se traduce mayormente en grasa (D-04).
     GoalType.gain => tdee + adjustment * 0.5,
+    GoalType.gainMuscle => tdee + adjustment,
     GoalType.maintain => tdee.toDouble(),
   };
 

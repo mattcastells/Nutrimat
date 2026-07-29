@@ -23,8 +23,11 @@ class _FakeAuth implements AuthGateway {
   Future<AuthAccount> signIn({required String email, required String password}) =>
       throw UnimplementedError();
   @override
-  Future<AuthAccount?> signUp({required String email, required String password}) =>
-      throw UnimplementedError();
+  Future<AuthAccount?> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  }) => throw UnimplementedError();
   @override
   Future<void> signOut() async => account = null;
   @override

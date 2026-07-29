@@ -6,7 +6,6 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
 import '../../../core/utils/formats.dart';
-import '../../../domain/enums/enums.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/overlays.dart';
@@ -174,91 +173,5 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
   }
 }
 
-/// Registrar una medida corporal (`/measurement/new`).
-Future<void> showMeasurementSheet(BuildContext context) => showNmSheet<void>(
-  context: context,
-  builder: (context) => const _MeasurementSheet(),
-);
-
-class _MeasurementSheet extends ConsumerStatefulWidget {
-  const _MeasurementSheet();
-
-  @override
-  ConsumerState<_MeasurementSheet> createState() => _MeasurementSheetState();
-}
-
-class _MeasurementSheetState extends ConsumerState<_MeasurementSheet> {
-  final TextEditingController _value = TextEditingController();
-  MeasurementMetric _metric = MeasurementMetric.waist;
-  DateTime _date = DateTime.now();
-  String? _error;
-
-  @override
-  void dispose() {
-    _value.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final parsed = double.tryParse(_value.text.replaceAll(',', '.'));
-    final isPct = _metric == MeasurementMetric.bodyFatPct;
-    final min = isPct ? 3.0 : 10.0;
-    final max = isPct ? 70.0 : 300.0;
-
-    if (parsed == null || parsed < min || parsed > max) {
-      setState(
-        () => _error = isPct
-            ? 'El porcentaje de grasa va de 3 a 70.'
-            : 'La medida va de 10 a 300 cm.',
-      );
-      return;
-    }
-
-    await ref
-        .read(repositoryProvider)
-        .logMeasurement(metric: _metric, value: parsed, date: _date);
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    NmSnackbar.show(context, 'Medida registrada');
-  }
-
-  @override
-  Widget build(BuildContext context) => NmSheet(
-    title: 'Registrar medida',
-    footer: NmButton(label: 'Guardar', block: true, onPressed: _save),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Wrap(
-          spacing: NmSpace.s2,
-          runSpacing: NmSpace.s2,
-          children: <Widget>[
-            for (final metric in MeasurementMetric.values)
-              NmChip(
-                label: metric.label,
-                selected: metric == _metric,
-                onTap: () => setState(() => _metric = metric),
-              ),
-          ],
-        ),
-        const SizedBox(height: NmSpace.s6),
-        NmNumberField(
-          label: _metric.label,
-          controller: _value,
-          decimals: 1,
-          suffix: _metric == MeasurementMetric.bodyFatPct ? '%' : 'cm',
-          error: _error,
-          autofocus: true,
-          onChanged: (_) => setState(() => _error = null),
-        ),
-        const SizedBox(height: NmSpace.s6),
-        NmDateField(
-          label: 'Fecha',
-          value: _date,
-          lastDate: DateTime.now(),
-          onChanged: (v) => setState(() => _date = v),
-        ),
-      ],
-    ),
-  );
-}
+// El registro de medidas corporales vive en `measurement_sheet.dart`: dejó de
+// ser un valor suelto y pasó a ser la planilla entera del día.

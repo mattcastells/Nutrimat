@@ -65,7 +65,7 @@ class WeightLog {
   );
 }
 
-/// Medida corporal (S-26). Validaciones: 10–300 cm; grasa 3–70 %.
+/// Medida corporal (S-26). Cada métrica trae su propio rango válido.
 class BodyMeasurement {
   const BodyMeasurement({
     required this.id,
@@ -81,7 +81,7 @@ class BodyMeasurement {
   final DateTime localDate;
   final String? notes;
 
-  String get unit => metric.unit == 'pct' ? '%' : 'cm';
+  String get unit => metric.unitLabel;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -93,10 +93,7 @@ class BodyMeasurement {
 
   static BodyMeasurement fromJson(Map<String, dynamic> j) => BodyMeasurement(
     id: j['id'] as String,
-    metric: MeasurementMetric.values.firstWhere(
-      (e) => e.wire == j['metric'],
-      orElse: () => MeasurementMetric.waist,
-    ),
+    metric: MeasurementMetric.fromWire(j['metric'] as String),
     value: (j['value'] as num).toDouble(),
     localDate: DateTime.parse(j['localDate'] as String),
     notes: j['notes'] as String?,

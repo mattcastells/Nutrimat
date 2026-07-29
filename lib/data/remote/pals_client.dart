@@ -32,6 +32,23 @@ class PalsClient {
 
   String get _me => _db.auth.currentUser?.id ?? '';
 
+  /// El nombre que ven los pals.
+  ///
+  /// Vive en `profiles`, que es la única tabla de servidor que la app escribe
+  /// fuera del respaldo. Si no se setea nunca, el trigger de alta deja la parte
+  /// del correo anterior a la arroba, y eso es lo que terminan viendo los
+  /// demás.
+  Future<void> setDisplayName(String name) async {
+    try {
+      await _db
+          .from('profiles')
+          .update(<String, dynamic>{'display_name': name})
+          .eq('id', _me);
+    } on Exception {
+      throw _offline;
+    }
+  }
+
   /// Código propio, el que se le pasa a alguien para que te agregue.
   Future<String?> myCode() async {
     try {

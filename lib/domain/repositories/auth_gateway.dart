@@ -36,9 +36,14 @@ abstract interface class AuthGateway {
 
   /// Con la confirmación por correo activada en el proyecto, devuelve `null`:
   /// la cuenta existe pero todavía no hay sesión hasta que se confirme.
+  ///
+  /// [displayName] es el nombre que van a ver los pals. Si no va, el servidor
+  /// cae en la parte del correo anterior a la arroba, que es exactamente lo
+  /// que no queremos mostrarle a nadie.
   Future<AuthAccount?> signUp({
     required String email,
     required String password,
+    String? displayName,
   });
 
   Future<void> signOut();

@@ -1,21 +1,27 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/error/app_error.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/formats.dart';
+import '../../../domain/calculations/goal_presets.dart';
+import '../../../domain/enums/enums.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/update_providers.dart';
+import 'calorie_target_sheet.dart';
 
 /// S-27 · Perfil.
 class ProfileScreen extends ConsumerWidget {
@@ -27,7 +33,17 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     final goal = ref.watch(currentGoalProvider);
     final pending = ref.watch(pendingCountProvider);
+    final weightKg = ref.watch(currentWeightProvider);
+    final activityGoals = ref.watch(activityGoalsProvider);
     final repo = ref.watch(repositoryProvider);
+
+    final preset = goal == null ? null : GoalPreset.of(goal.goalType);
+    final minutes = activityGoals
+        .where((g) => g.goalType == ActivityGoalType.activeMinutes)
+        .firstOrNull;
+    final strength = activityGoals
+        .where((g) => g.goalType == ActivityGoalType.strengthSessions)
+        .firstOrNull;
 
     return NmScreen(
       title: 'Perfil',
@@ -36,6 +52,7 @@ class ProfileScreen extends ConsumerWidget {
         children: <Widget>[
           const SizedBox(height: NmSpace.s4),
           NmCard(
+            onTap: () => showDisplayNameSheet(context),
             child: Row(
               children: <Widget>[
                 Container(
@@ -47,10 +64,10 @@ class ProfileScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(NmRadius.full),
                   ),
                   child: Text(
-                    (profile.displayName ?? profile.email ?? 'N')
-                        .characters
-                        .first
-                        .toUpperCase(),
+                    (profile.displayName?.trim().isNotEmpty ?? false)
+                        ? profile.displayName!.trim().characters.first
+                              .toUpperCase()
+                        : 'N',
                     style: NmTextStyles.from(
                       NmType.h3,
                       color: nm.accentOnFill,
@@ -64,7 +81,9 @@ class ProfileScreen extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(
-                        profile.displayName ?? 'Tu perfil',
+                        (profile.displayName?.trim().isNotEmpty ?? false)
+                            ? profile.displayName!.trim()
+                            : 'Poné tu nombre',
                         style: NmTextStyles.from(NmType.h4, color: nm.text),
                       ),
                       Text(
@@ -83,42 +102,91 @@ class ProfileScreen extends ConsumerWidget {
                   NmButton.ghost(
                     label: 'Crear cuenta',
                     onPressed: () => context.push(Routes.signUp),
+                  )
+                else
+                  Icon(
+                    PhosphorIcons.pencilSimple(),
+                    size: NmIconSize.md,
+                    color: nm.textMuted,
                   ),
               ],
             ),
           ),
           const SizedBox(height: NmSpace.s6),
-          if (goal != null)
+
+          // Todo lo que define el día, junto y editable: qué se busca, cuántas
+          // calorías, cuánta proteína y cuánto movimiento.
+          if (goal != null && preset != null) ...<Widget>[
+            const NmSectionHeader(title: 'Tu objetivo'),
             NmCard(
               child: Column(
                 children: <Widget>[
                   ValueRow(
-                    label: 'Objetivo vigente',
-                    value: Fmt.kcal(goal.baseCalorieTarget),
-                    emphasis: true,
-                  ),
-                  ValueRow(
                     label: goal.goalType.label,
-                    value: goal.goalType.name == 'maintain'
+                    value: goal.goalType == GoalType.maintain
                         ? '—'
                         : '${Fmt.decimal2(goal.rateKgPerWeek)} kg/semana',
+                    emphasis: true,
+                    onEdit: () => context.push(Routes.profileGoal),
+                    editTooltip: 'Cambiar de objetivo',
+                  ),
+                  const NmDivider(),
+                  ValueRow(
+                    label: 'Calorías por día',
+                    caption: goal.targetMethod.label.toLowerCase(),
+                    value: Fmt.kcal(goal.baseCalorieTarget),
+                    onEdit: () => showCalorieTargetSheet(context),
+                    editTooltip: 'Cambiar las calorías por día',
+                  ),
+                  ValueRow(
+                    label: 'Proteína por día',
+                    caption: weightKg == null
+                        ? '${Fmt.decimal1(preset.proteinGPerKg)} g/kg'
+                        : '${Fmt.decimal1(preset.proteinGPerKg)} g/kg de tu '
+                              'peso',
+                    value: Fmt.grams(goal.proteinG),
                     muted: true,
                   ),
+                  if (minutes != null)
+                    ValueRow(
+                      label: 'Actividad por semana',
+                      value: '${minutes.targetValue} min',
+                      muted: true,
+                    ),
+                  if (strength != null)
+                    ValueRow(
+                      label: 'Fuerza por semana',
+                      value:
+                          '${strength.targetValue} '
+                          '${strength.targetValue == 1 ? 'sesión' : 'sesiones'}',
+                      muted: true,
+                    ),
                   ValueRow(
                     label: 'El ejercicio suma',
                     value: profile.effectiveCreditPercentage == 0
                         ? 'No suma'
                         : '${profile.effectiveCreditPercentage} %',
                     muted: true,
+                    onEdit: () => context.push(Routes.exerciseCredit),
+                    editTooltip: 'Cambiar cuánto suma el ejercicio',
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: NmSpace.s6),
+            const SizedBox(height: NmSpace.s6),
+          ],
+
           NmCard(
             padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),
             child: Column(
               children: <Widget>[
+                NmListRow(
+                  title: 'Objetivo',
+                  subtitle: 'Bajar, mantener, subir o ganar músculo',
+                  leading: Icon(PhosphorIcons.flag()),
+                  onTap: () => context.push(Routes.profileGoal),
+                ),
+                const NmDivider(indent: NmSpace.s6),
                 NmListRow(
                   title: 'Perfil corporal',
                   subtitle: 'Sexo, nacimiento, altura, nivel de actividad',
@@ -131,6 +199,13 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: 'Cómo se calcula tu objetivo diario',
                   leading: Icon(PhosphorIcons.target()),
                   onTap: () => context.push(Routes.profileTarget),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
+                  title: 'Medidas corporales',
+                  subtitle: 'Perímetros, pliegues y bioimpedancia',
+                  leading: Icon(PhosphorIcons.ruler()),
+                  onTap: () => context.push(Routes.progressMeasurements),
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
@@ -203,7 +278,7 @@ class ProfileScreen extends ConsumerWidget {
                   ref
                       .watch(installedVersionLabelProvider)
                       .maybeWhen(
-                        data: (v) => 'Nutrimat ',
+                        data: (v) => 'Nutrimat $v',
                         orElse: () => 'Nutrimat',
                       ),
                   style: NmTextStyles.from(NmType.micro, color: nm.textMuted),
@@ -215,4 +290,90 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Cambiar el nombre visible.
+///
+/// Es el único dato que ve un pal, así que tiene que poder cambiarse sin pasar
+/// por el servidor de correo ni por soporte. Se guarda local siempre y, si hay
+/// sesión contra Supabase, también en `profiles`.
+Future<void> showDisplayNameSheet(BuildContext context) => showNmSheet<void>(
+  context: context,
+  builder: (context) => const _DisplayNameSheet(),
+);
+
+class _DisplayNameSheet extends ConsumerStatefulWidget {
+  const _DisplayNameSheet();
+
+  @override
+  ConsumerState<_DisplayNameSheet> createState() => _DisplayNameSheetState();
+}
+
+class _DisplayNameSheetState extends ConsumerState<_DisplayNameSheet> {
+  late final TextEditingController _name = TextEditingController(
+    text: ref.read(profileProvider).displayName ?? '',
+  );
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final value = _name.text.trim();
+    if (value.length < 2 || value.length > 80) {
+      setState(() => _error = 'Poné entre 2 y 80 caracteres.');
+      return;
+    }
+
+    setState(() => _saving = true);
+    final repo = ref.read(repositoryProvider);
+    await repo.updateProfile(repo.profile.copyWith(displayName: value));
+
+    // Si falla el servidor, el nombre local ya cambió: se avisa y se reintenta
+    // la próxima vez, en vez de perder la edición.
+    String? remoteError;
+    try {
+      await ref.read(palsClientProvider)?.setDisplayName(value);
+    } on AppError catch (error) {
+      remoteError = error.message;
+    }
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+    Navigator.of(context).pop();
+    NmSnackbar.show(context, remoteError ?? 'Listo, ahora sos $value');
+  }
+
+  @override
+  Widget build(BuildContext context) => NmSheet(
+    title: 'Tu nombre',
+    footer: NmButton(
+      label: 'Guardar',
+      block: true,
+      loading: _saving,
+      onPressed: _save,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        NmTextField(
+          label: 'Nombre',
+          controller: _name,
+          error: _error,
+          autofocus: true,
+          hint: 'Como querés que te vean',
+          onChanged: (_) => setState(() => _error = null),
+        ),
+        const SizedBox(height: NmSpace.s4),
+        const InfoNote(
+          text: 'Es lo único que ven tus pals. Tu correo no se muestra nunca.',
+        ),
+      ],
+    ),
+  );
 }

@@ -33,6 +33,21 @@ const _uuid = Uuid();
 final analysisProvider = StateProvider<AiAnalysis?>((ref) => null);
 final photoPathProvider = StateProvider<String?>((ref) => null);
 
+/// Slot y día a los que va la comida cuando se entró desde una sección
+/// concreta ("+" de Almuerzo, por ejemplo) y no desde el menú general.
+///
+/// Va por provider y no por query param porque el circuito son tres pantallas
+/// encadenadas con `pushReplacement`: arrastrar los parámetros por las tres
+/// solo abre lugares donde perderlos.
+class PhotoTarget {
+  const PhotoTarget({required this.slot, required this.date});
+
+  final MealSlot slot;
+  final DateTime date;
+}
+
+final photoTargetProvider = StateProvider<PhotoTarget?>((ref) => null);
+
 /// S-18 · Cámara.
 class PhotoCaptureScreen extends ConsumerStatefulWidget {
   const PhotoCaptureScreen({super.key});
@@ -373,7 +388,10 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     if (_initialized) return;
     final analysis = ref.read(analysisProvider);
     _items = <AiAnalysisItem>[...?analysis?.items];
-    _slot = MealSlot.forHour(DateTime.now().hour);
+    // Si se entró por el "+" de una sección, ese slot manda sobre la hora.
+    _slot =
+        ref.read(photoTargetProvider)?.slot ??
+        MealSlot.forHour(DateTime.now().hour);
     _initialized = true;
   }
 
@@ -383,7 +401,8 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     setState(() => _saving = true);
     final repo = ref.read(repositoryProvider);
     final analysis = ref.read(analysisProvider);
-    final date = ref.read(selectedDateProvider);
+    final target = ref.read(photoTargetProvider);
+    final DateTime date = target?.date ?? ref.read(selectedDateProvider);
 
     final draft = ref.read(mealDraftProvider.notifier)
       ..start(
@@ -420,6 +439,10 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     await repo.saveMeal(meal);
     ref.read(mealDraftProvider.notifier).clear();
     ref.read(analysisProvider.notifier).state = null;
+    ref.read(photoTargetProvider.notifier).state = null;
+    // Inicio queda parado en el día donde acaba de caer la comida: guardar
+    // algo y no verlo en ningún lado se lee como que no se guardó.
+    ref.read(selectedDateProvider.notifier).set(date);
 
     if (!mounted) return;
     setState(() => _saving = false);

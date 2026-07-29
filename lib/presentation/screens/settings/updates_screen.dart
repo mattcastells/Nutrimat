@@ -33,11 +33,55 @@ class UpdatesScreen extends ConsumerStatefulWidget {
 
 enum _Phase { idle, checking, checked, downloading, installing }
 
-class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
+class _UpdatesScreenState extends ConsumerState<UpdatesScreen>
+    with WidgetsBindingObserver {
   _Phase _phase = _Phase.idle;
   UpdateStatus? _status;
   AppError? _error;
   double _progress = 0;
+
+  /// `null` mientras no se sabe. Se consulta al entrar y cada vez que la app
+  /// vuelve del frente, que es justo cuando se vuelve de Ajustes.
+  bool? _canInstall;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshPermission();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPermission();
+  }
+
+  Future<void> _refreshPermission() async {
+    final allowed = await ref.read(updateServiceProvider).canInstall();
+    if (!mounted) return;
+    setState(() {
+      _canInstall = allowed;
+      // Si el permiso era lo que faltaba, el cartel de error ya no aplica.
+      if (allowed && _error?.code == ApiErrorCode.permissionDenied) {
+        _error = null;
+      }
+    });
+  }
+
+  Future<void> _grant() async {
+    try {
+      await ref.read(updateServiceProvider).openInstallSettings();
+    } on AppError catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error);
+    }
+  }
 
   Future<void> _check() async {
     setState(() {
@@ -66,6 +110,13 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
   }
 
   Future<void> _install(AppRelease release) async {
+    // Bajar 25 MB para chocar contra un permiso que se podía pedir antes es
+    // gastarle los datos a alguien al pedo.
+    if (_canInstall == false) {
+      await _grant();
+      return;
+    }
+
     setState(() {
       _phase = _Phase.downloading;
       _error = null;
@@ -90,6 +141,7 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
       setState(() {
         _error = error;
         _phase = _Phase.checked;
+        if (error.code == ApiErrorCode.permissionDenied) _canInstall = false;
       });
     }
   }
@@ -129,6 +181,26 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
             const SizedBox(height: NmSpace.s4),
           ],
 
+          // El permiso es por app y no viene concedido: sin esto el instalador
+          // se abre, se cierra y no pasa nada, que es exactamente lo que se
+          // vive como "el celular no me deja actualizar".
+          if (_canInstall == false) ...<Widget>[
+            const InfoNote(
+              tone: NmNoteTone.caution,
+              text:
+                  'Android todavía no tiene habilitada a Nutrimat para '
+                  'instalar apps. Sin ese permiso la actualización se descarga '
+                  'pero el instalador se cierra solo.',
+            ),
+            const SizedBox(height: NmSpace.s3),
+            NmButton.secondary(
+              label: 'Permitir instalar desde Nutrimat',
+              icon: PhosphorIcons.gear(),
+              onPressed: _grant,
+            ),
+            const SizedBox(height: NmSpace.s4),
+          ],
+
           switch (_phase) {
             _Phase.checking => const _Busy(label: 'Buscando actualizaciones…'),
             _Phase.downloading => _Downloading(progress: _progress),
@@ -139,6 +211,7 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
             ),
             _ => _Result(
               status: _status,
+              canInstall: _canInstall != false,
               onCheck: _check,
               onInstall: _install,
               onOpenPage: _openReleasePage,
@@ -147,7 +220,9 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen> {
 
           const SizedBox(height: NmSpace.s6),
           Text(
-            'La primera vez, Android te va a pedir permiso para instalar.',
+            'La primera vez hay que habilitar a Nutrimat en Ajustes → Apps → '
+            'Nutrimat → Instalar apps desconocidas. Después, Android pide '
+            'confirmación en cada actualización.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
         ],
@@ -211,12 +286,14 @@ class _Downloading extends StatelessWidget {
 class _Result extends StatelessWidget {
   const _Result({
     required this.status,
+    required this.canInstall,
     required this.onCheck,
     required this.onInstall,
     required this.onOpenPage,
   });
 
   final UpdateStatus? status;
+  final bool canInstall;
   final VoidCallback onCheck;
   final void Function(AppRelease) onInstall;
   final void Function(AppRelease) onOpenPage;
@@ -257,6 +334,7 @@ class _Result extends StatelessWidget {
 
       final UpdateAvailable available => _Available(
         available: available,
+        canInstall: canInstall,
         onInstall: onInstall,
         onOpenPage: onOpenPage,
       ),
@@ -267,11 +345,13 @@ class _Result extends StatelessWidget {
 class _Available extends StatelessWidget {
   const _Available({
     required this.available,
+    required this.canInstall,
     required this.onInstall,
     required this.onOpenPage,
   });
 
   final UpdateAvailable available;
+  final bool canInstall;
   final void Function(AppRelease) onInstall;
   final void Function(AppRelease) onOpenPage;
 
@@ -313,7 +393,9 @@ class _Available extends StatelessWidget {
 
         const SizedBox(height: NmSpace.s5),
         NmButton(
-          label: 'Descargar e instalar',
+          label: canInstall
+              ? 'Descargar e instalar'
+              : 'Habilitar la instalación',
           onPressed: () => onInstall(release),
         ),
         const SizedBox(height: NmSpace.s2),

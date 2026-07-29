@@ -31,26 +31,33 @@ copiando `.env.local.example`.
 
 ## Aplicar migraciones al proyecto remoto
 
-`supabase db push` **no funciona desde esta máquina**: el host directo
-(`db.<ref>.supabase.co`) es IPv6 puro y acá no hay IPv6, y el CLI no logra
-conectar por el pooler. El camino que sí anda es psql contra el *session
-pooler*, que es IPv4:
+`supabase db push --linked` **no funciona desde esta máquina**: resuelve el host
+directo (`db.<ref>.supabase.co`), que es IPv6 puro, y acá no hay IPv6. Pero
+pasándole el *session pooler* a mano con `--db-url` anda perfecto, sin Docker y
+sin `supabase login`. El pooler es IPv4:
 
 ```bash
 set -a; . ./supabase/.env.local; set +a
-C=supabase_db_Nutrimat__especificaciones_completas   # contenedor local, trae psql
-H=aws-0-sa-east-1.pooler.supabase.com
-U=postgres.ifincvqdsotorvmwzpos
+# La contraseña va dentro de una URL: hay que escaparla.
+PWENC=$(node -e 'process.stdout.write(encodeURIComponent(String(process.env.SUPABASE_DB_PASSWORD)))')
+DBURL="postgresql://postgres.ifincvqdsotorvmwzpos:${PWENC}@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
 
-docker exec -i -e PGPASSWORD="$SUPABASE_DB_PASSWORD" $C \
-  psql -h $H -p 5432 -U $U -d postgres -v ON_ERROR_STOP=1 -f - < supabase/migrations/XXXX.sql
+supabase db push --db-url "$DBURL" --dry-run   # qué se aplicaría
+supabase db push --db-url "$DBURL"             # aplicarlo
+supabase migration list --db-url "$DBURL"      # verificar
 ```
 
-Cada migración aplicada se registra en `supabase_migrations.schema_migrations`,
-igual que haría `db push`, así que el CLI queda en sincronía.
+Solo se aplican las migraciones pendientes, y cada una queda registrada en
+`supabase_migrations.schema_migrations`, así que el CLI queda en sincronía.
 
-> Si en el futuro hay IPv6 disponible, o se agrega un *personal access token*
-> con `supabase login`, `supabase db push` vuelve a ser el camino corto.
+> Sin Docker corriendo, `db push` tira varios *warnings* de
+> `failed to connect to the docker API`. Son del caché opcional del catálogo
+> (`pg-delta`), no de la migración: si el resumen final dice
+> `"migrations":[...]` sin error, se aplicó. Confirmalo con `migration list`.
+
+> La ruta larga —`docker exec` contra el contenedor local para usar su `psql`—
+> sigue sirviendo si hace falta correr SQL suelto, pero para migraciones no
+> hace falta.
 
 ## Lo que hay que saber del esquema
 

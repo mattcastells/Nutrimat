@@ -28,7 +28,12 @@ abstract final class Routes {
   static const String progressGoals = '/progress/goals';
 
   static const String profileBody = '/profile/body';
+  static const String profileGoal = '/profile/goal';
   static const String profileTarget = '/profile/target';
+
+  /// La misma elección de objetivo, pero recién creada la cuenta: sin "Atrás"
+  /// y saliendo a Inicio.
+  static const String welcomeGoal = '/welcome/goal';
   static const String profileFoods = '/profile/foods';
   static const String profileActivities = '/profile/activities';
   static const String profileTemplates = '/profile/templates';

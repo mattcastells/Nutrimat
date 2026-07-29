@@ -12,6 +12,7 @@ import '../../../core/utils/formats.dart';
 import '../../../domain/calculations/adherence.dart';
 import '../../../domain/calculations/bmr.dart';
 import '../../../domain/calculations/calorie_target.dart';
+import '../../../domain/calculations/goal_presets.dart';
 import '../../../domain/calculations/macros.dart';
 import '../../../domain/calculations/tdee.dart';
 import '../../../domain/enums/enums.dart';
@@ -190,6 +191,9 @@ class _BodyProfileScreenState extends ConsumerState<BodyProfileScreen> {
               ),
             ),
           const SizedBox(height: NmSpace.s6),
+          // El IMC no se carga: sale de tu último peso y de tu altura, y se
+          // mueve solo cuando alguno de los dos cambia. Sin decirlo, un número
+          // en una pantalla de formularios se lee como un campo que no anda.
           if (weightKg != null && profile.heightCm != null)
             NmCard(
               child: Column(
@@ -197,15 +201,40 @@ class _BodyProfileScreenState extends ConsumerState<BodyProfileScreen> {
                 children: <Widget>[
                   ValueRow(
                     label: 'IMC',
+                    caption: 'calculado, no se edita',
                     value: Fmt.decimal1(
                       bmi(weightKg: weightKg, heightCm: profile.heightCm!),
                     ),
+                    emphasis: true,
                   ),
+                  const NmDivider(),
                   const SizedBox(height: NmSpace.s2),
+                  FormulaRow(
+                    expression: 'peso ÷ altura²',
+                    values:
+                        '${Fmt.decimal1(weightKg)} kg ÷ '
+                        '(${Fmt.decimal2(profile.heightCm! / 100)} m)² = '
+                        '${Fmt.decimal1(bmi(weightKg: weightKg, heightCm: profile.heightCm!))}',
+                  ),
+                  const SizedBox(height: NmSpace.s3),
+                  Text(
+                    'Se actualiza solo cada vez que registrás un peso nuevo.',
+                    style: NmTextStyles.from(
+                      NmType.caption,
+                      color: nm.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: NmSpace.s3),
                   const InfoNote(
-                    text: 'El IMC es una referencia poblacional: no dice nada '
-                        'sobre composición corporal ni sobre salud '
-                        'individual.',
+                    text: 'Es una referencia poblacional y nada más: no '
+                        'distingue músculo de grasa ni dice nada sobre tu '
+                        'salud. Para composición corporal miran los pliegues '
+                        'y la bioimpedancia.',
+                  ),
+                  const SizedBox(height: NmSpace.s3),
+                  NmButton.ghost(
+                    label: 'Ver mis medidas corporales',
+                    onPressed: () => context.push(Routes.progressMeasurements),
                   ),
                 ],
               ),
@@ -351,9 +380,12 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                   ValueRow(label: 'Gasto diario', value: Fmt.kcal(tdeeValue!)),
                   if (goalType != GoalType.maintain)
                     ValueRow(
-                      label: goalType == GoalType.lose
-                          ? '− déficit'
-                          : '+ superávit (al 50 %)',
+                      label: switch (goalType) {
+                        GoalType.lose => '− déficit',
+                        GoalType.gain => '+ superávit (al 50 %)',
+                        GoalType.gainMuscle => '+ superávit',
+                        GoalType.maintain => '',
+                      },
                       value: Fmt.kcal(
                         (CalorieTargetRules.dailyAdjustment(rate) *
                                 (goalType == GoalType.gain ? 0.5 : 1))
@@ -380,7 +412,11 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
             ],
             const SizedBox(height: NmSpace.s6),
           ],
-          const NmSectionHeader(title: 'Tipo de objetivo'),
+          NmSectionHeader(
+            title: 'Tipo de objetivo',
+            action: 'Ver los cuatro',
+            onAction: () => context.push(Routes.profileGoal),
+          ),
           Wrap(
             spacing: NmSpace.s2,
             runSpacing: NmSpace.s2,
@@ -390,7 +426,13 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                   label: type.label,
                   selected: type == goalType,
                   semanticsInRadioGroup: true,
-                  onTap: () => setState(() => _goalType = type),
+                  onTap: () => setState(() {
+                    _goalType = type;
+                    // Cada objetivo trae su ritmo de referencia; conservar el
+                    // del objetivo anterior daba combinaciones raras, como
+                    // ganar músculo a 1 kg por semana.
+                    _rate = GoalPreset.of(type).rateKgPerWeek;
+                  }),
                 ),
             ],
           ),

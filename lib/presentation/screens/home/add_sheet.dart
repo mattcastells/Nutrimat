@@ -15,7 +15,9 @@ import '../../../domain/enums/enums.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../photo/photo_screens.dart';
 import '../sleep/sleep_sheet.dart';
+import '../weight/measurement_sheet.dart';
 import '../weight/weight_sheet.dart';
 
 /// S-08 · Menú Agregar y S-09 · Menú Ejercicio.
@@ -116,7 +118,12 @@ class _MainPane extends ConsumerWidget {
             enabled:
                 FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
             disabledNote: 'El análisis con IA necesita servidor configurado',
-            onTap: () => onGo(Routes.photoCapture),
+            onTap: () {
+              // Desde el menú general no hay slot elegido: el de la revisión
+              // se deduce de la hora. Se limpia por si quedó uno de antes.
+              ref.read(photoTargetProvider.notifier).state = null;
+              onGo(Routes.photoCapture);
+            },
           ),
           ActionRow(
             icon: PhosphorIcons.barcode(),
@@ -153,11 +160,11 @@ class _MainPane extends ConsumerWidget {
           ),
           ActionRow(
             icon: PhosphorIcons.ruler(),
-            label: 'Registrar medida corporal',
-            subtitle: 'Cintura, cadera, pecho y más',
+            label: 'Registrar medidas corporales',
+            subtitle: 'Perímetros, pliegues y lo que dijo la balanza',
             onTap: () {
               Navigator.of(context).pop();
-              showMeasurementSheet(context);
+              showMeasurementSheet(context, date: date);
             },
           ),
         ],

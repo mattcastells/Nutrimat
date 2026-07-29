@@ -268,6 +268,13 @@ abstract interface class BodyRepository {
   Future<void> deleteWeight(String id);
 
   List<BodyMeasurement> measurements(MeasurementMetric metric);
+
+  /// Todas las medidas de un día, indexadas por métrica.
+  ///
+  /// La planilla de una nutricionista se completa entera de una sentada: sin
+  /// esto habría que abrir un formulario por cada uno de los veinte valores.
+  Map<MeasurementMetric, BodyMeasurement> measurementsOn(DateTime date);
+
   Future<void> logMeasurement({
     required MeasurementMetric metric,
     required double value,

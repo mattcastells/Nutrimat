@@ -174,6 +174,8 @@ void main() {
     await tester.tap(find.text('Perfil'));
     await _settle(tester);
     expect(find.text('Cerrar sesión'), findsOneWidget);
-    expect(find.text('Objetivo vigente'), findsOneWidget);
+    // El objetivo se muestra desglosado: qué se busca y con cuántas calorías.
+    expect(find.text('Calorías por día'), findsOneWidget);
+    expect(find.text('Proteína por día'), findsOneWidget);
   });
 }

@@ -69,6 +69,14 @@ void main() {
         debounce: debounce,
       );
 
+  /// Servicio listo para subir. La puerta la abre `openAfterRestore`, así que
+  /// los tests que no la prueban tienen que pasar por ahí igual.
+  Future<CloudBackupService> ready({Duration debounce = Duration.zero}) async {
+    final service = build(debounce: debounce);
+    await service.openAfterRestore(localIsEmpty: false, apply: (_) async {});
+    return service;
+  }
+
   setUp(() {
     client = _FakeClient();
     auth = _FakeAuth();
@@ -85,7 +93,7 @@ void main() {
   });
 
   test('varios cambios seguidos suben una sola vez', () async {
-    final service = build(debounce: const Duration(milliseconds: 30));
+    final service = await ready(debounce: const Duration(milliseconds: 30));
     // Cuatro vasos de agua en dos segundos: un solo respaldo, no cuatro.
     service
       ..markDirty()
@@ -102,7 +110,7 @@ void main() {
       code: ApiErrorCode.offline,
       message: 'sin conexión',
     );
-    final service = build();
+    final service = await ready();
     await service.flush();
     expect(service.state, isA<BackupFailed>());
     expect(client.uploads, isEmpty);
@@ -114,7 +122,7 @@ void main() {
       code: ApiErrorCode.offline,
       message: 'sin conexión',
     );
-    final service = build();
+    final service = await ready();
     await service.flush();
     expect(service.state, isA<BackupFailed>());
 
@@ -127,8 +135,8 @@ void main() {
 
   test('un cambio durante la subida no se pierde', () async {
     final gate = Completer<void>();
+    final service = await ready();
     client.gate = gate;
-    final service = build();
 
     final first = service.flush();
     // Llega un cambio mientras la primera subida está en vuelo.
@@ -146,8 +154,54 @@ void main() {
   });
 
   test('restaurar devuelve el documento guardado', () async {
-    final service = build();
+    final service = await ready();
     expect(await service.restore(), '{"restored":true}');
     service.dispose();
+  });
+
+  group('la puerta antes de subir', () {
+    // El bug más grave que tuvimos: reinstalar, entrar, y que el documento
+    // vacío del alta pisara el respaldo bueno a los pocos segundos.
+    test('sin abrir la puerta no sube nada', () async {
+      final service = build();
+      service.markDirty();
+      await service.flush();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(client.uploads, isEmpty);
+      service.dispose();
+    });
+
+    test('con el teléfono vacío trae el respaldo y recién ahí habilita', () async {
+      final service = build();
+      String? aplicado;
+      final restored = await service.openAfterRestore(
+        localIsEmpty: true,
+        apply: (json) async => aplicado = json,
+      );
+
+      expect(restored, isTrue);
+      expect(aplicado, '{"restored":true}');
+
+      await service.flush();
+      expect(client.uploads, hasLength(1));
+      service.dispose();
+    });
+
+    test('con datos locales no restaura, pero habilita igual', () async {
+      final service = build();
+      var aplicado = false;
+      final restored = await service.openAfterRestore(
+        localIsEmpty: false,
+        apply: (_) async => aplicado = true,
+      );
+
+      expect(restored, isFalse);
+      expect(aplicado, isFalse, reason: 'pisar lo local sería el mismo error al revés');
+
+      await service.flush();
+      expect(client.uploads, hasLength(1));
+      service.dispose();
+    });
   });
 }

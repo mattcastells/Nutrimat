@@ -15,6 +15,7 @@ import '../../components/brand/brand_mark.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
+import '../../components/system/overlays.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
 
@@ -128,8 +129,22 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     // las credenciales: antes, cualquier contraseña equivocada dejaba la app
     // como si hubiera sesión.
     await repo.signIn(email);
+
+    // Traer el respaldo **antes** de habilitar la subida. En un teléfono
+    // recién instalado esto devuelve lo que había; si no se hiciera acá, el
+    // documento vacío del alta pisaría el respaldo bueno a los pocos segundos.
+    final restored = await ref
+        .read(cloudBackupProvider)
+        ?.openAfterRestore(
+          localIsEmpty: !repo.hasUserData,
+          apply: (json) => repo.importJson(json),
+        );
+
     if (!mounted) return;
     setState(() => _submitting = false);
+    if (restored ?? false) {
+      NmSnackbar.show(context, 'Recuperamos tus datos del respaldo');
+    }
     context.go(Routes.home);
   }
 

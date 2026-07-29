@@ -336,6 +336,12 @@ class BackupSummary {
 /// Es la única red de seguridad hoy: sin esto, perder el teléfono es perder
 /// todo el historial.
 abstract interface class BackupRepository {
+  /// Hay algo que perder: comidas, actividades, peso, medidas, agua o sueño.
+  ///
+  /// El perfil y el objetivo por defecto no cuentan — los crea el propio
+  /// inicio de sesión, así que un teléfono recién instalado los tiene igual.
+  bool get hasUserData;
+
   /// Documento JSON con todo lo del usuario.
   String exportJson();
 

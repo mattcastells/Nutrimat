@@ -68,6 +68,19 @@ class CloudBackupService {
   DateTime? _lastUpload;
   bool _uploading = false;
 
+  /// Hasta que no se haya decidido qué hacer con el respaldo remoto, **no se
+  /// sube nada**.
+  ///
+  /// Sin esta puerta pasa lo peor que puede pasar: reinstalás, entrás, la app
+  /// crea un perfil vacío, ese cambio dispara el respaldo y el documento vacío
+  /// pisa el bueno. El respaldo se convierte en el mecanismo que borra los
+  /// datos que debía proteger.
+  bool _canUpload = false;
+
+  /// Habilita la subida. Lo llama [openAfterRestore] cuando ya resolvió si
+  /// había algo que traer.
+  bool get canUpload => _canUpload;
+
   /// Queda pendiente cuando llega un cambio mientras se está subiendo: hay que
   /// volver a subir al terminar, porque lo que se mandó ya quedó viejo.
   bool _dirty = false;
@@ -85,9 +98,41 @@ class CloudBackupService {
     if (!_states.isClosed) _states.add(next);
   }
 
+  /// Trae el respaldo remoto **antes** de habilitar cualquier subida.
+  ///
+  /// Solo restaura si el teléfono está vacío, que es el caso de una
+  /// reinstalación o un dispositivo nuevo. Si ya hay datos locales no toca
+  /// nada: pisarlos sería el mismo error al revés.
+  ///
+  /// Pase lo que pase habilita la subida al terminar — si fallara la consulta
+  /// y quedara cerrada para siempre, la app dejaría de respaldar en silencio.
+  Future<bool> openAfterRestore({
+    required bool localIsEmpty,
+    required Future<void> Function(String documentJson) apply,
+  }) async {
+    if (_auth.currentAccount == null) return false;
+
+    var restored = false;
+    try {
+      if (localIsEmpty) {
+        final json = await _client.download(_auth.currentAccount!.id);
+        if (json != null) {
+          await apply(json);
+          restored = true;
+        }
+      }
+    } on AppError {
+      // Sin conexión no se restaura, pero tampoco se sube: la puerta se abre
+      // igual y el próximo cambio local manda lo que haya.
+    } finally {
+      _canUpload = true;
+    }
+    return restored;
+  }
+
   /// Avisa que algo cambió. Barato de llamar: no sube nada por sí solo.
   void markDirty() {
-    if (_auth.currentAccount == null) return;
+    if (_auth.currentAccount == null || !_canUpload) return;
     _dirty = true;
     _timer?.cancel();
     _timer = Timer(debounce, () => unawaited(flush()));
@@ -96,7 +141,7 @@ class CloudBackupService {
   /// Sube ahora, sin esperar. Se usa al cerrar sesión y desde el botón manual.
   Future<void> flush() async {
     final account = _auth.currentAccount;
-    if (account == null) return;
+    if (account == null || !_canUpload) return;
     if (_uploading) {
       _dirty = true;
       return;

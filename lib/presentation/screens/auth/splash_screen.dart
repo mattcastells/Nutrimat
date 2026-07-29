@@ -47,6 +47,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       context.go(Routes.welcome);
       return;
     }
+
+    // Con la sesión ya guardada no se pasa por la pantalla de entrar, así que
+    // la puerta del respaldo hay que abrirla acá. Si no, la app dejaría de
+    // respaldar en silencio en cada arranque normal.
+    await ref
+        .read(cloudBackupProvider)
+        ?.openAfterRestore(
+          localIsEmpty: !repo.hasUserData,
+          apply: (json) => repo.importJson(json),
+        );
+
+    if (!mounted) return;
     context.go(Routes.home);
   }
 

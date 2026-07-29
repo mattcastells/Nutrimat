@@ -1488,6 +1488,16 @@ class LocalRepository
   // ── Respaldo ───────────────────────────────────────────────────────────
 
   @override
+  bool get hasUserData =>
+      store.meals.isNotEmpty ||
+      store.activities.isNotEmpty ||
+      store.weightLogs.isNotEmpty ||
+      store.measurements.isNotEmpty ||
+      store.waterLogs.isNotEmpty ||
+      store.sleepLogs.isNotEmpty ||
+      store.userFoods.isNotEmpty;
+
+  @override
   String exportJson() {
     final document = store.toDocument();
     return const JsonEncoder.withIndent('  ').convert(<String, dynamic>{

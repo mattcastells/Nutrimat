@@ -285,6 +285,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     await repo.updateProfile(
       repo.profile.copyWith(displayName: name),
     );
+
+    // Abrir la puerta del respaldo también acá. Sin esto, quien creaba la
+    // cuenta y usaba la app toda la tarde no respaldaba **nada**: `markDirty`
+    // salía por la primera línea porque `canUpload` seguía en false hasta el
+    // próximo arranque. Una cuenta recién creada no tiene respaldo que traer,
+    // así que esto solo habilita la subida.
+    await ref
+        .read(cloudBackupProvider)
+        ?.openAfterRestore(
+          localIsEmpty: !repo.hasUserData,
+          apply: (json) => repo.importJson(json),
+        );
+
     if (!mounted) return;
     setState(() => _submitting = false);
 

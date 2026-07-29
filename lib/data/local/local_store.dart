@@ -11,6 +11,7 @@ import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/reminder.dart';
+import '../../domain/models/restore_outcome.dart';
 import '../../domain/models/sleep.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
@@ -166,20 +167,56 @@ class LocalStore {
         .toList();
   }
 
+  /// Copia intacta del documento cuando no se pudo leer del todo.
+  ///
+  /// Existe porque la versión anterior hacía `remove()` sobre el documento que
+  /// no había podido interpretar: un solo registro raro y se borraba **todo**,
+  /// sin copia y sin aviso. Ahora nunca se borra nada; lo que no se entiende se
+  /// aparta acá y se puede recuperar a mano.
+  static const String _quarantineKey = 'nutrimat.local_store.v1.quarantine';
+
+  /// Cómo salió la última lectura. La UI lo usa para avisar en vez de fingir
+  /// que el teléfono estaba vacío.
+  RestoreOutcome lastRestore = const RestoreOutcome.clean();
+
   Future<void> _loadOrSeed() async {
     _prefs = await SharedPreferences.getInstance();
     final raw = _prefs!.getString(_prefsKey);
     if (raw == null) return;
 
+    Map<String, dynamic>? decoded;
     try {
-      _restore(jsonDecode(raw) as Map<String, dynamic>);
+      decoded = jsonDecode(raw) as Map<String, dynamic>;
     } on Object {
-      // Un documento corrupto no puede dejar la app sin arrancar: se descarta
-      // y se vuelve a empezar desde la bienvenida.
-      await _prefs!.remove(_prefsKey);
+      decoded = null;
+    }
+
+    if (decoded == null) {
+      // JSON ilegible. No se borra: se aparta la copia tal cual vino y se
+      // arranca vacío, para que la app abra y se pueda restaurar de la nube.
+      await _prefs!.setString(_quarantineKey, raw);
+      lastRestore = const RestoreOutcome(
+        unreadableDocument: true,
+        quarantined: true,
+      );
       profile = null;
+      return;
+    }
+
+    lastRestore = _restore(decoded);
+
+    // Se guardó algo que no entendimos entero: la copia original queda
+    // apartada antes de que la primera escritura la pise.
+    if (!lastRestore.isClean) {
+      await _prefs!.setString(_quarantineKey, raw);
+      lastRestore = lastRestore.copyWithQuarantined();
     }
   }
+
+  /// El documento que no se pudo leer, si hubo uno. Para recuperarlo a mano.
+  String? get quarantinedDocument => _prefs?.getString(_quarantineKey);
+
+  Future<void> clearQuarantine() async => _prefs?.remove(_quarantineKey);
 
   /// Siembra los datos simulados (modo demo, D-15).
   void seed() {
@@ -238,19 +275,53 @@ class LocalStore {
         .toList();
   }
 
-  void _restore(Map<String, dynamic> j) {
-    profile = j['profile'] == null
-        ? null
-        : UserProfile.fromJson(j['profile'] as Map<String, dynamic>);
-    goals = _list(j['goals'], Goal.fromJson);
-    meals = _list(j['meals'], Meal.fromJson);
-    activities = _list(j['activities'], Activity.fromJson);
-    weightLogs = _list(j['weightLogs'], WeightLog.fromJson);
-    waterLogs = _list(j['waterLogs'], WaterLog.fromJson);
-    final storedReminders = _list(j['reminders'], Reminder.fromJson);
+  /// Lee el documento **sin propagar excepciones**.
+  ///
+  /// Antes cualquier registro con un campo raro tiraba y se perdía el
+  /// documento entero: una comida mal formada se llevaba puestos el peso, las
+  /// medidas y el historial. Ahora cada registro se lee por separado y lo que
+  /// no se entiende se saltea y se cuenta. Perder una comida es un problema;
+  /// perder el año entero es otra cosa.
+  RestoreOutcome _restore(Map<String, dynamic> j) {
+    final skipped = <String, int>{};
+
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) fromJson) {
+      final raw = j[key];
+      if (raw is! List) return <T>[];
+      final out = <T>[];
+      var bad = 0;
+      for (final e in raw) {
+        try {
+          out.add(fromJson(e as Map<String, dynamic>));
+        } on Object {
+          bad++;
+        }
+      }
+      if (bad > 0) skipped[key] = bad;
+      return out;
+    }
+
+    // El perfil aparte: es lo único cuya ausencia cambia a dónde arranca la
+    // app, así que si falla se dice, no se finge que nunca hubo cuenta.
+    var profileFailed = false;
+    try {
+      profile = j['profile'] == null
+          ? null
+          : UserProfile.fromJson(j['profile'] as Map<String, dynamic>);
+    } on Object {
+      profile = null;
+      profileFailed = true;
+    }
+
+    goals = list('goals', Goal.fromJson);
+    meals = list('meals', Meal.fromJson);
+    activities = list('activities', Activity.fromJson);
+    weightLogs = list('weightLogs', WeightLog.fromJson);
+    waterLogs = list('waterLogs', WaterLog.fromJson);
+    sleepLogs = list('sleepLogs', SleepLog.fromJson);
+    final storedReminders = list('reminders', Reminder.fromJson);
     // Si falta alguno —porque el respaldo es de una versión anterior— se
     // completa con el que corresponde apagado.
-    sleepLogs = _list(j['sleepLogs'], SleepLog.fromJson);
     reminders = <Reminder>[
       for (final k in ReminderKind.values)
         storedReminders.firstWhere(
@@ -258,35 +329,42 @@ class LocalStore {
           orElse: () => Reminder.byDefault(k),
         ),
     ];
-    measurements = _list(j['measurements'], BodyMeasurement.fromJson);
-    activityGoals = _list(j['activityGoals'], ActivityGoal.fromJson);
-    templates = _list(j['templates'], ExerciseTemplate.fromJson);
-    userFoods = _list(j['userFoods'], Food.fromJson);
-    cachedFoods = _list(j['cachedFoods'], Food.fromJson);
-    customTypes = _list(j['customTypes'], ActivityType.fromJson);
-    recentFoodIds = (j['recentFoodIds'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => e as String)
-        .toList();
-    restDays = (j['restDays'] as List<dynamic>? ?? <dynamic>[])
-        .map((e) => e as String)
-        .toSet();
-    if (j['integration'] != null) {
-      integration = HealthIntegration.fromJson(
-        j['integration'] as Map<String, dynamic>,
-      );
+    measurements = list('measurements', BodyMeasurement.fromJson);
+    activityGoals = list('activityGoals', ActivityGoal.fromJson);
+    templates = list('templates', ExerciseTemplate.fromJson);
+    userFoods = list('userFoods', Food.fromJson);
+    cachedFoods = list('cachedFoods', Food.fromJson);
+    customTypes = list('customTypes', ActivityType.fromJson);
+
+    recentFoodIds = <String>[
+      for (final e in (j['recentFoodIds'] as List<dynamic>? ?? <dynamic>[]))
+        if (e is String) e,
+    ];
+    restDays = <String>{
+      for (final e in (j['restDays'] as List<dynamic>? ?? <dynamic>[]))
+        if (e is String) e,
+    };
+
+    try {
+      if (j['integration'] != null) {
+        integration = HealthIntegration.fromJson(
+          j['integration'] as Map<String, dynamic>,
+        );
+      }
+    } on Object {
+      // El estado de una integración no conectada no vale perder nada.
     }
+
     offline = j['offline'] as bool? ?? false;
     historyFilters =
         (j['historyFilters'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     hydrateActivities();
-  }
 
-  static List<T> _list<T>(
-    Object? raw,
-    T Function(Map<String, dynamic>) fromJson,
-  ) => (raw as List<dynamic>? ?? <dynamic>[])
-      .map((e) => fromJson(e as Map<String, dynamic>))
-      .toList();
+    return RestoreOutcome(
+      profileFailed: profileFailed,
+      skippedBySection: skipped,
+    );
+  }
 
   /// El documento completo del usuario. Es lo que se persiste y también lo
   /// que viaja en el archivo de respaldo.
@@ -314,7 +392,21 @@ class LocalStore {
   };
 
   /// Reemplaza todo el contenido local por el de un documento.
-  void restoreDocument(Map<String, dynamic> document) => _restore(document);
+  RestoreOutcome restoreDocument(Map<String, dynamic> document) {
+    lastRestore = _restore(document);
+    return lastRestore;
+  }
+
+  /// Si hay algo cargado por la persona. Es la condición que decide si se
+  /// puede pisar el respaldo remoto, así que vive acá y no en la UI.
+  bool get hasUserData =>
+      meals.isNotEmpty ||
+      activities.isNotEmpty ||
+      weightLogs.isNotEmpty ||
+      measurements.isNotEmpty ||
+      waterLogs.isNotEmpty ||
+      sleepLogs.isNotEmpty ||
+      userFoods.isNotEmpty;
 
   /// Versión del formato del documento. Sube cuando cambie de forma y haya que
   /// migrar un respaldo viejo.

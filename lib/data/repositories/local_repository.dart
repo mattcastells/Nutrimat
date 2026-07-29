@@ -19,6 +19,7 @@ import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/reminder.dart';
+import '../../domain/models/restore_outcome.dart';
 import '../../domain/models/sleep.dart';
 import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
@@ -1494,15 +1495,20 @@ class LocalRepository
 
   // ── Respaldo ───────────────────────────────────────────────────────────
 
+  // Vive en el store: es la condición que decide si se puede pisar el
+  // respaldo remoto, y tener dos definiciones de "vacío" es pedir que se
+  // separen justo en el caso que importa.
   @override
-  bool get hasUserData =>
-      store.meals.isNotEmpty ||
-      store.activities.isNotEmpty ||
-      store.weightLogs.isNotEmpty ||
-      store.measurements.isNotEmpty ||
-      store.waterLogs.isNotEmpty ||
-      store.sleepLogs.isNotEmpty ||
-      store.userFoods.isNotEmpty;
+  bool get hasUserData => store.hasUserData;
+
+  /// Cómo salió la última lectura del documento guardado. La UI avisa cuando
+  /// no salió limpia, en vez de mostrar la app vacía como si nunca hubiera
+  /// habido nada.
+  @override
+  RestoreOutcome get lastRestore => store.lastRestore;
+
+  @override
+  String? get quarantinedDocument => store.quarantinedDocument;
 
   @override
   String exportJson() {

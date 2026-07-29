@@ -9,6 +9,7 @@ import '../models/food.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
 import '../models/reminder.dart';
+import '../models/restore_outcome.dart';
 import '../models/sleep.dart';
 import '../models/summaries.dart';
 import '../models/user_profile.dart';
@@ -348,6 +349,12 @@ abstract interface class BackupRepository {
   /// El perfil y el objetivo por defecto no cuentan — los crea el propio
   /// inicio de sesión, así que un teléfono recién instalado los tiene igual.
   bool get hasUserData;
+
+  /// Cómo salió la última lectura del documento guardado en el teléfono.
+  RestoreOutcome get lastRestore;
+
+  /// El documento que no se pudo leer, apartado antes de escribir encima.
+  String? get quarantinedDocument;
 
   /// Documento JSON con todo lo del usuario.
   String exportJson();

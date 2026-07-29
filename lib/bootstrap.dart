@@ -72,6 +72,7 @@ Future<void> bootstrap() async {
           client: CloudBackupClient.fromInstance(),
           auth: auth,
           readDocument: () => jsonEncode(store.toDocument()),
+          localHasData: () => store.hasUserData,
         )
       : null;
 

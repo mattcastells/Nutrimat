@@ -9,6 +9,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/overlays.dart';
 import '../../providers/app_providers.dart';
 
 /// S-02 · Bienvenida. Explica la propuesta en una pantalla y ofrece entrada.
@@ -125,10 +126,43 @@ class WelcomeScreen extends ConsumerWidget {
                     block: true,
                     icon: PhosphorIcons.sparkle(),
                     onPressed: () async {
+                      final repo = ref.read(repositoryProvider);
+
+                      // El modo demo siembra datos de ejemplo, y para eso
+                      // vacía la base local. Si hay algo cargado, eso es
+                      // borrar los datos de alguien con un solo toque desde
+                      // una pantalla a la que se puede llegar sin querer —por
+                      // ejemplo si la sesión no se pudo restaurar al arrancar.
+                      if (repo.hasUserData) {
+                        final confirmed = await showNmDialog<bool>(
+                          context: context,
+                          builder: (context) => NmDialog(
+                            title: 'Esto borra lo que tenés en el teléfono',
+                            body:
+                                'El modo de prueba arranca con datos de '
+                                'ejemplo, así que reemplaza tus registros. Si '
+                                'tenés cuenta, entrá en vez de probar: tus '
+                                'datos vuelven desde el respaldo.',
+                            actions: <Widget>[
+                              NmButton.ghost(
+                                label: 'Mejor entro',
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                              ),
+                              NmButton(
+                                label: 'Borrar y probar',
+                                variant: NmButtonVariant.danger,
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true) return;
+                      }
+
                       // Modo demo: usuario local anónimo, sin respaldo (D-15).
-                      await ref
-                          .read(repositoryProvider)
-                          .startDemoSession(seeded: true);
+                      await repo.startDemoSession(seeded: true);
                       if (context.mounted) context.go(Routes.home);
                     },
                   ),

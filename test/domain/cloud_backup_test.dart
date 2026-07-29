@@ -37,6 +37,7 @@ class _FakeAuth implements AuthGateway {
 class _FakeClient implements CloudBackupClient {
   final List<String> uploads = <String>[];
   AppError? failWith;
+  AppError? downloadFailsWith;
 
   /// Se completa a mano para poder tener una subida "en curso".
   Completer<void>? gate;
@@ -52,7 +53,10 @@ class _FakeClient implements CloudBackupClient {
   }
 
   @override
-  Future<String?> download(String userId) async => '{"restored":true}';
+  Future<String?> download(String userId) async {
+    if (downloadFailsWith != null) throw downloadFailsWith!;
+    return '{"restored":true}';
+  }
 
   @override
   Future<CloudBackupInfo?> info(String userId) async => null;
@@ -64,11 +68,16 @@ void main() {
   late _FakeAuth auth;
   var document = '{"v":1}';
 
+  /// Por defecto el teléfono tiene datos: subir con el teléfono vacío es un
+  /// caso aparte y tiene sus propios tests.
+  var localHasData = true;
+
   CloudBackupService build({Duration debounce = Duration.zero}) =>
       CloudBackupService(
         client: client,
         auth: auth,
         readDocument: () => document,
+        localHasData: () => localHasData,
         debounce: debounce,
       );
 
@@ -84,6 +93,7 @@ void main() {
     client = _FakeClient();
     auth = _FakeAuth();
     document = '{"v":1}';
+    localHasData = true;
   });
 
   test('sin sesión no sube nada', () async {
@@ -202,6 +212,54 @@ void main() {
       expect(restored, isFalse);
       expect(aplicado, isFalse, reason: 'pisar lo local sería el mismo error al revés');
 
+      await service.flush();
+      expect(client.uploads, hasLength(1));
+      service.dispose();
+    });
+  });
+
+  group('un documento vacío nunca pisa el respaldo', () {
+    // La puerta sola no alcanza: `openAfterRestore` la abre igual cuando la
+    // descarga falla —a propósito, para no dejar de respaldar en silencio—,
+    // y ahí el teléfono vacío tenía vía libre para borrar la copia buena.
+    test('con el teléfono vacío no sube, aunque la puerta esté abierta',
+        () async {
+      final service = await ready();
+      localHasData = false;
+
+      service.markDirty();
+      await service.flush();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(client.uploads, isEmpty);
+      expect(service.state, isA<BackupHeldEmpty>());
+      service.dispose();
+    });
+
+    test('si la restauración falla por red, tampoco sube el vacío', () async {
+      client.downloadFailsWith = const AppError(
+        code: ApiErrorCode.offline,
+        message: 'sin conexión',
+      );
+      final service = build();
+      localHasData = false;
+
+      // El teléfono está vacío y la descarga se cae: la puerta se abre igual.
+      await service.openAfterRestore(localIsEmpty: true, apply: (_) async {});
+      expect(service.canUpload, isTrue);
+
+      await service.flush();
+      expect(client.uploads, isEmpty, reason: 'habría borrado el respaldo');
+      service.dispose();
+    });
+
+    test('en cuanto hay un dato real, vuelve a subir', () async {
+      final service = await ready();
+      localHasData = false;
+      await service.flush();
+      expect(client.uploads, isEmpty);
+
+      localHasData = true;
       await service.flush();
       expect(client.uploads, hasLength(1));
       service.dispose();

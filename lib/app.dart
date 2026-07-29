@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,16 +7,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/app_providers.dart';
+import 'presentation/providers/auth_providers.dart';
 
 /// La app: tema, router y localización.
 ///
 /// Idioma inicial español rioplatense; la estructura de i18n está desde el día
 /// uno aunque se entregue un solo idioma (D-19, S-06 del PRD).
-class NutrimatApp extends ConsumerWidget {
+class NutrimatApp extends ConsumerStatefulWidget {
   const NutrimatApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NutrimatApp> createState() => _NutrimatAppState();
+}
+
+class _NutrimatAppState extends ConsumerState<NutrimatApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Respaldar al salir de la app.
+  ///
+  /// La subida espera 5 segundos para agrupar cambios seguidos, así que
+  /// registrar algo y cerrar la app enseguida —que es exactamente lo que uno
+  /// hace después de anotar una comida— dejaba ese cambio sin respaldar hasta
+  /// el próximo. Android puede matar el proceso en segundo plano sin volver a
+  /// darle la palabra, así que este es el último momento seguro.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(ref.read(cloudBackupProvider)?.flush() ?? Future<void>.value());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 

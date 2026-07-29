@@ -51,27 +51,22 @@ class WeightChartScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: NmSpace.s6),
-          Row(
+          StatCardRow(
             children: <Widget>[
-              Expanded(
-                child: StatCard(
-                  label: 'Variación',
-                  value:
-                      '${Fmt.signedDecimal1(progress.weightDeltaKg)} '
-                      '${Fmt.weightUnit(units)}',
-                ),
+              StatCard(
+                label: 'Variación',
+                value:
+                    '${Fmt.signedDecimal1(progress.weightDeltaKg)} '
+                    '${Fmt.weightUnit(units)}',
               ),
-              const SizedBox(width: NmSpace.s3),
-              Expanded(
-                child: StatCard(
-                  label: 'Tendencia semanal',
-                  value: progress.trendKgPerWeek == null
-                      ? '—'
-                      : '${Fmt.signedDecimal1(progress.trendKgPerWeek!)} kg',
-                  caption: progress.trendKgPerWeek == null
-                      ? 'Necesitamos unos días más de registro'
-                      : null,
-                ),
+              StatCard(
+                label: 'Tendencia semanal',
+                value: progress.trendKgPerWeek == null
+                    ? '—'
+                    : '${Fmt.signedDecimal1(progress.trendKgPerWeek!)} kg',
+                caption: progress.trendKgPerWeek == null
+                    ? 'Necesitamos unos días más de registro'
+                    : null,
               ),
             ],
           ),
@@ -122,22 +117,17 @@ class CaloriesChartScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: NmSpace.s6),
-          Row(
+          StatCardRow(
             children: <Widget>[
-              Expanded(
-                child: StatCard(
-                  label: 'Promedio diario',
-                  value: Fmt.kcal(progress.averageConsumed),
-                ),
+              StatCard(
+                label: 'Promedio diario',
+                value: Fmt.kcal(progress.averageConsumed),
               ),
-              const SizedBox(width: NmSpace.s3),
-              Expanded(
-                child: StatCard(
-                  label: 'Adherencia',
-                  value: progress.adherencePct == null
-                      ? '—'
-                      : Fmt.percent(progress.adherencePct!),
-                ),
+              StatCard(
+                label: 'Adherencia',
+                value: progress.adherencePct == null
+                    ? '—'
+                    : Fmt.percent(progress.adherencePct!),
               ),
             ],
           ),
@@ -186,30 +176,25 @@ class ActivityProgressScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: NmSpace.s6),
-          Row(
+          StatCardRow(
             children: <Widget>[
-              Expanded(
-                child: StatCard(
-                  label: 'Minutos activos',
-                  value: Fmt.duration(totals.minutes),
-                  caption: progress.previousWeekDeltaMinutes == 0
-                      ? 'Igual que la semana anterior'
-                      : '${Fmt.signed(progress.previousWeekDeltaMinutes)} min '
-                            'vs. la semana anterior',
-                  icon: PhosphorIcons.timer(),
-                ),
+              StatCard(
+                label: 'Minutos activos',
+                value: Fmt.duration(totals.minutes),
+                caption: progress.previousWeekDeltaMinutes == 0
+                    ? 'Igual que la semana anterior'
+                    : '${Fmt.signed(progress.previousWeekDeltaMinutes)} min '
+                          'vs. la semana anterior',
+                icon: PhosphorIcons.timer(),
               ),
-              const SizedBox(width: NmSpace.s3),
               if (progress.stepsAverage != null)
-                Expanded(
-                  child: StatCard(
-                    label: 'Pasos promedio',
-                    value: Fmt.steps(progress.stepsAverage!),
-                    icon: PhosphorIcons.footprints(),
-                  ),
+                StatCard(
+                  label: 'Pasos promedio',
+                  value: Fmt.steps(progress.stepsAverage!),
+                  icon: PhosphorIcons.footprints(),
                 )
               else
-                const Spacer(),
+                const SizedBox.shrink(),
             ],
           ),
           const SizedBox(height: NmSpace.s6),

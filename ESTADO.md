@@ -1,6 +1,6 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.1` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -9,9 +9,14 @@ GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 **La versión con el arreglo del updater hay que instalarla a mano una vez.**
 El que está instalado en el teléfono no puede pedir el permiso de instalación
-(ver "Cosas que ya nos mordieron" §9), así que no puede traerse el arreglo solo:
-hay que bajar el `-universal.apk` del release desde el navegador. De ahí en más
-Configuración → Actualizaciones funciona sin salir de la app.
+(ver "Cosas que ya nos mordieron" §10), así que no puede traerse el arreglo
+solo: hay que bajar el `-universal.apk` del release desde el navegador. De ahí
+en más Configuración → Actualizaciones funciona sin salir de la app.
+
+**Si un teléfono quedó sin datos, restaurar antes de cargar nada.**
+Configuración → Respaldo en la nube → "Restaurar desde la nube". Desde la 1.3.1
+un documento vacío ya no puede pisar la copia buena (§9), así que la copia
+está a salvo mientras tanto; en versiones anteriores no lo estaba.
 
 **Probar el análisis de foto en un teléfono de verdad.** Es lo único del
 circuito que nunca se ejecutó: el emulador no tiene cámara, así que la subida al
@@ -52,7 +57,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **189 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **202 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -99,9 +104,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.3.0**.
+contra un Postgres limpio. Última publicada: **v1.3.1**.
 
-Publicar una versión es empujar un tag `v1.3.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.3.2`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -169,7 +174,26 @@ Para no volver a perder tiempo con lo mismo:
    miente.
 8. **Los buckets restringen los MIME.** Los de fotos solo aceptan imágenes: el
    respaldo JSON necesitó su propio bucket.
-9. **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza para instalar.**
+9. **Una lectura fallida borraba todos los datos del teléfono.** `LocalStore`
+   hacía `remove()` sobre el documento que no había podido interpretar: un
+   solo registro con un campo raro y se perdía **todo** —comidas, peso,
+   medidas, historial— sin copia y sin aviso. Encima la app quedaba
+   indistinguible de un teléfono nuevo, así que el respaldo vacío que salía de
+   ahí podía pisar la copia buena de la nube.
+
+   Cuatro reglas que quedaron y no se negocian:
+
+   - Lo que no se puede leer **se aparta, no se borra** (`quarantine`).
+   - Cada registro se lee por separado: uno malo no se lleva puesto el resto.
+   - **Un documento sin un solo registro no se sube nunca.** Es la última
+     línea de defensa y no depende de que la puerta de `openAfterRestore`
+     esté bien: esa puerta se abre igual cuando la descarga falla.
+   - Una lectura fallida y un teléfono vacío **no se pueden ver igual**:
+     `RestoreOutcome` los distingue y la app lo dice en Inicio.
+
+   Corolario: cualquier acción que llame a `store.reset()` —el modo demo— tiene
+   que preguntar antes si hay datos cargados.
+10. **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza para instalar.**
    Desde Android 8 el permiso solo habilita a *pedir*; quien autoriza es la
    persona, **por app instaladora**, en Ajustes → Apps → Nutrimat → Instalar
    apps desconocidas. Sin eso `startActivity` con el APK devuelve éxito y el
@@ -188,7 +212,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 189 tests
+flutter test                              # 202 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

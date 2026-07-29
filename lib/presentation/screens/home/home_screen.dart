@@ -63,6 +63,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final units = ref.watch(unitSystemProvider);
     final repo = ref.read(repositoryProvider);
     final isFutureDate = isFuture(date);
+    final restoreMessage = ref.watch(restoreOutcomeProvider).message;
 
     return Scaffold(
       backgroundColor: nm.bg,
@@ -104,6 +105,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const InfoNote(
                                 text: 'Estás planificando un día que todavía '
                                     'no llegó.',
+                              ),
+                              const SizedBox(height: NmSpace.s5),
+                            ],
+                            // No pudimos leer lo guardado. Mostrar la app
+                            // vacía y callarse es lo que hace que alguien
+                            // registre encima y recién ahí se dé cuenta.
+                            if (restoreMessage != null) ...<Widget>[
+                              InfoNote(
+                                tone: NmNoteTone.caution,
+                                text: restoreMessage,
+                                action: 'Traer mi respaldo',
+                                onAction: () =>
+                                    context.push(Routes.cloudBackup),
                               ),
                               const SizedBox(height: NmSpace.s5),
                             ],

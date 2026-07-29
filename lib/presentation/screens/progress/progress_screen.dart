@@ -121,27 +121,22 @@ class ProgressScreen extends ConsumerWidget {
           NmCard(child: CaloriesChart(days: progress.calorieDays)),
 
           const SizedBox(height: NmSpace.s6),
-          Row(
+          StatCardRow(
             children: <Widget>[
-              Expanded(
-                child: StatCard(
-                  label: 'Promedio diario',
-                  value: Fmt.kcal(progress.averageConsumed),
-                  icon: PhosphorIcons.forkKnife(),
-                ),
+              StatCard(
+                label: 'Promedio diario',
+                value: Fmt.kcal(progress.averageConsumed),
+                icon: PhosphorIcons.forkKnife(),
               ),
-              const SizedBox(width: NmSpace.s3),
-              Expanded(
-                child: StatCard(
-                  label: 'Adherencia',
-                  value: progress.adherencePct == null
-                      ? '—'
-                      : Fmt.percent(progress.adherencePct!),
-                  caption: progress.adherencePct == null
-                      ? 'Con tres días de registro la mostramos'
-                      : 'Días dentro de ±10 % del objetivo',
-                  icon: PhosphorIcons.target(),
-                ),
+              StatCard(
+                label: 'Adherencia',
+                value: progress.adherencePct == null
+                    ? '—'
+                    : Fmt.percent(progress.adherencePct!),
+                caption: progress.adherencePct == null
+                    ? 'Con tres días de registro la mostramos'
+                    : 'Días dentro de ±10 % del objetivo',
+                icon: PhosphorIcons.target(),
               ),
             ],
           ),

@@ -407,6 +407,31 @@ class ActivitySummaryCard extends StatelessWidget {
 }
 
 /// Tarjeta de una métrica con comparación neutral.
+/// Fila de [StatCard] parejas.
+///
+/// Un `Row` común alinea al centro, así que dos tarjetas con distinta cantidad
+/// de texto —una con leyenda y la otra sin— quedan de distinto alto y con los
+/// bordes corridos. Acá se estiran todas a la más alta y el contenido arranca
+/// arriba, que es lo que se espera de una grilla.
+class StatCardRow extends StatelessWidget {
+  const StatCardRow({required this.children, super.key});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (var i = 0; i < children.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: NmSpace.s3),
+          Expanded(child: children[i]),
+        ],
+      ],
+    ),
+  );
+}
+
 class StatCard extends StatelessWidget {
   const StatCard({
     required this.label,

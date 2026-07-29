@@ -34,6 +34,14 @@ class BackupFailed extends BackupState {
   final DateTime? lastUpload;
 }
 
+/// No se subió **a propósito**: el teléfono no tiene nada cargado y subirlo
+/// pisaría la copia buena con un documento vacío.
+class BackupHeldEmpty extends BackupState {
+  const BackupHeldEmpty(this.lastUpload);
+
+  final DateTime? lastUpload;
+}
+
 /// Sube el documento del usuario a la nube cuando algo cambia.
 ///
 /// Dos decisiones que definen el comportamiento:
@@ -52,14 +60,27 @@ class CloudBackupService {
     required CloudBackupClient client,
     required AuthGateway auth,
     required String Function() readDocument,
+    required bool Function() localHasData,
     this.debounce = const Duration(seconds: 5),
   }) : _client = client,
        _auth = auth,
-       _readDocument = readDocument;
+       _readDocument = readDocument,
+       _localHasData = localHasData;
 
   final CloudBackupClient _client;
   final AuthGateway _auth;
   final String Function() _readDocument;
+
+  /// Si el teléfono tiene algo cargado por la persona.
+  ///
+  /// Es la última línea de defensa del respaldo. La puerta [_canUpload] evita
+  /// el caso conocido —reinstalar y que el perfil vacío pise la copia—, pero
+  /// alcanza con que la restauración falle por falta de señal para que la
+  /// puerta se abra igual (a propósito, para no dejar de respaldar en
+  /// silencio) y el documento vacío viaje. Un documento sin un solo registro
+  /// no tiene nada que proteger, así que no se sube nunca: no perdemos nada
+  /// por esperar al primer dato real.
+  final bool Function() _localHasData;
 
   /// Cuánto se espera desde el último cambio antes de subir.
   final Duration debounce;
@@ -144,6 +165,15 @@ class CloudBackupService {
     if (account == null || !_canUpload) return;
     if (_uploading) {
       _dirty = true;
+      return;
+    }
+
+    // Nada cargado en el teléfono: subir esto solo puede borrar. Se corta acá
+    // y se dice por qué, en vez de dejar el estado en "al día" mintiendo.
+    if (!_localHasData()) {
+      _timer?.cancel();
+      _dirty = false;
+      _emit(BackupHeldEmpty(_lastUpload));
       return;
     }
 

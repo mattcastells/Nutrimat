@@ -198,6 +198,19 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             ),
           ],
 
+          // El caso que borraba los datos: teléfono sin nada y una copia con
+          // todo. Antes se subía el vacío y se perdía la copia; ahora se para
+          // y se explica cuál es el movimiento correcto.
+          if (state is BackupHeldEmpty) ...<Widget>[
+            const SizedBox(height: NmSpace.s4),
+            const InfoNote(
+              tone: NmNoteTone.caution,
+              text: 'No estamos subiendo nada porque este teléfono no tiene '
+                  'registros. Si tu copia de la nube sí los tiene, traela con '
+                  '"Restaurar desde la nube": subir esto la borraría.',
+            ),
+          ],
+
           const SizedBox(height: NmSpace.s6),
           NmButton.secondary(
             label: 'Respaldar ahora',
@@ -228,6 +241,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
   String _statusLabel(BackupState? state) => switch (state) {
     BackupUploading() => 'Subiendo…',
     BackupFailed() => 'Falló, se reintenta',
+    BackupHeldEmpty() => 'En pausa',
     _ => 'Al día',
   };
 }

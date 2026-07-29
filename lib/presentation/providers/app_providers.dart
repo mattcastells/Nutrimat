@@ -5,6 +5,7 @@ import '../../core/utils/dates.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
 import '../../domain/models/goal.dart';
+import '../../domain/models/restore_outcome.dart';
 import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/repositories/repositories.dart';
@@ -150,6 +151,15 @@ final activityGoalsProvider = Provider<List<ActivityGoal>>((ref) {
   ref.watch(appRevisionProvider);
   return ref.watch(repositoryProvider).activityGoals;
 });
+
+/// Cómo salió leer el documento guardado al arrancar.
+///
+/// Se mira en Inicio para avisar. Una lectura que falló y un teléfono vacío se
+/// veían idénticos, y esa confusión es la que terminaba en datos perdidos sin
+/// que nadie se enterara hasta que era tarde.
+final restoreOutcomeProvider = Provider<RestoreOutcome>(
+  (ref) => ref.watch(repositoryProvider).lastRestore,
+);
 
 final offlineProvider = Provider<bool>((ref) {
   ref.watch(appRevisionProvider);

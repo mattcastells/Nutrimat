@@ -241,7 +241,10 @@ export async function callGemini(
 export function rateLimitedResponse(): Response {
   return fail(
     'ERR_AI_RATE_LIMITED',
-    'El servicio de análisis está al límite por ahora. Esperá un minuto y '
+    // Ojo con el `+`: TypeScript **no** concatena literales adyacentes como
+    // Dart. Sin él esto no es un string partido en dos líneas, es un error de
+    // sintaxis, y el deploy de la función falla entero.
+    'El servicio de análisis está al límite por ahora. Esperá un minuto y ' +
       'probá de nuevo, o cargá la comida a mano.',
     429,
   );

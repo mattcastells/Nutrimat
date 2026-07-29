@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
   if (items.length === 0) {
     return fail(
       'ERR_AI_NO_FOOD',
-      'No reconocimos ninguna comida en esa descripción. Probá nombrando los '
+      'No reconocimos ninguna comida en esa descripción. Probá nombrando los ' +
         'alimentos y las cantidades: "dos empanadas de carne, un vaso de coca".',
       422,
     );

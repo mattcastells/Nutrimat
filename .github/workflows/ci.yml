@@ -46,6 +46,35 @@ jobs:
       - name: Tests
         run: flutter test
 
+  functions:
+    name: Compilar las Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Nada en el pipeline compilaba las funciones: un error de sintaxis
+      # aparecía recién al desplegar, y desplegar es manual. Pasó con una
+      # concatenación implícita de strings —`'a' 'b'`, que en Dart une y en
+      # TypeScript es un error— que tumbó dos de las tres funciones.
+      #
+      # `esbuild` no las ejecuta ni resuelve los imports de `jsr:`, pero parsea
+      # todo el árbol de módulos, que es lo que hace falta para atajar esto.
+      - name: Verificar que parsean
+        run: |
+          fallo=0
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ -f "$dir/index.ts" ] || continue
+            echo "· $name"
+            if ! npx --yes esbuild@0.24.0 --bundle "$dir/index.ts" \
+              --format=esm --platform=neutral --external:jsr:* \
+              --outfile=/dev/null; then
+              echo "::error::La función $name no compila."
+              fallo=1
+            fi
+          done
+          exit $fallo
+
   database:
     name: Probar las políticas RLS
     runs-on: ubuntu-latest

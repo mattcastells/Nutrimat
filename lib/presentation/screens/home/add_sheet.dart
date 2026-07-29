@@ -15,6 +15,7 @@ import '../../../domain/enums/enums.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../sleep/sleep_sheet.dart';
 import '../weight/weight_sheet.dart';
 
 /// S-08 · Menú Agregar y S-09 · Menú Ejercicio.
@@ -139,6 +140,15 @@ class _MainPane extends ConsumerWidget {
             onTap: () {
               Navigator.of(context).pop();
               showWeightSheet(context);
+            },
+          ),
+          ActionRow(
+            icon: PhosphorIcons.moon(),
+            label: 'Registrar sueño',
+            subtitle: 'Cuántas horas dormiste y cómo',
+            onTap: () {
+              Navigator.of(context).pop();
+              showSleepSheet(context, date: date);
             },
           ),
           ActionRow(

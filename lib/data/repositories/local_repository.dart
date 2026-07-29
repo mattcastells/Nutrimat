@@ -19,6 +19,7 @@ import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/reminder.dart';
+import '../../domain/models/sleep.dart';
 import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
@@ -48,6 +49,7 @@ class LocalRepository
         BodyRepository,
         WaterRepository,
         ReminderRepository,
+        SleepRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -891,6 +893,55 @@ class LocalRepository
   @override
   Future<void> deleteWeight(String id) async {
     store.weightLogs.removeWhere((w) => w.id == id);
+    await _commit();
+  }
+
+  // ── Sueño ──────────────────────────────────────────────────────────────
+
+  @override
+  List<SleepLog> get sleepLogs => <SleepLog>[...store.sleepLogs]
+    ..sort((a, b) => a.localDate.compareTo(b.localDate));
+
+  @override
+  SleepLog? sleepOn(DateTime date) {
+    final day = dateOnly(date);
+    for (final log in store.sleepLogs) {
+      if (isSameDay(log.localDate, day)) return log;
+    }
+    return null;
+  }
+
+  @override
+  Future<void> logSleep({
+    required DateTime date,
+    required int minutes,
+    required SleepQuality quality,
+    String? notes,
+  }) async {
+    final day = dateOnly(date);
+    final index = store.sleepLogs.indexWhere(
+      (s) => isSameDay(s.localDate, day),
+    );
+    final entry = SleepLog(
+      id: index >= 0 ? store.sleepLogs[index].id : _uuid.v4(),
+      localDate: day,
+      minutes: SleepLog.clampMinutes(minutes),
+      quality: quality,
+      loggedAt: DateTime.now(),
+      notes: notes,
+      syncStatus: store.writeStatus,
+    );
+    if (index >= 0) {
+      store.sleepLogs[index] = entry;
+    } else {
+      store.sleepLogs.add(entry);
+    }
+    await _commit();
+  }
+
+  @override
+  Future<void> deleteSleep(String id) async {
+    store.sleepLogs.removeWhere((s) => s.id == id);
     await _commit();
   }
 

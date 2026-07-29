@@ -1,6 +1,6 @@
 # Estado — 28 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.1.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.2.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -39,14 +39,15 @@ Functions.
 ### La app (Flutter, Android)
 
 39 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **136 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **159 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
 Comidas, actividades con cálculo MET, peso, medidas, agua, historial, progreso
 y objetivos. El catálogo consulta Open Food Facts (con prioridad a productos
 argentinos) y el escáner lee el código de barras con la cámara. Recordatorios
-locales de agua y de registro, con horario configurable.
+locales de agua y de registro con horario configurable, sueño por noche y
+planificación de comidas hasta tres días adelante.
 
 No hay asistente inicial: entrar lleva directo a Inicio y los datos del perfil
 se cargan desde Perfil cuando se quiera.
@@ -72,9 +73,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.1.0**.
+contra un Postgres limpio. Última publicada: **v1.2.0**.
 
-Publicar una versión es empujar un tag `v1.1.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.2.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -148,7 +149,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 148 tests
+flutter test                              # 159 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -163,10 +164,8 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. **Precargar comidas** hasta 3 días adelante, navegable desde Inicio.
-3. **Sueño**: horas y calidad, por input de la persona.
-2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
-   el cliente). Open Food Facts ya está conectado y no necesita clave.
+2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir
+   en el cliente). Open Food Facts ya está conectado y no necesita clave.
 3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta
    consultar del lado del servidor. Hoy el respaldo en Storage alcanza.
 

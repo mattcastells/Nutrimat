@@ -11,6 +11,7 @@ import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
 import '../../domain/models/reminder.dart';
+import '../../domain/models/sleep.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
 import '../mock/seed.dart';
@@ -46,6 +47,7 @@ class LocalStore {
   List<Activity> activities = <Activity>[];
   List<WeightLog> weightLogs = <WeightLog>[];
   List<WaterLog> waterLogs = <WaterLog>[];
+  List<SleepLog> sleepLogs = <SleepLog>[];
   List<Reminder> reminders = <Reminder>[
     for (final k in ReminderKind.values) Reminder.byDefault(k),
   ];
@@ -210,6 +212,7 @@ class LocalStore {
     activities = <Activity>[];
     weightLogs = <WeightLog>[];
     waterLogs = <WaterLog>[];
+    sleepLogs = <SleepLog>[];
     measurements = <BodyMeasurement>[];
     activityGoals = <ActivityGoal>[];
     templates = <ExerciseTemplate>[];
@@ -247,6 +250,7 @@ class LocalStore {
     final storedReminders = _list(j['reminders'], Reminder.fromJson);
     // Si falta alguno —porque el respaldo es de una versión anterior— se
     // completa con el que corresponde apagado.
+    sleepLogs = _list(j['sleepLogs'], SleepLog.fromJson);
     reminders = <Reminder>[
       for (final k in ReminderKind.values)
         storedReminders.firstWhere(
@@ -295,6 +299,7 @@ class LocalStore {
     'weightLogs': weightLogs.map((e) => e.toJson()).toList(),
     'waterLogs': waterLogs.map((e) => e.toJson()).toList(),
     'reminders': reminders.map((e) => e.toJson()).toList(),
+    'sleepLogs': sleepLogs.map((e) => e.toJson()).toList(),
     'measurements': measurements.map((e) => e.toJson()).toList(),
     'activityGoals': activityGoals.map((e) => e.toJson()).toList(),
     'templates': templates.map((e) => e.toJson()).toList(),

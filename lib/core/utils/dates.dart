@@ -28,6 +28,18 @@ bool isYesterday(DateTime d) =>
 
 bool isFuture(DateTime d) => dateOnly(d).isAfter(today());
 
+/// Hasta cuántos días adelante se puede planificar una comida.
+///
+/// Tres alcanza para dejar armada la semana corta sin que Inicio se vuelva un
+/// calendario: más que eso ya es otra pantalla.
+const int maxPlanningDays = 3;
+
+/// El día está dentro de la ventana en la que se puede cargar comida.
+bool isPlannable(DateTime d) {
+  final diff = dateOnly(d).difference(today()).inDays;
+  return diff <= maxPlanningDays;
+}
+
 /// Lunes de la semana ISO que contiene [d].
 DateTime startOfIsoWeek(DateTime d) {
   final day = dateOnly(d);

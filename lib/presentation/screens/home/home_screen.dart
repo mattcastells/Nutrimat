@@ -15,6 +15,7 @@ import '../../components/charts/macro_bar.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/daily_summary_card.dart';
 import '../../components/food/food_widgets.dart';
+import '../../components/sleep/sleep_card.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
@@ -94,6 +95,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
+                            // Un día futuro es un plan, no un registro. Sin
+                            // decirlo, el anillo de un día planificado se lee
+                            // igual que el de uno ya comido.
+                            if (isFutureDate) ...<Widget>[
+                              const InfoNote(
+                                text: 'Estás planificando un día que todavía '
+                                    'no llegó.',
+                              ),
+                              const SizedBox(height: NmSpace.s5),
+                            ],
                             // Sin datos corporales el objetivo es un número de
                             // referencia, no un cálculo (RN-03).
                             if (profile.birthDate == null ||
@@ -119,6 +130,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             NmCard(child: MacroBar(macros: summary.macros)),
                             const SizedBox(height: NmSpace.s6),
                             WaterCard(date: date),
+                            const SizedBox(height: NmSpace.s4),
+                            SleepCard(date: date),
                             const SizedBox(height: NmSpace.s8),
 
                             if (summary.isEmpty && !isFutureDate) ...<Widget>[
@@ -148,12 +161,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 child: MealSection(
                                   slot: slot,
                                   meals: summary.mealsFor(slot),
-                                  onAdd: isFutureDate
-                                      ? () {}
-                                      : () => context.push(
-                                          '${Routes.mealNew}?slot=${slot.wire}'
-                                          '&date=${isoDate(date)}',
-                                        ),
+                                  // Los días futuros dentro de la ventana se
+                                  // pueden cargar: es la planificación.
+                                  onAdd: () => context.push(
+                                    '${Routes.mealNew}?slot=${slot.wire}'
+                                    '&date=${isoDate(date)}',
+                                  ),
                                   onOpenMeal: (meal) =>
                                       context.push(Routes.meal(meal.id)),
                                   onDeleteMeal: (meal) async {
@@ -329,7 +342,8 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final nm = context.nm;
     final controller = ref.read(selectedDateProvider.notifier);
-    final canGoForward = !isToday(date);
+    // Se puede mirar hasta tres días adelante para dejar comidas planificadas.
+    final canGoForward = date.difference(today()).inDays < maxPlanningDays;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(

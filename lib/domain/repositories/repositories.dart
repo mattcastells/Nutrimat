@@ -9,6 +9,7 @@ import '../models/food.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
 import '../models/reminder.dart';
+import '../models/sleep.dart';
 import '../models/summaries.dart';
 import '../models/user_profile.dart';
 import '../models/water.dart';
@@ -98,6 +99,7 @@ abstract interface class NutrimatRepositories
         BodyRepository,
         WaterRepository,
         ReminderRepository,
+        SleepRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -217,6 +219,23 @@ abstract interface class FoodRepository {
   Future<void> toggleFoodFavorite(String id);
   Future<void> deleteOwnFood(String id);
   Future<void> markUsed(String foodId);
+}
+
+abstract interface class SleepRepository {
+  List<SleepLog> get sleepLogs;
+
+  /// La noche registrada sobre ese día, o `null`.
+  SleepLog? sleepOn(DateTime date);
+
+  /// Una noche por día: registrar de nuevo actualiza, igual que el peso (D-16).
+  Future<void> logSleep({
+    required DateTime date,
+    required int minutes,
+    required SleepQuality quality,
+    String? notes,
+  });
+
+  Future<void> deleteSleep(String id);
 }
 
 abstract interface class ReminderRepository {

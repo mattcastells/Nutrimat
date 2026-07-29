@@ -58,11 +58,11 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 19 de 19 aplicadas |
+| Migraciones | 21 de 21 aplicadas |
 | Tablas | 24, **todas con RLS** |
 | Políticas | 78, más 3 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
-| Suite pgTAP | **31 de 31** (22 de RLS + 9 de Storage), en local y contra el proyecto real |
+| Suite pgTAP | **50 de 50** (22 RLS + 9 Storage + 19 Pals), en local y contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
 

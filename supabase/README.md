@@ -7,7 +7,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 
 | Qué | Resultado |
 | --- | --- |
-| Migraciones aplicadas | 19 de 19 |
+| Migraciones aplicadas | 21 de 21 |
 | Tablas | 24 |
 | Tablas con RLS activo | **24 de 24** (ninguna sin RLS) |
 | Políticas | 78 |
@@ -15,7 +15,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 | `activity_types` sembrados | 15 (D-06) |
 | RPC | `create_meal_with_items`, `get_daily_summary` |
 | pg_cron | habilitado, con los 4 jobs de `08-supabase-plan.md` §7 |
-| Suite pgTAP | **31 casos en verde** (22 de RLS + 9 de Storage), en local y contra el proyecto |
+| Suite pgTAP | **50 casos en verde** (22 RLS + 9 Storage + 19 Pals), en local y contra el proyecto |
 
 ## Cómo trabajar
 

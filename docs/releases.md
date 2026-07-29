@@ -99,14 +99,46 @@ comparación de versiones del updater.
 
 | Archivo | Para qué |
 | --- | --- |
-| `nutrimat-<v>-universal.apk` | **El que usa el updater.** Anda en cualquier teléfono |
-| `nutrimat-<v>-arm64-v8a.apk` | Casi todos los teléfonos actuales, más chico |
-| `nutrimat-<v>-armeabi-v7a.apk` | Equipos viejos de 32 bits |
-| `nutrimat-<v>-x86_64.apk` | Emuladores |
+| `nutrimat-<v>-universal.apk` | **El único.** Anda en cualquier teléfono |
 
-⚠️ El nombre del universal es un contrato con la app: `GithubReleasesClient`
-busca el asset que termina en `-universal.apk`. Si se cambia, el updater deja
-de encontrar la actualización.
+⚠️ El nombre es un contrato con la app: `GithubReleasesClient` busca el asset
+que termina en `-universal.apk`. Si se cambia, el updater deja de encontrar la
+actualización.
+
+### Por qué hay un solo APK
+
+Hasta la 1.3.1 se publicaban además tres APK por arquitectura, que pesaban la
+mitad. Se dejaron de publicar porque rompían la actualización.
+
+`--split-per-abi` le suma a cada APK un corrimiento por arquitectura en el
+`versionCode` (`abi × 1000 + versionCode`). En la 1.3.1 quedó así:
+
+| Archivo | `versionCode` |
+| --- | --- |
+| universal | 11 |
+| armeabi-v7a | 1011 |
+| arm64-v8a | 2011 |
+| x86_64 | 4011 |
+
+Eso existe para Play Store, donde la tienda elige el APK por dispositivo. Acá
+el updater baja **siempre el universal**, así que quien había instalado el de
+su arquitectura quedaba en 2011: la app le ofrecía la versión nueva, la
+descargaba, y Android rechazaba la instalación por downgrade (2011 → 12). El
+diálogo dice **"No se instaló la app"** y nada más, y no hay salida sin
+desinstalar —perdiendo los datos locales.
+
+Se intentó igualar los códigos desde `build.gradle.kts` con
+`androidComponents.onVariants` y **no alcanza**: el plugin de Flutter los pisa
+con la API vieja en un `afterEvaluate` posterior. Verificado con `aapt2 dump
+badging`.
+
+Por eso además el `versionCode` arrancó de nuevo en **5000**: cualquier número
+por debajo de 4011 dejaría sin actualizar a quien tenga instalado un APK por
+arquitectura de la 1.3.0 o la 1.3.1.
+
+Si algún día vuelven los APK chicos, **primero** hay que hacer que el updater
+elija el de la arquitectura del teléfono. El workflow verifica el `versionCode`
+de todo lo que publica y falla si no coincide con `pubspec.yaml`.
 
 ---
 

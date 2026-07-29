@@ -77,6 +77,24 @@ flutter {
     source = "../.."
 }
 
+// ⚠️ No compilar con `--split-per-abi` mientras el updater baje un solo APK.
+//
+// Con esa opción el plugin de Flutter le suma a cada APK un corrimiento por
+// arquitectura (`abi * 1000 + versionCode`): el universal queda en 11 y el de
+// arm64 en 2011. Como el updater baja **siempre el universal**, quien había
+// instalado el de su arquitectura recibía la actualización, la descargaba, y
+// Android la rechazaba por downgrade (2011 → 12). El síntoma es "No se
+// instaló la app", sin explicación, y no hay salida más que desinstalar —
+// perdiendo los datos locales.
+//
+// Se intentó anular el corrimiento desde acá con `androidComponents
+// .onVariants { output.versionCode.set(...) }` y **no alcanza**: el plugin lo
+// pisa con la API vieja (`versionCodeOverride`) en su `afterEvaluate`, que
+// corre después. Verificado con `aapt2 dump badging`: seguía dando 6000 /
+// 7000 / 9000. Por eso el release publica un único APK universal en vez de
+// pelearle al orden de los callbacks, y `release.yml` verifica el
+// versionCode de lo que publica.
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // `FileProvider`, para entregarle el APK de la actualización al instalador

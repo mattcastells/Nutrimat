@@ -1,6 +1,6 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.1` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.3.2` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -9,7 +9,7 @@ GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 **La versión con el arreglo del updater hay que instalarla a mano una vez.**
 El que está instalado en el teléfono no puede pedir el permiso de instalación
-(ver "Cosas que ya nos mordieron" §10), así que no puede traerse el arreglo
+(ver "Cosas que ya nos mordieron" §11), así que no puede traerse el arreglo
 solo: hay que bajar el `-universal.apk` del release desde el navegador. De ahí
 en más Configuración → Actualizaciones funciona sin salir de la app.
 
@@ -104,9 +104,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.3.1**.
+contra un Postgres limpio. Última publicada: **v1.3.2**.
 
-Publicar una versión es empujar un tag `v1.3.2`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.3.3`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -193,7 +193,18 @@ Para no volver a perder tiempo con lo mismo:
 
    Corolario: cualquier acción que llame a `store.reset()` —el modo demo— tiene
    que preguntar antes si hay datos cargados.
-10. **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza para instalar.**
+10. **Publicar APK por arquitectura rompió la actualización.**
+    `--split-per-abi` le suma un corrimiento por ABI al `versionCode`
+    (`abi × 1000 + code`): en la 1.3.1 el universal quedó en 11 y el de arm64
+    en 2011. Como el updater baja **siempre el universal**, quien instaló el
+    de su arquitectura recibía la actualización, la descargaba, y Android la
+    rechazaba por downgrade. El diálogo dice "No se instaló la app" y nada
+    más. Desde la 1.3.2 se publica un solo APK y el `versionCode` arranca en
+    **5000**, por encima del 4011 que llegó a publicarse. Igualar los códigos
+    desde `build.gradle.kts` **no funciona**: el plugin de Flutter los pisa
+    después. Si vuelven los APK chicos, primero el updater tiene que elegir
+    por arquitectura.
+11. **`REQUEST_INSTALL_PACKAGES` en el manifest no alcanza para instalar.**
    Desde Android 8 el permiso solo habilita a *pedir*; quien autoriza es la
    persona, **por app instaladora**, en Ajustes → Apps → Nutrimat → Instalar
    apps desconocidas. Sin eso `startActivity` con el APK devuelve éxito y el

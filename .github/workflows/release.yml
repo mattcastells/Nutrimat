@@ -107,25 +107,59 @@ jobs:
       - name: Compilar el APK universal
         run: flutter build apk --release --dart-define-from-file=env/ci.json
 
-      - name: Compilar los APK por arquitectura
-        run: |
-          flutter build apk --release --split-per-abi \
-            --dart-define-from-file=env/ci.json
-
+      # Ya no se publican APK por arquitectura.
+      #
+      # Pesaban menos, pero `--split-per-abi` le suma a cada uno un
+      # corrimiento por ABI en el versionCode (arm64 → 2011 cuando el
+      # universal era 11). Como el updater baja siempre el universal, quien
+      # instalaba el de su arquitectura quedaba con un código más alto y
+      # Android le rechazaba toda actualización posterior por downgrade: "No
+      # se instaló la app", sin salida más que desinstalar y perder los datos.
+      #
+      # Un solo APK no puede tener ese problema. Si algún día vuelven los
+      # chicos, primero hay que hacer que el updater elija el de la
+      # arquitectura del teléfono, no después.
       - name: Juntar los artefactos
         run: |
           mkdir -p dist
-          out=build/app/outputs/flutter-apk
-          cp "$out/app-release.apk" "dist/nutrimat-$VERSION-universal.apk"
-          for abi in armeabi-v7a arm64-v8a x86_64; do
-            if [ -f "$out/app-$abi-release.apk" ]; then
-              cp "$out/app-$abi-release.apk" "dist/nutrimat-$VERSION-$abi.apk"
-            fi
-          done
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "dist/nutrimat-$VERSION-universal.apk"
           ls -lh dist
 
+      # Todos los APK del release tienen que declarar el MISMO versionCode, y
+      # tiene que ser el de pubspec.yaml.
+      #
+      # Con `--split-per-abi` el plugin de Flutter le suma un corrimiento por
+      # arquitectura, y como el updater baja siempre el universal, quien había
+      # instalado el de su ABI quedaba con un versionCode más alto y Android
+      # le rechazaba la actualización por downgrade: "No se instaló la app",
+      # sin salida más que desinstalar. `android/app/build.gradle.kts` anula
+      # ese corrimiento; esto verifica que siga anulado.
+      - name: Verificar que los versionCode coincidan
+        run: |
+          aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          esperado="$(grep -m1 '^version:' pubspec.yaml | sed 's/.*+//')"
+          echo "versionCode esperado: $esperado"
+
+          fallo=0
+          for apk in dist/*.apk; do
+            code=$("$aapt2" dump badging "$apk" \
+              | head -1 | sed "s/.*versionCode='\([0-9]*\)'.*/\1/")
+            echo "  $(basename "$apk"): $code"
+            if [ "$code" != "$esperado" ]; then
+              echo "::error::$(basename "$apk") declara versionCode $code y debería ser $esperado."
+              fallo=1
+            fi
+          done
+
+          if [ "$fallo" != 0 ]; then
+            echo "::error::Los APK no comparten versionCode. Publicarlos así deja sin actualizar a quien tenga el más alto."
+            exit 1
+          fi
+
       # Deja constancia de con qué clave quedó firmado: si algún día un APK no
-      # instala encima de otro, esto es lo primero que hay que mirar.
+      # instala encima de otro, esto es lo segundo que hay que mirar (lo
+      # primero es el versionCode de acá arriba).
       #
       # El runner trae varias versiones de build-tools, así que el glob se
       # resuelve a una sola: sin esto, la segunda ruta que expande el shell le
@@ -148,9 +182,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat > notes.md <<NOTES
-          Si no sabés qué arquitectura tiene tu teléfono, instalá
-          **nutrimat-$VERSION-universal.apk**: anda en todos. Los otros pesan
-          menos pero valen solo para su arquitectura.
+          **nutrimat-$VERSION-universal.apk** anda en cualquier teléfono.
 
           Desde una versión ya instalada no hace falta bajar nada a mano:
           **Configuración → Actualizaciones**.

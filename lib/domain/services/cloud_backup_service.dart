@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import '../../core/error/app_error.dart';
 import '../../data/remote/cloud_backup_client.dart';
@@ -177,16 +178,34 @@ class CloudBackupService {
       return;
     }
 
+    // Último control antes de que el documento salga del teléfono: si no se
+    // puede volver a leer, no sirve como respaldo. Subirlo sería reemplazar
+    // una copia buena por una que nadie va a poder restaurar.
+    final documento = _readDocument();
+    if (!_esRestaurable(documento)) {
+      _timer?.cancel();
+      _dirty = false;
+      _emit(
+        BackupFailed(
+          const AppError(
+            code: ApiErrorCode.validation,
+            message:
+                'No subimos el respaldo porque no pudimos releerlo. Tus datos '
+                'siguen en el teléfono; exportalos desde Privacidad.',
+          ),
+          _lastUpload,
+        ),
+      );
+      return;
+    }
+
     _timer?.cancel();
     _uploading = true;
     _dirty = false;
     _emit(const BackupUploading());
 
     try {
-      await _client.upload(
-        userId: account.id,
-        documentJson: _readDocument(),
-      );
+      await _client.upload(userId: account.id, documentJson: documento);
       _lastUpload = DateTime.now();
       _emit(BackupIdle(_lastUpload));
     } on AppError catch (error) {
@@ -199,11 +218,36 @@ class CloudBackupService {
     if (_dirty) await flush();
   }
 
-  /// Trae el respaldo de la nube. Devuelve `null` si no hay ninguno.
-  Future<String?> restore() async {
+  /// ¿El documento se puede volver a leer y tiene lo mínimo de un respaldo?
+  ///
+  /// No valida el contenido entero —para eso está la lectura tolerante de
+  /// `LocalStore`— sino que sea JSON y traiga la clave `profile`, que es lo
+  /// que `importJson` exige para aceptarlo. Un respaldo que la propia app
+  /// rechazaría al restaurarlo no es un respaldo.
+  static bool _esRestaurable(String documentJson) {
+    try {
+      final decoded = jsonDecode(documentJson);
+      return decoded is Map<String, dynamic> &&
+          decoded.containsKey('profile');
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Trae un respaldo de la nube. Devuelve `null` si no hay ninguno.
+  ///
+  /// Con [path] baja una copia concreta del historial; sin él, la última.
+  Future<String?> restore({String? path}) async {
     final account = _auth.currentAccount;
     if (account == null) return null;
-    return _client.download(account.id);
+    return _client.download(account.id, path: path);
+  }
+
+  /// Todas las copias disponibles, de la más nueva a la más vieja.
+  Future<List<CloudBackupInfo>> versions() async {
+    final account = _auth.currentAccount;
+    if (account == null) return const <CloudBackupInfo>[];
+    return _client.listVersions(account.id);
   }
 
   Future<CloudBackupInfo?> remoteInfo() async {

@@ -46,6 +46,7 @@ class _FakeClient implements CloudBackupClient {
   Future<void> upload({
     required String userId,
     required String documentJson,
+    DateTime? at,
   }) async {
     if (gate != null) await gate!.future;
     if (failWith != null) throw failWith!;
@@ -53,20 +54,28 @@ class _FakeClient implements CloudBackupClient {
   }
 
   @override
-  Future<String?> download(String userId) async {
+  Future<String?> download(String userId, {String? path}) async {
     if (downloadFailsWith != null) throw downloadFailsWith!;
-    return '{"restored":true}';
+    descargas.add(path);
+    return '{"profile":{},"restored":true}';
   }
+
+  /// Qué rutas se pidieron: `null` es "la última".
+  final List<String?> descargas = <String?>[];
 
   @override
   Future<CloudBackupInfo?> info(String userId) async => null;
 
+  @override
+  Future<List<CloudBackupInfo>> listVersions(String userId) async => versiones;
+
+  List<CloudBackupInfo> versiones = <CloudBackupInfo>[];
 }
 
 void main() {
   late _FakeClient client;
   late _FakeAuth auth;
-  var document = '{"v":1}';
+  var document = '{"profile":{},"v":1}';
 
   /// Por defecto el teléfono tiene datos: subir con el teléfono vacío es un
   /// caso aparte y tiene sus propios tests.
@@ -92,7 +101,7 @@ void main() {
   setUp(() {
     client = _FakeClient();
     auth = _FakeAuth();
-    document = '{"v":1}';
+    document = '{"profile":{},"v":1}';
     localHasData = true;
   });
 
@@ -153,7 +162,7 @@ void main() {
 
     final first = service.flush();
     // Llega un cambio mientras la primera subida está en vuelo.
-    document = '{"v":2}';
+    document = '{"profile":{},"v":2}';
     service.markDirty();
 
     client.gate = null;
@@ -162,13 +171,13 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     // Lo último subido tiene que ser el documento nuevo, no el viejo.
-    expect(client.uploads.last, '{"v":2}');
+    expect(client.uploads.last, '{"profile":{},"v":2}');
     service.dispose();
   });
 
   test('restaurar devuelve el documento guardado', () async {
     final service = await ready();
-    expect(await service.restore(), '{"restored":true}');
+    expect(await service.restore(), '{"profile":{},"restored":true}');
     service.dispose();
   });
 
@@ -194,7 +203,7 @@ void main() {
       );
 
       expect(restored, isTrue);
-      expect(aplicado, '{"restored":true}');
+      expect(aplicado, '{"profile":{},"restored":true}');
 
       await service.flush();
       expect(client.uploads, hasLength(1));
@@ -262,6 +271,95 @@ void main() {
       localHasData = true;
       await service.flush();
       expect(client.uploads, hasLength(1));
+      service.dispose();
+    });
+  });
+
+  group('un documento que no se puede releer no sale del teléfono', () {
+    // Último control antes de que el documento viaje. Subir algo que la propia
+    // app rechazaría al restaurarlo es reemplazar una copia buena por una
+    // inservible, que es la misma pérdida de datos por otro camino.
+    test('JSON roto: no sube y lo dice', () async {
+      final service = await ready();
+      document = '{ esto no es json';
+
+      await service.flush();
+
+      expect(client.uploads, isEmpty);
+      expect(service.state, isA<BackupFailed>());
+      service.dispose();
+    });
+
+    test('sin la clave `profile` tampoco sube', () async {
+      // Es lo que `importJson` exige para aceptar un respaldo: sin eso, la
+      // restauración lo rechazaría y la copia no serviría para nada.
+      final service = await ready();
+      document = '{"meals":[]}';
+
+      await service.flush();
+
+      expect(client.uploads, isEmpty);
+      expect(service.state, isA<BackupFailed>());
+      service.dispose();
+    });
+
+    test('cuando el documento vuelve a estar sano, sube', () async {
+      final service = await ready();
+      document = 'roto';
+      await service.flush();
+      expect(client.uploads, isEmpty);
+
+      document = '{"profile":{},"v":9}';
+      await service.flush();
+      expect(client.uploads, hasLength(1));
+      service.dispose();
+    });
+  });
+
+  group('historial de copias', () {
+    test('sin sesión no hay versiones', () async {
+      auth.account = null;
+      final service = build();
+      expect(await service.versions(), isEmpty);
+      service.dispose();
+    });
+
+    test('devuelve lo que lista el cliente', () async {
+      final service = await ready();
+      client.versiones = <CloudBackupInfo>[
+        CloudBackupInfo(
+          updatedAt: DateTime(2026, 7, 29, 18),
+          sizeBytes: 38053,
+          path: 'u1/backup.json',
+          isLatest: true,
+        ),
+        CloudBackupInfo(
+          updatedAt: DateTime(2026, 7, 28, 9),
+          sizeBytes: 31200,
+          path: 'u1/history/backup-20260728T090000.json',
+        ),
+      ];
+
+      final versiones = await service.versions();
+      expect(versiones, hasLength(2));
+      expect(versiones.first.isLatest, isTrue);
+      service.dispose();
+    });
+
+    test('restaurar una copia vieja pide esa ruta y no la última', () async {
+      final service = await ready();
+      const vieja = 'u1/history/backup-20260728T090000.json';
+
+      await service.restore(path: vieja);
+
+      expect(client.descargas.last, vieja);
+      service.dispose();
+    });
+
+    test('restaurar sin ruta trae la última', () async {
+      final service = await ready();
+      await service.restore();
+      expect(client.descargas.last, isNull);
       service.dispose();
     });
   });

@@ -71,7 +71,79 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
     await _load();
   }
 
-  Future<void> _restore() async {
+  /// Elegir de qué copia restaurar.
+  ///
+  /// Con una sola copia esto sería un botón; con historial es una decisión, y
+  /// la fecha es justamente el dato que permite tomarla ("lo perdí ayer a la
+  /// tarde, traeme la de la mañana").
+  Future<void> _pickAndRestore() async {
+    final service = ref.read(cloudBackupProvider);
+    if (service == null) return;
+
+    setState(() {
+      _restoring = true;
+      _error = null;
+    });
+
+    final List<CloudBackupInfo> copias;
+    try {
+      copias = await service.versions();
+    } on AppError catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _restoring = false;
+        _error = error;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _restoring = false);
+
+    if (copias.isEmpty) {
+      setState(
+        () => _error = const AppError(
+          code: ApiErrorCode.notFound,
+          message: 'No hay ninguna copia guardada todavía.',
+        ),
+      );
+      return;
+    }
+
+    // Con una sola copia no hay nada que elegir: se va derecho a confirmar.
+    final elegida = copias.length == 1
+        ? copias.first
+        : await showNmSheet<CloudBackupInfo>(
+            context: context,
+            builder: (context) => NmSheet(
+              title: 'Elegí qué copia traer',
+              subtitle: 'De la más nueva a la más vieja',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (final copia in copias)
+                    ActionRow(
+                      icon: copia.isLatest
+                          ? PhosphorIcons.cloudCheck()
+                          : PhosphorIcons.clockCounterClockwise(),
+                      label:
+                          '${longDay(copia.updatedAt)} '
+                          '${timeOfDay(copia.updatedAt)}',
+                      subtitle: copia.isLatest
+                          ? 'La última · ${copia.sizeLabel}'
+                          : copia.sizeLabel,
+                      onTap: () => Navigator.of(context).pop(copia),
+                    ),
+                ],
+              ),
+            ),
+          );
+
+    if (elegida == null || !mounted) return;
+    await _restore(elegida);
+  }
+
+  Future<void> _restore(CloudBackupInfo copia) async {
     final service = ref.read(cloudBackupProvider);
     if (service == null) return;
 
@@ -80,11 +152,11 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
     final confirmed = await showNmDialog<bool>(
       context: context,
       builder: (context) => NmDialog(
-        title: '¿Traer la copia de la nube?',
+        title: '¿Traer la copia del ${longDay(copia.updatedAt)}?',
         body:
-            'Se reemplaza todo lo que tenés en este teléfono por la copia '
-            'guardada. Lo que hayas registrado acá después de esa fecha se '
-            'pierde.',
+            'Se reemplaza todo lo que tenés en este teléfono por esa copia '
+            '(${copia.sizeLabel}). Lo que hayas registrado acá después de esa '
+            'fecha se pierde.',
         actions: <Widget>[
           NmButton.ghost(
             label: 'Cancelar',
@@ -106,7 +178,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
     });
 
     try {
-      final json = await service.restore();
+      final json = await service.restore(path: copia.path);
       if (json == null) {
         if (!mounted) return;
         setState(() {
@@ -230,7 +302,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             block: true,
             icon: PhosphorIcons.cloudArrowDown(),
             loading: _restoring,
-            onPressed: _restore,
+            onPressed: _pickAndRestore,
           ),
 
           const SizedBox(height: NmSpace.s6),

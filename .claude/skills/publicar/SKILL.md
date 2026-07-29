@@ -174,6 +174,13 @@ Salieron de un día perdiendo datos de un usuario real.
 6. **Ningún número de nutrición se inventa ni se muestra sin validar.** Los
    datos de ARGENFOODS se validan contra Atwater (4/4/9) en el parser y otra
    vez como test sobre el archivo publicado.
+7. **El respaldo no se pisa a sí mismo.** Cada subida escribe la copia "última"
+   y una fechada en `{uid}/history/`, de las que se conservan diez. Un archivo
+   único que se sobrescribe es un punto de falla, no un respaldo.
+8. **No se sube nada que no se pueda releer.** Antes de viajar, el documento
+   tiene que parsear y traer la clave `profile` — lo mismo que `importJson`
+   exige para aceptarlo. Un respaldo que la propia app rechazaría al restaurar
+   no es un respaldo.
 
 ## Dónde está cada cosa
 

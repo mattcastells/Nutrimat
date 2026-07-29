@@ -1,6 +1,6 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.4.2` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.4.3` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -31,7 +31,9 @@ borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar 
 nombre.
 
 Después, si hiciera falta: los datos se respaldan como un documento JSON en
-Storage, no como filas. Eso cubre no perder nada y cambiar de teléfono. Recién
+Storage, no como filas. Desde la 1.4.3 con **historial**: `{uid}/backup.json`
+es la última y `{uid}/history/backup-<fecha>.json` guarda las diez anteriores,
+que no se pisan nunca. Eso cubre no perder nada y cambiar de teléfono. Recién
 si se necesita consultar del lado del servidor —estadísticas, varios
 dispositivos a la vez— habría que pasar a sincronización relacional contra las
 24 tablas (13-state-management.md §5 y §8).
@@ -57,7 +59,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **220 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **227 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -123,9 +125,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.4.2**.
+contra un Postgres limpio. Última publicada: **v1.4.3**.
 
-Publicar una versión es empujar un tag `v1.4.3`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.4.4`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -251,7 +253,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 220 tests
+flutter test                              # 227 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -266,8 +268,12 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. **Sincronización relacional** contra las 24 tablas, si algún día hace falta
-   consultar del lado del servidor. Hoy el respaldo en Storage alcanza.
+2. **Sincronización relacional** contra las 24 tablas. Sigue siendo el
+   trabajo grande pendiente: hoy todo cuelga de un documento JSON en Storage.
+   Desde la 1.4.3 ese documento tiene historial —diez copias fechadas, además
+   de la última— y no se sube nada que no se pueda releer, así que un error ya
+   no borra lo único que quedaba. Pero un solo mecanismo sigue siendo un solo
+   mecanismo.
 
 **Health Connect queda descartado**: con la app usada por una sola persona que
 carga sus actividades a mano, importar desde Samsung Health aporta poco y trae

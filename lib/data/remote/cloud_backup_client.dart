@@ -5,12 +5,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/error/app_error.dart';
 
-/// Qué hay guardado en la nube, sin bajarlo entero.
+/// Una copia guardada en la nube, sin bajarla entera.
 class CloudBackupInfo {
-  const CloudBackupInfo({required this.updatedAt, required this.sizeBytes});
+  const CloudBackupInfo({
+    required this.updatedAt,
+    required this.sizeBytes,
+    required this.path,
+    this.isLatest = false,
+  });
 
   final DateTime updatedAt;
   final int sizeBytes;
+
+  /// Ruta completa dentro del bucket, para poder bajar **esta** copia.
+  final String path;
+
+  /// Si es la copia que se sobrescribe en cada respaldo.
+  final bool isLatest;
 
   String get sizeLabel {
     const kb = 1024;
@@ -23,15 +34,32 @@ class CloudBackupInfo {
 
 /// Sube y baja el documento del usuario a Storage.
 ///
-/// Es el **mismo JSON** que exporta Configuración → Privacidad, guardado en
-/// `{user_id}/backup.json` dentro del bucket privado. La política por prefijo
-/// que ya protege las fotos lo protege igual: nadie más puede leerlo.
+/// Es el **mismo JSON** que exporta Configuración → Privacidad, dentro de un
+/// bucket privado. La política por prefijo que ya protege las fotos lo protege
+/// igual: nadie más puede leerlo.
 ///
-/// Se guarda como un único objeto y no como filas en las 24 tablas. Para una
-/// app personal alcanza: cubre no perder nada y cambiar de teléfono, que es lo
-/// que hace falta. Si algún día se necesita consultar del lado del servidor —
-/// estadísticas, compartir, varios dispositivos a la vez — hay que pasar a
-/// sincronización relacional, y esto queda como el camino de migración.
+/// ## Por qué hay historial
+///
+/// Hasta la 1.4.2 existía **un solo** `backup.json` y cada respaldo lo pisaba.
+/// Eso convertía al respaldo en un punto único de falla: bastaba una subida
+/// mala para que la copia buena dejara de existir, sin vuelta atrás. Ya vimos
+/// de cerca lo que es depender de un archivo así.
+///
+/// Ahora cada subida escribe dos objetos:
+///
+/// - `{uid}/backup.json` — la última. Se mantiene con ese nombre exacto porque
+///   las versiones anteriores de la app solo saben buscar ahí, y una versión
+///   vieja tiene que poder seguir restaurando.
+/// - `{uid}/history/backup-<fecha>.json` — la copia fechada, que **no se pisa
+///   nunca**.
+///
+/// Del historial se conservan las [historyLimit] más recientes. No es un
+/// sistema de versiones: es una red para que un error no borre lo único que
+/// quedaba.
+///
+/// Sigue sin ser sincronización relacional contra las 24 tablas. Para eso hay
+/// que mover el motor de datos entero, y esto es lo que hace que mientras
+/// tanto no se pierda nada.
 class CloudBackupClient {
   CloudBackupClient(this._storage);
 
@@ -44,20 +72,47 @@ class CloudBackupClient {
   /// JSON. Tiene la misma política por prefijo.
   static const String bucket = 'backups';
   static const String fileName = 'backup.json';
+  static const String historyFolder = 'history';
+
+  /// Cuántas copias fechadas se conservan.
+  ///
+  /// Diez cubre varios días de uso normal sin que el bucket crezca sin freno:
+  /// el documento pesa decenas de kB, así que el historial entero es menos de
+  /// un megabyte.
+  static const int historyLimit = 10;
 
   String _pathFor(String userId) => '$userId/$fileName';
 
-  /// Sube el documento, reemplazando el anterior.
+  String _historyPathFor(String userId, DateTime at) {
+    // Nombre ordenable alfabéticamente: así el listado se ordena solo y no
+    // depende de que Storage devuelva fechas confiables.
+    final stamp = at
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(':', '')
+        .replaceAll('-', '')
+        .split('.')
+        .first;
+    return '$userId/$historyFolder/backup-$stamp.json';
+  }
+
+  /// Sube el documento: pisa la copia "última" y agrega una fechada.
+  ///
+  /// Si la copia fechada fallara, la última igual queda subida: perder una
+  /// entrada del historial es molesto, no respaldar es grave.
   Future<void> upload({
     required String userId,
     required String documentJson,
+    DateTime? at,
   }) async {
+    final bytes = Uint8List.fromList(utf8.encode(documentJson));
+
     try {
       await _storage
           .from(bucket)
           .uploadBinary(
             _pathFor(userId),
-            Uint8List.fromList(utf8.encode(documentJson)),
+            bytes,
             fileOptions: const FileOptions(
               contentType: 'application/json',
               // Sin esto el segundo respaldo falla con "ya existe": lo que
@@ -70,12 +125,46 @@ class CloudBackupClient {
     } on Exception {
       throw _offline;
     }
+
+    try {
+      await _storage
+          .from(bucket)
+          .uploadBinary(
+            _historyPathFor(userId, at ?? DateTime.now()),
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'application/json',
+              upsert: true,
+            ),
+          );
+      await _pruneHistory(userId);
+    } on Object {
+      // El historial es la red, no el respaldo. Que falle no puede convertir
+      // una subida buena en un error de cara a la persona.
+    }
+  }
+
+  /// Deja solo las [historyLimit] copias más recientes.
+  Future<void> _pruneHistory(String userId) async {
+    final copies = await _listHistory(userId);
+    if (copies.length <= historyLimit) return;
+
+    final sobran = copies.sublist(historyLimit).map((c) => c.path).toList();
+    try {
+      await _storage.from(bucket).remove(sobran);
+    } on Object {
+      // Que no se pueda podar no rompe nada: solo ocupa un poco más.
+    }
   }
 
   /// Devuelve el documento guardado, o `null` si nunca se respaldó.
-  Future<String?> download(String userId) async {
+  ///
+  /// Con [path] baja una copia concreta del historial; sin él, la última.
+  Future<String?> download(String userId, {String? path}) async {
     try {
-      final bytes = await _storage.from(bucket).download(_pathFor(userId));
+      final bytes = await _storage
+          .from(bucket)
+          .download(path ?? _pathFor(userId));
       return utf8.decode(bytes);
     } on StorageException catch (error) {
       if (_isNotFound(error)) return null;
@@ -85,8 +174,7 @@ class CloudBackupClient {
     }
   }
 
-  /// Metadatos del respaldo sin descargarlo. Sirve para decir "última copia:
-  /// hace 3 minutos" sin gastar datos móviles en bajar todo.
+  /// Metadatos de la última copia, sin descargarla.
   Future<CloudBackupInfo?> info(String userId) async {
     try {
       final files = await _storage
@@ -95,18 +183,15 @@ class CloudBackupClient {
 
       for (final file in files) {
         // `endsWith` y no `==`: según la versión, Storage devuelve el nombre
-        // relativo a la carpeta (`backup.json`) o la ruta completa
-        // (`<uid>/backup.json`). Comparando por igualdad, la segunda forma no
-        // matcheaba nunca y la pantalla concluía que no había ninguna copia
-        // —con el respaldo ahí— y dejaba el botón de restaurar apagado.
+        // relativo a la carpeta o la ruta completa. Comparar por igualdad hacía
+        // que nunca matcheara y la pantalla concluyera que no había copia.
         if (!file.name.endsWith(fileName)) continue;
-        final size = (file.metadata?['size'] as num?)?.toInt() ?? 0;
-        final updated =
-            DateTime.tryParse(file.updatedAt ?? file.createdAt ?? '') ??
-            DateTime.now();
+        if (file.name.contains(historyFolder)) continue;
         return CloudBackupInfo(
-          updatedAt: updated.toLocal(),
-          sizeBytes: size,
+          updatedAt: _updatedAt(file),
+          sizeBytes: _size(file),
+          path: _pathFor(userId),
+          isLatest: true,
         );
       }
       return null;
@@ -117,6 +202,50 @@ class CloudBackupClient {
       throw _offline;
     }
   }
+
+  /// Todas las copias disponibles, de la más nueva a la más vieja.
+  ///
+  /// La primera es la última subida; después van las fechadas. Es lo que
+  /// permite volver a un día anterior si la copia de hoy quedó mal.
+  Future<List<CloudBackupInfo>> listVersions(String userId) async {
+    final latest = await info(userId);
+    final history = await _listHistory(userId);
+    return <CloudBackupInfo>[if (latest != null) latest, ...history];
+  }
+
+  Future<List<CloudBackupInfo>> _listHistory(String userId) async {
+    try {
+      final files = await _storage
+          .from(bucket)
+          .list(
+            path: '$userId/$historyFolder',
+            searchOptions: const SearchOptions(limit: 100),
+          );
+
+      final copies = <CloudBackupInfo>[
+        for (final file in files)
+          if (file.name.endsWith('.json'))
+            CloudBackupInfo(
+              updatedAt: _updatedAt(file),
+              sizeBytes: _size(file),
+              path: '$userId/$historyFolder/${file.name.split('/').last}',
+            ),
+      ]..sort((a, b) => b.path.compareTo(a.path));
+      return copies;
+    } on Object {
+      // Sin historial la app sigue con la última copia, que es el caso de
+      // cualquiera que venga de una versión anterior.
+      return const <CloudBackupInfo>[];
+    }
+  }
+
+  static int _size(FileObject file) =>
+      (file.metadata?['size'] as num?)?.toInt() ?? 0;
+
+  static DateTime _updatedAt(FileObject file) =>
+      (DateTime.tryParse(file.updatedAt ?? file.createdAt ?? '') ??
+              DateTime.now())
+          .toLocal();
 
   static bool _isNotFound(StorageException error) =>
       error.statusCode == '404' ||

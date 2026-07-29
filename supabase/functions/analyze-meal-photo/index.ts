@@ -9,8 +9,12 @@
 // directo: una clave dentro de un APK es una clave regalada.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { PROMPT_V3 } from './prompts/v3.ts';
 
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+// El 2.5-flash que fijaba el handoff quedó retirado para proyectos nuevos.
+// Se fija una versión concreta y no `gemini-flash-latest`: un alias que cambia
+// solo puede alterar las estimaciones sin que nadie toque el prompt.
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.6-flash';
 const PROMPT_VERSION = Deno.env.get('GEMINI_PROMPT_VERSION') ?? 'v3';
 
 /** Cuota diaria por usuario (D-18). */
@@ -19,9 +23,7 @@ const DAILY_QUOTA = 20;
 /** El proveedor puede tardar; más de esto es una app colgada. */
 const GEMINI_TIMEOUT_MS = 25_000;
 
-const PROMPT = await Deno.readTextFile(
-  new URL(`./prompts/${PROMPT_VERSION}.txt`, import.meta.url),
-);
+const PROMPT = PROMPT_V3;
 
 /**
  * Mismo contrato que `docs/handoff/gemini-output-schema.json`, en el dialecto
@@ -149,7 +151,7 @@ Deno.serve(async (req) => {
   }
 
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  const base64 = btoa(String.fromCharCode(...bytes));
+  const base64 = toBase64(bytes);
 
   // ── Gemini ─────────────────────────────────────────────────────────────
   const startedAt = Date.now();
@@ -190,7 +192,10 @@ Deno.serve(async (req) => {
       clearTimeout(timer);
 
       if (!response.ok) {
-        lastError = `Gemini respondió ${response.status}`;
+        // El cuerpo dice *por qué*; sin él, un 404 puede ser el modelo, la
+        // clave o la URL y no hay forma de distinguirlos.
+        const detail = await response.text().catch(() => '');
+        lastError = `Gemini ${response.status}: ${detail.slice(0, 300)}`;
         continue;
       }
 
@@ -268,6 +273,23 @@ Deno.serve(async (req) => {
     { headers: { ...CORS, 'Content-Type': 'application/json' } },
   );
 });
+
+/**
+ * Base64 por bloques.
+ *
+ * `String.fromCharCode(...bytes)` parece lo obvio y es una bomba: pasa cada
+ * byte como un argumento, y con una foto de 1024 px son ~200 000 argumentos —
+ * bastante más de lo que aguanta la pila. Reventaba con **cualquier** foto
+ * real, que es por qué el análisis se quedaba cargando para siempre.
+ */
+function toBase64(bytes: Uint8Array): string {
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
 
 interface AnalysisItem {
   name: string;

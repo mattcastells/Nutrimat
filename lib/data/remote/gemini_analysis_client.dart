@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/error/app_error.dart';
@@ -20,16 +22,32 @@ class GeminiAnalysisClient {
 
   static const String functionName = 'analyze-meal-photo';
 
+  /// La función se corta sola a los 25 s contra Gemini; esto cubre eso más la
+  /// descarga de la foto y la red.
+  ///
+  /// `invoke` **no trae timeout propio**: sin esto, una función que muere deja
+  /// la pantalla girando para siempre, sin error y sin forma de salir.
+  static const Duration timeout = Duration(seconds: 45);
+
   /// Analiza una foto **ya subida al bucket**.
   Future<AiAnalysis> analyze({required String photoPath}) async {
     final FunctionResponse response;
     try {
-      response = await _functions.invoke(
-        functionName,
-        body: <String, dynamic>{'photoPath': photoPath},
-      );
+      response = await _functions
+          .invoke(
+            functionName,
+            body: <String, dynamic>{'photoPath': photoPath},
+          )
+          .timeout(timeout);
     } on FunctionException catch (error) {
       throw _translate(error);
+    } on TimeoutException {
+      throw const AppError(
+        code: ApiErrorCode.upstreamTimeout,
+        message:
+            'El análisis tardó demasiado. La foto quedó guardada: cargá la '
+            'comida a mano o probá de nuevo.',
+      );
     } on Exception {
       throw const AppError(
         code: ApiErrorCode.offline,

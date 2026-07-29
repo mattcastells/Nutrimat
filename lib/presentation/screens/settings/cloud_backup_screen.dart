@@ -220,12 +220,17 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             onPressed: _backupNow,
           ),
           const SizedBox(height: NmSpace.s3),
+          // Siempre habilitado. Antes se apagaba cuando el listado no
+          // encontraba nada, y ese listado puede fallar por mil motivos que
+          // no son "no hay copia": ahí el único camino de recuperación
+          // desaparecía sin decir por qué. Si de verdad no hay nada, lo dice
+          // al tocarlo, que es una respuesta y no un botón muerto.
           NmButton.secondary(
             label: 'Restaurar desde la nube',
             block: true,
             icon: PhosphorIcons.cloudArrowDown(),
             loading: _restoring,
-            onPressed: _remote == null ? null : _restore,
+            onPressed: _restore,
           ),
 
           const SizedBox(height: NmSpace.s6),

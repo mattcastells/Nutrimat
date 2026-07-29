@@ -94,7 +94,12 @@ class CloudBackupClient {
           .list(path: userId, searchOptions: const SearchOptions(limit: 100));
 
       for (final file in files) {
-        if (file.name != fileName) continue;
+        // `endsWith` y no `==`: según la versión, Storage devuelve el nombre
+        // relativo a la carpeta (`backup.json`) o la ruta completa
+        // (`<uid>/backup.json`). Comparando por igualdad, la segunda forma no
+        // matcheaba nunca y la pantalla concluía que no había ninguna copia
+        // —con el respaldo ahí— y dejaba el botón de restaurar apagado.
+        if (!file.name.endsWith(fileName)) continue;
         final size = (file.metadata?['size'] as num?)?.toInt() ?? 0;
         final updated =
             DateTime.tryParse(file.updatedAt ?? file.createdAt ?? '') ??

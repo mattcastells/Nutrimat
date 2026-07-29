@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
   let parsed: unknown = null;
   let lastError = '';
+  let rateLimited = false;
 
   // Un JSON inválido se reintenta una vez con temperature 0; el segundo
   // intento es determinista, así que insistir más no aportaría nada.
@@ -196,8 +197,21 @@ Deno.serve(async (req) => {
         // clave o la URL y no hay forma de distinguirlos.
         const detail = await response.text().catch(() => '');
         lastError = `Gemini ${response.status}: ${detail.slice(0, 300)}`;
+
+        // 429 = pasaste el límite del plan de Gemini (en el gratuito son
+        // pocas consultas por minuto y por día). 503 = el modelo está
+        // saturado. Ninguno de los dos es "la foto está mal", y decirlo así
+        // manda a probar con otra foto cuando lo único que hay que hacer es
+        // esperar. Se reintenta una vez con una espera corta, porque el
+        // límite por minuto se libera solo.
+        if (response.status === 429 || response.status === 503) {
+          rateLimited = true;
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
         continue;
       }
+      rateLimited = false;
 
       const payload = await response.json();
       const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -214,6 +228,27 @@ Deno.serve(async (req) => {
   }
 
   const latencyMs = Date.now() - startedAt;
+
+  // El límite del proveedor tiene su propio código y su propio texto: no es un
+  // problema de la foto ni del prompt, y la app no debería sugerir sacar otra.
+  if (parsed === null && rateLimited) {
+    await supabase.from('ai_analyses').insert({
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      photo_path: photoPath,
+      status: 'failed',
+      model: GEMINI_MODEL,
+      prompt_version: PROMPT_VERSION,
+      error_code: 'ERR_AI_RATE_LIMITED',
+      latency_ms: latencyMs,
+    });
+    return fail(
+      'ERR_AI_RATE_LIMITED',
+      'El servicio de análisis está al límite por ahora. Esperá un minuto y '
+        'probá de nuevo, o cargá la comida a mano: la foto queda adjunta.',
+      429,
+    );
+  }
 
   const items = validate(parsed);
   if (items === null) {

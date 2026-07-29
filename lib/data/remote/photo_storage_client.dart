@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -57,14 +58,31 @@ class PhotoStorageClient {
               // vez de acumular huérfanas que nadie va a borrar.
               upsert: true,
             ),
-          );
+          )
+          .timeout(uploadTimeout);
       return path;
     } on StorageException catch (error) {
       throw _translate(error);
+    } on TimeoutException {
+      throw const AppError(
+        code: ApiErrorCode.upstreamTimeout,
+        message:
+            'La foto tardó demasiado en subir. Revisá tu conexión y probá de '
+            'nuevo.',
+      );
     } on Exception {
       throw _offline;
     }
   }
+
+  /// La subida **no trae timeout propio**.
+  ///
+  /// Sin esto, con señal mala el `Future` no termina nunca: el análisis por
+  /// foto se quedaba girando para siempre en "Está tardando más de lo normal",
+  /// porque esperaba una subida que ya no iba a completarse. Una foto de 1024
+  /// px comprimida al 80 % pesa unos cientos de kB; 40 s cubre una red lenta
+  /// de sobra.
+  static const Duration uploadTimeout = Duration(seconds: 40);
 
   /// URL temporal para mostrar la foto. Los buckets son privados: no existe
   /// una URL permanente y es a propósito.

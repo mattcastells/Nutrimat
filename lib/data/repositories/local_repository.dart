@@ -1438,6 +1438,7 @@ class LocalRepository
             bucket: PhotoBucket.meal,
             recordId: _uuid.v4(),
             localPath: photoPath,
+            rethrowOnFailure: true,
           ) ??
           photoPath;
 

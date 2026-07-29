@@ -32,13 +32,23 @@ class NmSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nm = context.nm;
-    final padding = MediaQuery.viewInsetsOf(context).bottom;
+
+    // Dos cosas distintas comen espacio abajo y hay que respetar las dos: el
+    // teclado (`viewInsets`) y la barra de navegación o la barra de gestos del
+    // sistema (`viewPadding`). Antes solo se contemplaba el teclado, así que
+    // con el teclado cerrado el botón del sheet quedaba **debajo** de la barra
+    // del teléfono y no se podía tocar. Con el teclado abierto, `viewInsets`
+    // ya incluye esa zona, por eso se toma el mayor y no la suma.
+    final media = MediaQuery.of(context);
+    final bottom = media.viewInsets.bottom > 0
+        ? media.viewInsets.bottom
+        : media.viewPadding.bottom;
 
     return Semantics(
       container: true,
       label: title,
       child: Padding(
-        padding: EdgeInsets.only(bottom: padding),
+        padding: EdgeInsets.only(bottom: bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -284,8 +294,16 @@ class NmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nm = context.nm;
+    // `Dialog` contempla el teclado pero no la barra del sistema: un diálogo
+    // alto terminaba con sus botones debajo de la barra de gestos.
+    final safe = MediaQuery.viewPaddingOf(context);
     return Dialog(
-      insetPadding: const EdgeInsets.all(NmSpace.s6),
+      insetPadding: EdgeInsets.fromLTRB(
+        NmSpace.s6,
+        NmSpace.s6 + safe.top,
+        NmSpace.s6,
+        NmSpace.s6 + safe.bottom,
+      ),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 460),
         padding: const EdgeInsets.all(NmSpace.s6),

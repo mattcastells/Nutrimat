@@ -38,6 +38,12 @@ class PhotoSyncService {
     required PhotoBucket bucket,
     required String recordId,
     required String? localPath,
+    // Al guardar una comida, que la foto no suba no puede frenar el guardado:
+    // queda la ruta local y se reintenta. Al **analizar**, en cambio, la
+    // función necesita la foto en el bucket sí o sí, y tragarse el error
+    // convierte "no pudimos subir la foto" en "no encontramos esa foto", que
+    // manda a buscar el problema al lugar equivocado.
+    bool rethrowOnFailure = false,
   }) async {
     if (localPath == null || localPath.isEmpty) return localPath;
     if (isRemotePath(localPath)) return localPath;
@@ -56,6 +62,7 @@ class PhotoSyncService {
         file: file,
       );
     } on AppError {
+      if (rethrowOnFailure) rethrow;
       // Queda la ruta local: se ve en este teléfono y el próximo guardado del
       // mismo registro vuelve a intentar la subida.
       return localPath;

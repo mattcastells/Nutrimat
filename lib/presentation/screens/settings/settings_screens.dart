@@ -38,7 +38,6 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final repo = ref.watch(repositoryProvider);
-    final offline = ref.watch(offlineProvider);
     final pending = ref.watch(pendingCountProvider);
 
     return NmScreen(
@@ -124,15 +123,13 @@ class SettingsScreen extends ConsumerWidget {
           NmCard(
             child: Column(
               children: <Widget>[
-                NmSwitchRow(
-                  title: 'Simular modo sin conexión',
-                  subtitle:
-                      'Las escrituras quedan pendientes hasta que lo apagues',
-                  value: offline,
-                  onChanged: (v) => repo.setOffline(v),
-                ),
+                // El interruptor de "simular modo sin conexión" era una
+                // herramienta para probar los estados pendientes durante el
+                // desarrollo. En manos de alguien que usa la app solo puede
+                // hacer daño: deja las escrituras en pendiente sin que se note
+                // por qué, y en una app de datos personales eso se parece
+                // demasiado a perder registros. Se saca de la interfaz.
                 if (pending > 0) ...<Widget>[
-                  const NmDivider(),
                   NmListRow(
                     title: 'Registros sin sincronizar',
                     subtitle:
@@ -143,8 +140,8 @@ class SettingsScreen extends ConsumerWidget {
                       onPressed: repo.flushQueue,
                     ),
                   ),
+                  const NmDivider(),
                 ],
-                const NmDivider(),
                 NmSwitchRow(
                   title: 'Mostrar calorías netas',
                   subtitle: 'Consumidas menos aplicadas, en Inicio',

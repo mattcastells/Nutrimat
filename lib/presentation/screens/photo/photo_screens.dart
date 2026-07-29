@@ -8,11 +8,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/error/app_error.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/motion.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/utils/dates.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/ai_analysis.dart';
 import '../../../domain/models/meal.dart';
@@ -245,32 +247,87 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   String _phase = _phases.first.$2;
   bool _cancelled = false;
 
+  /// Qué falló. Sin esto, un análisis que se cae dejaba la pantalla girando
+  /// para siempre en "Está tardando más de lo normal": `analyze` lanzaba, nadie
+  /// lo agarraba, y no había ni error ni salida más que Cancelar. La espera
+  /// eterna es la peor forma de contar un fallo, porque no se distingue de que
+  /// esté por terminar.
+  AppError? _error;
+
   @override
   void initState() {
     super.initState();
+    _start();
+  }
+
+  void _start() {
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
     for (final phase in _phases.skip(1)) {
       _timers.add(
         Timer(Duration(milliseconds: phase.$1), () {
-          if (mounted) setState(() => _phase = phase.$2);
+          if (mounted && _error == null) setState(() => _phase = phase.$2);
         }),
       );
     }
-    _run();
+    unawaited(_run());
   }
 
   Future<void> _run() async {
     final path = ref.read(photoPathProvider);
-    // El prototipo devuelve un resultado fijo tras 1,2 s simulados.
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (!mounted || _cancelled) return;
 
-    final analysis = await ref
-        .read(repositoryProvider)
-        .analyze(photoPath: path ?? '');
-    if (!mounted || _cancelled) return;
+    try {
+      final analysis = await ref
+          .read(repositoryProvider)
+          .analyze(photoPath: path ?? '');
+      if (!mounted || _cancelled) return;
 
-    ref.read(analysisProvider.notifier).state = analysis;
-    context.pushReplacement(Routes.photoReview);
+      ref.read(analysisProvider.notifier).state = analysis;
+      context.pushReplacement(Routes.photoReview);
+    } on AppError catch (error) {
+      if (!mounted || _cancelled) return;
+      setState(() => _error = error);
+    } on Object catch (error) {
+      if (!mounted || _cancelled) return;
+      setState(
+        () => _error = AppError(
+          code: ApiErrorCode.server,
+          message: 'No pudimos analizar la foto. Cargá la comida a mano; la '
+              'foto queda adjunta.',
+          requestId: error.toString(),
+        ),
+      );
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _error = null;
+      _phase = _phases.first.$2;
+    });
+    _start();
+  }
+
+  /// Salida sin IA: se arma la comida a mano con la foto ya sacada.
+  void _manual() {
+    final target = ref.read(photoTargetProvider);
+    final DateTime date = target?.date ?? ref.read(selectedDateProvider);
+    final MealSlot slot =
+        target?.slot ?? MealSlot.forHour(DateTime.now().hour);
+    ref
+        .read(mealDraftProvider.notifier)
+        .start(
+          slot: slot,
+          date: date,
+          photoPath: ref.read(photoPathProvider),
+        );
+    context.pushReplacement(
+      '${Routes.mealNew}?slot=${slot.wire}&date=${isoDate(date)}',
+    );
   }
 
   @override
@@ -334,28 +391,52 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                 ),
               ),
               const SizedBox(height: NmSpace.s6),
-              Semantics(
-                liveRegion: true,
-                child: AnimatedSwitcher(
-                  duration: context.motion.fade(NmMotion.fast),
-                  child: Text(
-                    _phase,
-                    key: ValueKey<String>(_phase),
-                    style: NmTextStyles.from(NmType.h3, color: nm.text),
+
+              if (_error != null) ...<Widget>[
+                ErrorState(
+                  message: _error!.message,
+                  code: _error!.code.wire,
+                  onRetry: _retry,
+                ),
+                const SizedBox(height: NmSpace.s5),
+                NmButton(
+                  label: 'Cargar la comida a mano',
+                  block: true,
+                  onPressed: _manual,
+                ),
+                const SizedBox(height: NmSpace.s2),
+                NmButton.ghost(
+                  label: 'Volver',
+                  block: true,
+                  onPressed: () {
+                    _cancelled = true;
+                    context.pop();
+                  },
+                ),
+              ] else ...<Widget>[
+                Semantics(
+                  liveRegion: true,
+                  child: AnimatedSwitcher(
+                    duration: context.motion.fade(NmMotion.fast),
+                    child: Text(
+                      _phase,
+                      key: ValueKey<String>(_phase),
+                      style: NmTextStyles.from(NmType.h3, color: nm.text),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: NmSpace.s4),
-              const SkeletonList(rows: 3, withAvatar: false),
-              const SizedBox(height: NmSpace.s6),
-              NmButton.secondary(
-                label: 'Cancelar',
-                block: true,
-                onPressed: () {
-                  _cancelled = true;
-                  context.pop();
-                },
-              ),
+                const SizedBox(height: NmSpace.s4),
+                const SkeletonList(rows: 3, withAvatar: false),
+                const SizedBox(height: NmSpace.s6),
+                NmButton.secondary(
+                  label: 'Cancelar',
+                  block: true,
+                  onPressed: () {
+                    _cancelled = true;
+                    context.pop();
+                  },
+                ),
+              ],
             ],
           ),
         ),

@@ -385,9 +385,13 @@ abstract interface class BackupRepository {
 }
 
 abstract interface class ConnectivityRepository {
+  /// ⚠️ Hoy siempre `false`: no hay detección real de conectividad. Es el
+  /// punto donde enchufarla — ver la nota en `LocalRepository`.
   bool get isOffline;
   int get pendingCount;
-  Future<void> setOffline(bool value);
+  // `setOffline` se sacó junto con el interruptor de simulación: nadie podía
+  // llamarlo y dejaba la puerta abierta a que alguien "simulara" sin conexión
+  // en producción, con las escrituras quedando en pendiente sin explicación.
 
   /// Vacía la cola: todo lo pendiente pasa a sincronizado.
   Future<void> flushQueue();

@@ -31,11 +31,12 @@ abstract final class FeatureFlags {
   /// tres actividades de ejemplo.
   static const bool healthConnectSync = bool.fromEnvironment('NM_HEALTH_SYNC');
 
-  /// Respaldo y sincronización en la nube (Supabase).
-  ///
-  /// Mientras esté apagado, los datos viven solo en este teléfono y el
-  /// respaldo es el archivo JSON de Configuración → Privacidad.
-  static const bool cloudBackup = bool.fromEnvironment('NM_CLOUD');
+  // El flag `cloudBackup` se sacó: no lo leía nadie y encima mentía. Decía
+  // "mientras esté apagado, los datos viven solo en este teléfono", y el
+  // respaldo a la nube funciona desde hace varias versiones — lo decide
+  // `SupabaseConfig.isConfigured`, no un flag. Un interruptor apagado que
+  // describe un comportamiento que ya no existe es peor que no tenerlo:
+  // manda a buscar el problema al lugar equivocado.
 
   /// Catálogo externo de alimentos (Open Food Facts). No necesita clave.
   static const bool onlineFoodCatalog = bool.fromEnvironment(

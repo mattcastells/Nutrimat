@@ -354,8 +354,7 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                 ),
                 ValueRow(
                   label: 'Rige desde',
-                  value: Fmt.integer(0).replaceAll('0', '') +
-                      _formatDate(goal.startsOn),
+                  value: _formatDate(goal.startsOn),
                   muted: true,
                 ),
               ],

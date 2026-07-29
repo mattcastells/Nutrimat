@@ -16,10 +16,12 @@ abstract final class Routes {
   static const String progress = '/progress';
   static const String profile = '/profile';
 
-  static const String dailyBreakdown = '/home/daily-breakdown';
+  // `dailyBreakdown` y `historyExport` estaban declaradas y no las registraba
+  // el router ni las usaba ninguna pantalla: el desglose diario se muestra
+  // como sheet y la exportación vive en Configuración → Privacidad. Se sacaron
+  // porque una constante de ruta sugiere que hay una pantalla detrás.
 
   static String historyDay(String date) => '/history/$date';
-  static const String historyExport = '/history/export';
 
   static const String progressWeight = '/progress/weight';
   static const String progressCalories = '/progress/calories';
@@ -35,7 +37,6 @@ abstract final class Routes {
   /// y saliendo a Inicio.
   static const String welcomeGoal = '/welcome/goal';
   static const String profileFoods = '/profile/foods';
-  static const String profileActivities = '/profile/activities';
   static const String profileTemplates = '/profile/templates';
   static const String profileFavorites = '/profile/favorites';
 

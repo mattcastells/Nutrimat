@@ -1692,18 +1692,22 @@ class LocalRepository
 
   // ── Conectividad ───────────────────────────────────────────────────────
 
+  /// ⚠️ Hoy devuelve **siempre `false`**.
+  ///
+  /// Lo único que ponía `offline` en true era el interruptor de "simular modo
+  /// sin conexión", que se sacó de Configuración por ser una herramienta de
+  /// desarrollo peligrosa en manos de quien usa la app. No hay detección real
+  /// de conectividad: cuando la haya, este getter es el lugar donde enchufarla
+  /// y todo lo que ya lo consulta —el banner, el estado `pending` de cada
+  /// escritura, el corte del catálogo online— empieza a funcionar solo.
+  ///
+  /// Se deja explícito para que nadie lea un `if (isOffline)` y crea que hay
+  /// algo detectando la red.
   @override
   bool get isOffline => store.offline;
 
   @override
   int get pendingCount => store.pendingCount;
-
-  @override
-  Future<void> setOffline(bool value) async {
-    store.offline = value;
-    if (!value) await flushQueue();
-    await _commit();
-  }
 
   @override
   Future<void> flushQueue() async {

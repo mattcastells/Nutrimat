@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/supabase_config.dart';
+import '../../data/remote/pals_client.dart';
+import '../../domain/models/pal.dart';
 import '../../domain/repositories/auth_gateway.dart';
 import '../../domain/services/cloud_backup_service.dart';
 import '../../domain/services/photo_sync_service.dart';
@@ -62,3 +64,19 @@ final backupStateProvider = StreamProvider<BackupState>((ref) {
 /// Sube y sirve las fotos del bucket. Null sin servidor: las fotos quedan
 /// solo en este teléfono.
 final photoSyncProvider = Provider<PhotoSyncService?>((ref) => null);
+
+/// Vínculos con pals y sus días. Null sin servidor: la función no existe.
+final palsClientProvider = Provider<PalsClient?>((ref) => null);
+
+/// Los vínculos, recargables tras aceptar o quitar uno.
+final palsProvider = FutureProvider<List<Pal>>((ref) async {
+  final client = ref.watch(palsClientProvider);
+  if (client == null) return <Pal>[];
+  return client.list();
+});
+
+/// Código propio para que alguien te agregue.
+final myPalCodeProvider = FutureProvider<String?>((ref) async {
+  final client = ref.watch(palsClientProvider);
+  return client?.myCode();
+});

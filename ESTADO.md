@@ -1,6 +1,6 @@
 # Estado — 28 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.4` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.5` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -62,6 +62,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 | Tablas | 24, **todas con RLS** |
 | Políticas | 78, más 3 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
+| Pals | vínculo por código; `shared_days` es la **única** superficie compartida |
 | Suite pgTAP | **50 de 50** (22 RLS + 9 Storage + 19 Pals), en local y contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
@@ -70,9 +71,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.0.4**.
+contra un Postgres limpio. Última publicada: **v1.0.5**.
 
-Publicar una versión es empujar un tag `v1.0.5`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.0.6`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -149,9 +150,9 @@ supabase stop
 
 ## Lo que queda
 
-1. **Pals**: amigos que ven qué comió el otro. Requiere sincronización
-   relacional — hoy los datos son un JSON opaco en Storage y no hay nada que
-   compartir. Después notificaciones.
+1. **Notificaciones** con horario configurable: recordar tomar agua y cargar
+   lo que comiste. Es además lo que falta para que Pals avise "X cargó su
+   desayuno".
 2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
    el cliente). Open Food Facts ya está conectado y no necesita clave.
 3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta

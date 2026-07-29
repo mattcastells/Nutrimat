@@ -13,11 +13,14 @@ import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/gemini_analysis_client.dart';
+import 'data/remote/pals_client.dart';
 import 'data/remote/photo_storage_client.dart';
 import 'data/remote/supabase_auth_gateway.dart';
 import 'data/repositories/local_repository.dart';
+import 'domain/models/pal.dart';
 import 'domain/repositories/auth_gateway.dart';
 import 'domain/services/cloud_backup_service.dart';
+import 'domain/services/pal_publisher.dart';
 import 'domain/services/photo_sync_service.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
@@ -76,6 +79,11 @@ Future<void> bootstrap() async {
         )
       : null;
 
+  // Lo que ven los pals. Se arma acá y no en el repositorio para que quede a
+  // la vista qué se publica: momento, nombre y calorías por comida, más
+  // minutos y sesiones. Nada de peso, medidas, ítems ni fotos.
+  PalPublisher? palPublisher;
+
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
   // después de crear el contenedor para evitar la dependencia circular.
   void Function() notify = () {};
@@ -88,8 +96,38 @@ Future<void> bootstrap() async {
     onChanged: () {
       notify();
       backup?.markDirty();
+      palPublisher?.markDirty();
     },
   );
+
+  final PalsClient? palsClient = SupabaseConfig.isConfigured
+      ? PalsClient.fromInstance()
+      : null;
+
+  if (palsClient != null) {
+    palPublisher = PalPublisher(
+      client: palsClient,
+      auth: auth,
+      buildDay: (date) => PalDay(
+        userId: auth.currentAccount?.id ?? '',
+        date: date,
+        meals: <PalMeal>[
+          for (final meal in repository.mealsOn(date))
+            PalMeal(
+              slot: meal.slot,
+              // El nombre de la comida es el del primer ítem: alcanza para
+              // "cargó una milanesa" sin publicar la lista entera.
+              name: meal.items.isEmpty ? 'Comida' : meal.items.first.name,
+              kcal: meal.totalKcal,
+            ),
+        ],
+        activityMinutes: repository
+            .activitiesOn(date)
+            .fold(0, (acc, a) => acc + a.durationMinutes),
+        activityCount: repository.activitiesOn(date).length,
+      ),
+    );
+  }
 
   final container = ProviderContainer(
     overrides: <Override>[
@@ -97,6 +135,7 @@ Future<void> bootstrap() async {
       authGatewayProvider.overrideWithValue(auth),
       if (backup != null) cloudBackupProvider.overrideWithValue(backup),
       if (photos != null) photoSyncProvider.overrideWithValue(photos),
+      if (palsClient != null) palsClientProvider.overrideWithValue(palsClient),
     ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();

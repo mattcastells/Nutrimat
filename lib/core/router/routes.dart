@@ -42,6 +42,9 @@ abstract final class Routes {
   static const String integrations = '/settings/integrations';
   static const String privacy = '/settings/privacy';
   static const String deleteAccount = '/settings/privacy/delete-account';
+  static const String pals = '/pals';
+  static String palDay(String userId) => '/pals/$userId';
+
   static const String cloudBackup = '/settings/cloud-backup';
   static const String water = '/settings/water';
   static const String updates = '/settings/updates';

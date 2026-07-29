@@ -141,6 +141,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
+                  title: 'Pals',
+                  subtitle: 'Compartí tu día con quien vos elijas',
+                  leading: Icon(PhosphorIcons.users()),
+                  onTap: () => context.push(Routes.pals),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
                   title: 'Configuración',
                   leading: Icon(PhosphorIcons.gear()),
                   onTap: () => context.push(Routes.settings),

@@ -14,6 +14,8 @@ import '../../presentation/screens/history/day_detail_screen.dart';
 import '../../presentation/screens/history/history_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/meal/meal_form_screen.dart';
+import '../../presentation/screens/pals/pal_day_screen.dart';
+import '../../presentation/screens/pals/pals_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
@@ -201,6 +203,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: Routes.pals,
+        builder: (context, state) => const PalsScreen(),
+        routes: <RouteBase>[
+          GoRoute(
+            path: ':userId',
+            builder: (context, state) => PalDayScreen(
+              userId: state.pathParameters['userId']!,
+              name: state.uri.queryParameters['name'],
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.cloudBackup,

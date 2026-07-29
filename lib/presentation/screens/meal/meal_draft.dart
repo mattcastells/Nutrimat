@@ -145,6 +145,26 @@ class MealDraftController extends Notifier<MealDraft?> {
     );
   }
 
+  /// Adjunta o quita la foto.
+  ///
+  /// No usa `copyWith`: ese resuelve el null como "no cambies", así que por ahí
+  /// no habría forma de sacar una foto ya puesta.
+  void setPhoto(String? path) {
+    final current = state;
+    if (current == null) return;
+    state = MealDraft(
+      id: current.id,
+      slot: current.slot,
+      date: current.date,
+      loggedAt: current.loggedAt,
+      items: current.items,
+      source: current.source,
+      editingMealId: current.editingMealId,
+      photoPath: path,
+      aiAnalysisId: current.aiAnalysisId,
+    );
+  }
+
   void setSlot(MealSlot slot) => state = state?.copyWith(slot: slot);
 
   void setLoggedAt(DateTime value) => state = state?.copyWith(loggedAt: value);

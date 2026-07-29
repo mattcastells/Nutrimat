@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/router/routes.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
@@ -299,10 +300,14 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
       weightKg: weightKg,
       goalType: goalType,
     );
+    final method = _manual ? TargetMethod.manual : TargetMethod.calculated;
+    // El método también cuenta: pasar de manual a calculado con el mismo número
+    // es un cambio real, y sin esto el botón quedaba deshabilitado.
     final dirty =
         target != goal.baseCalorieTarget ||
         goalType != goal.goalType ||
-        rate != goal.rateKgPerWeek;
+        rate != goal.rateKgPerWeek ||
+        method != goal.targetMethod;
 
     return NmScreen(
       title: 'Objetivo y macros',
@@ -456,6 +461,18 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                 'anteriores conservan el objetivo con el que fueron '
                 'registrados.',
           ),
+          // Sin datos corporales no hay fórmula posible: el objetivo solo puede
+          // ser manual, y conviene decir dónde se cargan en vez de dejar el
+          // botón apagado sin explicación.
+          if (!profile.hasBodyData) ...<Widget>[
+            const SizedBox(height: NmSpace.s4),
+            InfoNote(
+              text: 'Sin altura, nacimiento y sexo no se puede calcular. '
+                  'Cargalos y el objetivo sale de tus datos.',
+              action: 'Cargar mis datos',
+              onAction: () => context.push(Routes.profileBody),
+            ),
+          ],
           const SizedBox(height: NmSpace.s4),
           NmButton(
             label: 'Guardar objetivo',

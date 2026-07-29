@@ -68,6 +68,10 @@ class UserProfile {
   /// Solo afecta el equivalente en ml que se muestra; el historial guarda
   /// vasos, así que cambiarlo no reescribe el pasado.
   final int glassSizeMl;
+
+  /// Hay lo necesario para Mifflin-St Jeor: sin esto el objetivo solo puede
+  /// ser manual.
+  bool get hasBodyData => birthDate != null && heightCm != null;
   final bool isDemo;
   final String? email;
   final DateTime? deletionRequestedAt;

@@ -1,6 +1,6 @@
 # Estado — 28 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.2` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.4` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -70,9 +70,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.0.2**.
+contra un Postgres limpio. Última publicada: **v1.0.4**.
 
-Publicar una versión es empujar un tag `v1.0.3`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.0.5`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -120,9 +120,11 @@ Para no volver a perder tiempo con lo mismo:
    tabs quedan por encima y tapan sus botones.
 6. **El endpoint clásico de Open Food Facts devuelve 503 seguido.** Se usa el
    moderno (`search.openfoodfacts.org`).
-7. **`flutter build apk` puede devolver un APK viejo.** Si el build tarda 5 s en
-   vez de ~140 s, Gradle está reusando un artefacto cacheado y se instala una
-   versión anterior. `flutter clean` antes de verificar algo en el emulador.
+7. **`flutter build apk` puede devolver un APK viejo**, y la duración del build
+   NO lo delata: pasó con builds de 5 s y también de 171 s, porque el kernel de
+   Dart se cachea aparte del build de Gradle. **`flutter clean` siempre** antes
+   de verificar algo en el emulador; si no, se prueba una versión que no es la
+   del código.
 8. **Los buckets restringen los MIME.** Los de fotos solo aceptan imágenes: el
    respaldo JSON necesitó su propio bucket.
 
@@ -134,7 +136,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 136 tests
+flutter test                              # 140 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -147,7 +149,9 @@ supabase stop
 
 ## Lo que queda
 
-1. **Probar Gemini en un teléfono** — escrito y desplegado, nunca ejecutado.
+1. **Pals**: amigos que ven qué comió el otro. Requiere sincronización
+   relacional — hoy los datos son un JSON opaco en Storage y no hay nada que
+   compartir. Después notificaciones.
 2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
    el cliente). Open Food Facts ya está conectado y no necesita clave.
 3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta

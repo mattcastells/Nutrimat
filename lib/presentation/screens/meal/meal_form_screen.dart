@@ -11,6 +11,8 @@ import '../../../core/utils/dates.dart';
 import '../../../domain/enums/enums.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/food_widgets.dart';
+import '../../components/food/meal_photo.dart';
+import '../../components/food/meal_photo_field.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
@@ -235,6 +237,12 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                           onPressed: () =>
                               context.push('${Routes.foodSearch}?target=meal'),
                         ),
+                        const SizedBox(height: NmSpace.s8),
+                        const NmSectionHeader(title: 'Foto'),
+                        MealPhotoField(
+                          path: draft.photoPath,
+                          onChanged: controller.setPhoto,
+                        ),
                       ],
                     ),
                   ),
@@ -334,6 +342,10 @@ class MealDetailScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SizedBox(height: NmSpace.s4),
+          if (meal.photoPath != null) ...<Widget>[
+            MealPhoto(path: meal.photoPath, height: 200),
+            const SizedBox(height: NmSpace.s4),
+          ],
           Text(
             '${longDay(meal.localDate)} · ${timeOfDay(meal.loggedAt)}',
             style: NmTextStyles.from(NmType.caption, color: nm.textMuted).tnum,

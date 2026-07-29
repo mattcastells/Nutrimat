@@ -75,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
-                  title: 'Notificaciones',
+                  title: 'Recordatorios',
                   leading: Icon(PhosphorIcons.bell()),
                   onTap: () => context.push(Routes.notifications),
                 ),
@@ -331,25 +331,6 @@ class UnitsScreen extends ConsumerWidget {
 }
 
 /// Notificaciones (fuera del MVP: se declara y se explica).
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) => const NmScreen(
-    title: 'Notificaciones',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        SizedBox(height: NmSpace.s4),
-        InfoNote(
-          text: 'Los recordatorios y las notificaciones llegan en una próxima '
-              'versión. Nutrimat no manda notificaciones de marketing.',
-        ),
-      ],
-    ),
-  );
-}
-
 /// S-29 · Integraciones de salud. Solo en Android (D-21).
 class IntegrationsScreen extends ConsumerStatefulWidget {
   const IntegrationsScreen({super.key});

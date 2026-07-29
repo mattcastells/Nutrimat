@@ -8,6 +8,7 @@ import '../models/body.dart';
 import '../models/food.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
+import '../models/reminder.dart';
 import '../models/summaries.dart';
 import '../models/user_profile.dart';
 import '../models/water.dart';
@@ -96,6 +97,7 @@ abstract interface class NutrimatRepositories
         FoodRepository,
         BodyRepository,
         WaterRepository,
+        ReminderRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -215,6 +217,12 @@ abstract interface class FoodRepository {
   Future<void> toggleFoodFavorite(String id);
   Future<void> deleteOwnFood(String id);
   Future<void> markUsed(String foodId);
+}
+
+abstract interface class ReminderRepository {
+  List<Reminder> get reminders;
+  Reminder reminderFor(ReminderKind kind);
+  Future<void> saveReminder(Reminder reminder);
 }
 
 abstract interface class WaterRepository {

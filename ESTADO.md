@@ -1,6 +1,6 @@
 # Estado — 28 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.0.5` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.1.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -9,8 +9,8 @@ GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 **Probar el análisis de foto en un teléfono de verdad.** Es lo único del
 circuito que nunca se ejecutó: el emulador no tiene cámara, así que la subida al
-bucket y la Edge Function de Gemini están escritas y desplegadas pero sin una
-corrida real. Sacar una foto de una comida las ejercita a las dos.
+bucket y la Edge Function de Gemini están escritas y verificadas contra el
+servidor, pero sin una foto real de por medio.
 
 Después, si hiciera falta: los datos se respaldan como un documento JSON en
 Storage, no como filas. Eso cubre no perder nada y cambiar de teléfono. Recién
@@ -45,7 +45,8 @@ real.
 
 Comidas, actividades con cálculo MET, peso, medidas, agua, historial, progreso
 y objetivos. El catálogo consulta Open Food Facts (con prioridad a productos
-argentinos) y el escaneo por código de barras también.
+argentinos) y el escáner lee el código de barras con la cámara. Recordatorios
+locales de agua y de registro, con horario configurable.
 
 No hay asistente inicial: entrar lleva directo a Inicio y los datos del perfil
 se cargan desde Perfil cuando se quiera.
@@ -71,9 +72,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.0.5**.
+contra un Postgres limpio. Última publicada: **v1.1.0**.
 
-Publicar una versión es empujar un tag `v1.0.6`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.1.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -121,11 +122,21 @@ Para no volver a perder tiempo con lo mismo:
    tabs quedan por encima y tapan sus botones.
 6. **El endpoint clásico de Open Food Facts devuelve 503 seguido.** Se usa el
    moderno (`search.openfoodfacts.org`).
-7. **`flutter build apk` puede devolver un APK viejo**, y la duración del build
-   NO lo delata: pasó con builds de 5 s y también de 171 s, porque el kernel de
-   Dart se cachea aparte del build de Gradle. **`flutter clean` siempre** antes
-   de verificar algo en el emulador; si no, se prueba una versión que no es la
-   del código.
+7. **`flutter build apk` puede devolver un APK viejo**, y ni la duración del
+   build ni `flutter clean` alcanzan para detectarlo o evitarlo: pasó con
+   builds de 5 s, de 171 s, y con `flutter clean` de por medio. Gradle guarda
+   estado en `android/.gradle` y en su daemon. Antes de verificar algo en el
+   emulador:
+
+   ```bash
+   (cd android && ./gradlew --stop)
+   rm -rf build .dart_tool android/.gradle android/app/build
+   flutter pub get && flutter build apk --release ...
+   ```
+
+   Para confirmar que el APK es el del código, buscar un texto nuevo dentro de
+   `libapp.so` (se extrae del APK, que es un zip). Es la única prueba que no
+   miente.
 8. **Los buckets restringen los MIME.** Los de fotos solo aceptan imágenes: el
    respaldo JSON necesitó su propio bucket.
 
@@ -137,7 +148,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 140 tests
+flutter test                              # 148 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -150,9 +161,10 @@ supabase stop
 
 ## Lo que queda
 
-1. **Notificaciones** con horario configurable: recordar tomar agua y cargar
-   lo que comiste. Es además lo que falta para que Pals avise "X cargó su
-   desayuno".
+1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
+   disparador del lado del servidor. Los recordatorios locales ya están.
+2. **Precargar comidas** hasta 3 días adelante, navegable desde Inicio.
+3. **Sueño**: horas y calidad, por input de la persona.
 2. **USDA** para alimentos genéricos vía Edge Function (su clave no puede ir en
    el cliente). Open Food Facts ya está conectado y no necesita clave.
 3. **Sincronización relacional** contra las 24 tablas, si algún día hace falta

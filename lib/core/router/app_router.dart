@@ -22,6 +22,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
 import '../../presentation/screens/progress/progress_screen.dart';
 import '../../presentation/screens/settings/cloud_backup_screen.dart';
+import '../../presentation/screens/settings/notifications_screen.dart';
 import '../../presentation/screens/settings/settings_screens.dart';
 import '../../presentation/screens/settings/updates_screen.dart';
 import '../../presentation/screens/settings/water_goal_screen.dart';

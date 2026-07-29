@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/config/supabase_config.dart';
 import 'core/utils/dates.dart';
+import 'data/local/android_reminder_scheduler.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
@@ -24,6 +25,7 @@ import 'domain/services/pal_publisher.dart';
 import 'domain/services/photo_sync_service.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
+import 'presentation/providers/reminder_providers.dart';
 
 /// Arranque: base local, formatos de fecha, sesión y contenedor de providers.
 ///
@@ -62,6 +64,9 @@ Future<void> bootstrap() async {
   // Con servidor, cada cambio local dispara un respaldo a la nube. Sin
   // servidor no hay a dónde subir y el servicio queda en null: el respaldo
   // sigue siendo el archivo JSON de Configuración → Privacidad.
+  // Recordatorios locales: no necesitan servidor ni cuenta.
+  final reminderScheduler = await AndroidReminderScheduler.create();
+
   final CloudBackupService? backup = SupabaseConfig.isConfigured
       ? CloudBackupService(
           client: CloudBackupClient.fromInstance(),
@@ -136,6 +141,8 @@ Future<void> bootstrap() async {
       if (backup != null) cloudBackupProvider.overrideWithValue(backup),
       if (photos != null) photoSyncProvider.overrideWithValue(photos),
       if (palsClient != null) palsClientProvider.overrideWithValue(palsClient),
+      if (reminderScheduler != null)
+        reminderSchedulerProvider.overrideWithValue(reminderScheduler),
     ],
   );
   notify = () => container.read(appRevisionProvider.notifier).bump();

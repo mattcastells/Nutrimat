@@ -10,6 +10,7 @@ import '../../domain/models/body.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
+import '../../domain/models/reminder.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
 import '../mock/seed.dart';
@@ -45,6 +46,9 @@ class LocalStore {
   List<Activity> activities = <Activity>[];
   List<WeightLog> weightLogs = <WeightLog>[];
   List<WaterLog> waterLogs = <WaterLog>[];
+  List<Reminder> reminders = <Reminder>[
+    for (final k in ReminderKind.values) Reminder.byDefault(k),
+  ];
   List<BodyMeasurement> measurements = <BodyMeasurement>[];
   List<ActivityGoal> activityGoals = <ActivityGoal>[];
   List<ExerciseTemplate> templates = <ExerciseTemplate>[];
@@ -240,6 +244,16 @@ class LocalStore {
     activities = _list(j['activities'], Activity.fromJson);
     weightLogs = _list(j['weightLogs'], WeightLog.fromJson);
     waterLogs = _list(j['waterLogs'], WaterLog.fromJson);
+    final storedReminders = _list(j['reminders'], Reminder.fromJson);
+    // Si falta alguno —porque el respaldo es de una versión anterior— se
+    // completa con el que corresponde apagado.
+    reminders = <Reminder>[
+      for (final k in ReminderKind.values)
+        storedReminders.firstWhere(
+          (r) => r.kind == k,
+          orElse: () => Reminder.byDefault(k),
+        ),
+    ];
     measurements = _list(j['measurements'], BodyMeasurement.fromJson);
     activityGoals = _list(j['activityGoals'], ActivityGoal.fromJson);
     templates = _list(j['templates'], ExerciseTemplate.fromJson);
@@ -280,6 +294,7 @@ class LocalStore {
     'activities': activities.map((e) => e.toJson()).toList(),
     'weightLogs': weightLogs.map((e) => e.toJson()).toList(),
     'waterLogs': waterLogs.map((e) => e.toJson()).toList(),
+    'reminders': reminders.map((e) => e.toJson()).toList(),
     'measurements': measurements.map((e) => e.toJson()).toList(),
     'activityGoals': activityGoals.map((e) => e.toJson()).toList(),
     'templates': templates.map((e) => e.toJson()).toList(),

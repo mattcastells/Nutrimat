@@ -18,6 +18,7 @@ import '../../domain/models/body.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
+import '../../domain/models/reminder.dart';
 import '../../domain/models/summaries.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
@@ -46,6 +47,7 @@ class LocalRepository
         FoodRepository,
         BodyRepository,
         WaterRepository,
+        ReminderRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -889,6 +891,26 @@ class LocalRepository
   @override
   Future<void> deleteWeight(String id) async {
     store.weightLogs.removeWhere((w) => w.id == id);
+    await _commit();
+  }
+
+  // ── Recordatorios ──────────────────────────────────────────────────────
+
+  @override
+  List<Reminder> get reminders => store.reminders;
+
+  @override
+  Reminder reminderFor(ReminderKind kind) => store.reminders.firstWhere(
+    (r) => r.kind == kind,
+    orElse: () => Reminder.byDefault(kind),
+  );
+
+  @override
+  Future<void> saveReminder(Reminder reminder) async {
+    store.reminders = <Reminder>[
+      for (final r in store.reminders)
+        if (r.kind == reminder.kind) reminder else r,
+    ];
     await _commit();
   }
 

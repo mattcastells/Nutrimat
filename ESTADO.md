@@ -119,12 +119,12 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 23 de 23 aplicadas |
-| Tablas | 25, **todas con RLS** — agua, sueño y recordatorios entraron en la 23; salieron cuatro de fuerza que nunca se usaron |
-| Políticas | 78, más 3 de Storage |
+| Migraciones | 25 de 25 aplicadas |
+| Tablas | 26, **todas con RLS** — se sumó `rate_limits` (migración 24) |
+| Políticas | 83, más 5 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
-| Pals | vínculo por código; `shared_days` es la **única** superficie compartida |
-| Suite pgTAP | **50 de 50** (22 RLS + 9 Storage + 19 Pals), en local y contra el proyecto real |
+| Pals | vínculo por código; `shared_days` sigue siendo la superficie compartida, ahora con fotos/agua/sueño/detalle de ejercicio opcionales, apagados por default y elegidos desde Perfil |
+| Suite pgTAP | **66 de 66** (22 RLS + 9 Storage + 19 Pals + 8 hardening + 8 privacidad de Pals), en local y contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
 
@@ -287,6 +287,45 @@ Para no volver a perder tiempo con lo mismo:
     igual a la migración. Lo único que no se rehacía era la consulta. Ahora se
     relee al entrar, hay botón de actualizar, y Perfil muestra cuántas
     solicitudes quedaron sin responder.
+15. **`ref.invalidate()` en `initState()` revienta si el widget se monta como
+    raíz de una tab.** `PalsScreen` releía su lista al entrar así desde que se
+    resolvió el punto 14, y anduvo bien mientras Pals era una pantalla que se
+    empujaba desde Perfil. Al pasar a ser la raíz de la tab "Pals" (§ más abajo)
+    empezó a tirar *"dependOnInheritedWidgetOfExactType() ... called before
+    initState() completed"*: `ref.invalidate` pide el `ProviderContainer` por
+    el árbol de widgets, y eso está prohibido mientras el propio `initState`
+    del widget todavía no terminó — cosa que antes nunca pasaba porque un
+    push crea su subárbol aparte, y que con una tab de `StatefulShellRoute` sí
+    pasa. Se corrige con `WidgetsBinding.instance.addPostFrameCallback`
+    alrededor del `invalidate`, no tocando la lógica. Corolario: cualquier
+    pantalla que haga esto en `initState` y alguna vez pase a ser la raíz de
+    una tab hay que revisarla por lo mismo.
+
+---
+
+## Hecho el 30 de julio de 2026
+
+Pals ahora es una tab de la barra inferior (antes vivía escondida como una
+fila de Perfil) y ahí mismo se ve organizado por categorías, igual que
+Inicio: comida (con foto, si el otro la comparte), actividad (agregado
+siempre, detalle si lo prende), agua y sueño — cada categoría apagada por
+default y prendida desde Perfil → "Qué ven mis pals". Se puede mirar hasta
+7 días atrás con el mismo selector de fecha que Inicio, acotado en las dos
+puntas. Historial se mudó adentro de Progreso (ya no es una tab) para
+hacerle lugar.
+
+De paso: el peso de un día anterior ya se puede editar y borrar (con
+deshacer) desde "Registros" en Progreso → Peso — antes ninguna fila ahí
+tenía `onEdit` ni borrado, ni siquiera la de hoy. Se sacaron los mensajes de
+"sin conexión" que nunca podían dispararse (no hay detección real desde que
+se quitó el interruptor de desarrollo) y se corrigió la copia de Privacidad,
+que seguía prometiendo que "todo vive en tu teléfono" con la nube ya
+andando. Y una pasada de seguridad: los jobs de mantenimiento dejaron de ser
+ejecutables por cualquier cuenta, `check_rate_limit` (atómico) reemplaza el
+conteo manual de la cuota de IA y le puso cuota por primera vez a
+`food-search` (que además nunca validaba el JWT, solo que el header
+existiera), `android:allowBackup` pasó a `false`, y Gitleaks corre en cada
+push.
 
 ---
 

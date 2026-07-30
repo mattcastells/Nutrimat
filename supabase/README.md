@@ -7,15 +7,16 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 
 | Qué | Resultado |
 | --- | --- |
-| Migraciones aplicadas | 21 de 21 |
-| Tablas | 24 |
-| Tablas con RLS activo | **24 de 24** (ninguna sin RLS) |
-| Políticas | 78 |
+| Migraciones aplicadas | 25 de 25 |
+| Tablas | 26 |
+| Tablas con RLS activo | **26 de 26** (ninguna sin RLS) |
+| Políticas | 83, más 5 de Storage |
 | Buckets de Storage | 4 (3 de fotos + `backups`), privados, con política por prefijo |
 | `activity_types` sembrados | 15 (D-06) |
-| RPC | `create_meal_with_items`, `get_daily_summary` |
-| pg_cron | habilitado, con los 4 jobs de `08-supabase-plan.md` §7 |
-| Suite pgTAP | **50 casos en verde** (22 RLS + 9 Storage + 19 Pals), en local y contra el proyecto |
+| RPC | `create_meal_with_items`, `get_daily_summary`, `check_rate_limit` |
+| pg_cron | habilitado, con los 4 jobs de `08-supabase-plan.md` §7 (ejecutables solo por `pg_cron`, no por `authenticated`) |
+| Pals | vínculo por código; `shared_days` es la superficie compartida, con fotos/agua/sueño/detalle de ejercicio opcionales por perfil |
+| Suite pgTAP | **66 casos en verde** (22 RLS + 9 Storage + 19 Pals + 8 hardening + 8 privacidad de Pals), en local y contra el proyecto |
 
 ## Cómo trabajar
 

@@ -1,6 +1,6 @@
-# Estado — 29 de julio de 2026
+# Estado — 30 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.5.1` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.7.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -66,12 +66,13 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **236 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **262 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
 Comidas, actividades con cálculo MET, peso, medidas, agua, historial, progreso
-y objetivos. El catálogo consulta Open Food Facts (con prioridad a productos
+y objetivos. Hay un **widget de calorías restantes** para la pantalla de inicio
+del teléfono. El catálogo consulta Open Food Facts (con prioridad a productos
 argentinos) y el escáner lee el código de barras con la cámara. Recordatorios
 locales de agua y de registro con horario configurable, sueño por noche y
 planificación de comidas hasta tres días adelante.
@@ -119,7 +120,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 25 de 25 aplicadas |
+| Migraciones | 26 de 26 aplicadas |
 | Tablas | 26, **todas con RLS** — se sumó `rate_limits` (migración 24) |
 | Políticas | 83, más 5 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
@@ -132,9 +133,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.5.1**.
+contra un Postgres limpio. Última publicada: **v1.7.0**.
 
-Publicar una versión es empujar un tag `v1.5.2`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.7.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -327,6 +328,73 @@ conteo manual de la cuota de IA y le puso cuota por primera vez a
 existiera), `android:allowBackup` pasó a `false`, y Gitleaks corre en cada
 push.
 
+### Una ronda de bugs reportados, el mismo día
+
+Ocho, y tres eran el mismo error de fondo: **algo que no pasaba y no lo
+decía**.
+
+1. **"Registrar peso no funciona."** No era el sheet ni la navegación: un
+   cambio de más de 3 kg contra el último registro mostraba un cartel y
+   volvía sin escribir nada, esperando un segundo toque a "Guardar". Si en el
+   medio se tocaba el campo —lo primero que hace cualquiera cuando algo no
+   pasó— el aviso se reseteaba y el botón volvía a no hacer nada. Ahora es un
+   diálogo con el botón que confirma al lado: un toque guarda, o pregunta.
+   Nunca no hace nada.
+2. **La estimación por texto.** `ai_analyses.photo_path` era `not null` y una
+   estimación por texto no tiene foto, así que el insert fallaba **en
+   silencio** (supabase-js devuelve el error, no lo lanza) en cada estimación.
+   Ninguna quedó registrada nunca, y la función devolvía un `id` de una fila
+   inexistente que la app guarda en `meals.ai_analysis_id`: la FK rechazaba
+   esa comida y **ninguna comida cargada por descripción llegó a las tablas**.
+   Migración 26, más un cinturón en `create_meal_with_items` (el registro de
+   cómo se estimó no puede ser el motivo de que se pierda la comida). Del lado
+   de la app, `_estimate()` solo capturaba `AppError` y un `TypeError` **no es
+   una `Exception`**: cualquier respuesta con forma inesperada dejaba el botón
+   girando para siempre. Y la entrada estaba escondida en el "+" de cada
+   sección, así que quien entraba por el FAB no la encontraba nunca.
+3. **"Agregar un ítem que falta"** en la revisión de la IA no hacía nada: los
+   ítems vivían en una lista de la pantalla y el borrador se armaba recién al
+   guardar, así que el buscador agregaba a `null` — y `addItem` sobre `null`
+   no hace nada y no avisa. Ahora el borrador es la única lista y se abre al
+   entrar. Un alimento del catálogo se distingue del estimado: lleva "Del
+   catálogo" en vez de un badge de confianza, porque tiene una tabla
+   nutricional detrás y no una estimación.
+4. **Escanear.** El escáner no estaba donde se arma la comida, y desde el menú
+   Agregar iba derecho a la cámara **sin comida abierta** (mismo `addItem`
+   sobre `null`). Además el detalle de alimento cerraba **dos pantallas a
+   ciegas**, asumiendo que entre el borrador y él hay exactamente una: con el
+   escáner abierto desde el borrador, los dos pop se llevaban puesto el
+   borrador. Ahora el detalle avisa "agregué" y cada pantalla intermedia se
+   cierra sola.
+5. Medidas corporales pasó de una fila de píldoras —donde había que elegir una
+   métrica para ver su número y abrir un sheet para cargarla— a **campos con
+   la última medida abajo**, que se guardan todos juntos. Las series salen por
+   sheet. La regla de "campo en blanco = borrar el registro" quedó en un solo
+   lugar (`MeasurementDraft`), porque ahora hay dos pantallas que cargan lo
+   mismo.
+6. El estado vacío se centraba dentro de **su propio** ancho, así que en "Mis
+   cosas" —donde no hay botón que estire la columna— el bloque quedaba 60 px a
+   la izquierda del eje. Arreglado en `EmptyState`, que es donde estaba.
+7. Se sacó el "Buscar actualizaciones" de Acerca de: iba a la misma pantalla
+   que la fila de arriba en Configuración.
+8. El día de un pal quedó por categorías en orden fijo —comida, agua, deporte,
+   sueño— con las comidas adentro por momento del día.
+
+### Widget de calorías restantes
+
+En la pantalla de inicio del teléfono, sin abrir la app. Detalle en
+[`docs/estado-de-la-app.md`](docs/estado-de-la-app.md) §3; lo que importa acá
+es que **el dato lleva su fecha y el widget la mira**: si lo guardado no es de
+hoy no muestra el número, dice "Abrí Nutrimat para hoy". Un widget con el
+número de ayer no se distingue de uno al día, y eso es la misma clase de
+mentira que la app no se permite en ningún otro lado.
+
+Verificado en el emulador: el sistema registra el provider
+(`dumpsys appwidget`), la app escribe el dato del día
+(`shared_prefs/nm_widget.xml`) y un `APPWIDGET_UPDATE` forzado dibuja sin
+excepciones. **Falta verlo puesto en una pantalla de inicio de verdad**: eso
+pide un toque largo en el launcher.
+
 ---
 
 ## Comandos para retomar
@@ -335,7 +403,7 @@ push.
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 236 tests
+flutter test                              # 262 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

@@ -23,13 +23,27 @@ import 'meal_draft.dart';
 
 /// S-15 · Nueva comida. Compone una comida a partir de ítems.
 class MealFormScreen extends ConsumerStatefulWidget {
-  const MealFormScreen({this.slot, this.date, this.mealId, super.key});
+  const MealFormScreen({
+    this.slot,
+    this.date,
+    this.mealId,
+    this.scanOnOpen = false,
+    super.key,
+  });
 
   final MealSlot? slot;
   final DateTime? date;
 
   /// Cuando viene, se edita una comida existente (RN-16, D-20).
   final String? mealId;
+
+  /// Abre el escáner encima, con la comida ya abierta debajo.
+  ///
+  /// Es cómo entra "Escanear alimento" del menú Agregar. Antes ese camino iba
+  /// derecho al escáner, sin comida abierta, y el alimento elegido se agregaba
+  /// a un borrador que no existía: `addItem` sobre `null` no hace nada y no
+  /// avisa, así que escanear desde ahí no dejaba nada cargado.
+  final bool scanOnOpen;
 
   @override
   ConsumerState<MealFormScreen> createState() => _MealFormScreenState();
@@ -57,6 +71,10 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
           date: widget.date ?? ref.read(selectedDateProvider),
         );
       }
+
+      // Recién con el borrador abierto: el escáner necesita dónde poner lo que
+      // lee.
+      if (widget.scanOnOpen && mounted) context.push(Routes.foodScan);
     });
   }
 
@@ -216,6 +234,8 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                             onPrimary: () => context.push(
                               '${Routes.foodSearch}?target=meal',
                             ),
+                            secondaryLabel: 'Escanear un código',
+                            onSecondary: () => context.push(Routes.foodScan),
                           )
                         else
                           NmCard(
@@ -254,6 +274,18 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                           icon: PhosphorIcons.plus(),
                           onPressed: () =>
                               context.push('${Routes.foodSearch}?target=meal'),
+                        ),
+                        const SizedBox(height: NmSpace.s2),
+                        // El vacío ya decía "escaneá un código" y no había
+                        // dónde hacerlo: el escáner solo existía en el menú
+                        // general de Agregar y adentro del buscador. Es la
+                        // pantalla donde se arma la comida, así que es acá
+                        // donde tiene que estar.
+                        NmButton.secondary(
+                          label: 'Escanear un código',
+                          block: true,
+                          icon: PhosphorIcons.barcode(),
+                          onPressed: () => context.push(Routes.foodScan),
                         ),
                         const SizedBox(height: NmSpace.s8),
                         const NmSectionHeader(title: 'Foto'),

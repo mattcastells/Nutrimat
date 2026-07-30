@@ -108,6 +108,21 @@ class _MainPane extends ConsumerWidget {
               '&date=${date.toIso8601String().substring(0, 10)}',
             ),
           ),
+          // Estaba solo en el "+" de cada sección de Inicio, así que quien
+          // entraba por acá —el camino obvio— no la encontraba nunca y la
+          // función se vivía como que no existe o no anda.
+          ActionRow(
+            icon: PhosphorIcons.chatText(),
+            label: 'Describir lo que comiste',
+            subtitle: '"dos empanadas de carne y una coca"',
+            enabled:
+                FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
+            disabledNote: 'La estimación con IA necesita servidor configurado',
+            onTap: () {
+              ref.read(photoTargetProvider.notifier).state = null;
+              onGo(Routes.mealDescribe);
+            },
+          ),
           ActionRow(
             icon: PhosphorIcons.camera(),
             label: 'Sacar foto de una comida',
@@ -128,7 +143,13 @@ class _MainPane extends ConsumerWidget {
             icon: PhosphorIcons.barcode(),
             label: 'Escanear alimento',
             subtitle: 'Buscar por código de barras',
-            onTap: () => onGo(Routes.foodScan),
+            // Abre la comida y el escáner encima. Iba derecho al escáner, sin
+            // comida abierta, y lo que se escaneaba se agregaba a un borrador
+            // inexistente: no quedaba nada cargado y no lo decía.
+            onTap: () => onGo(
+              '${Routes.mealNew}?slot=${slot.wire}'
+              '&date=${date.toIso8601String().substring(0, 10)}&scan=1',
+            ),
           ),
           ActionRow(
             icon: PhosphorIcons.personSimpleRun(),

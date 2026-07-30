@@ -57,6 +57,19 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
     super.dispose();
   }
 
+  /// Abre una pantalla que puede terminar agregando el alimento al borrador y,
+  /// si lo agregó, se cierra también.
+  ///
+  /// El buscador es una escala, no un destino: quien llegó acá venía armando
+  /// una comida y a eso vuelve. Cada pantalla se cierra sola en vez de que la
+  /// última cuente cuántas hay arriba del borrador, que es lo que rompía el
+  /// escáner abierto desde el propio borrador.
+  Future<void> _openAndCloseIfAdded(String location) async {
+    final added = await context.push<bool>(location);
+    if (!mounted) return;
+    if (added == true) context.pop(true);
+  }
+
   /// Búsqueda local inmediata y, en paralelo, el catálogo externo con
   /// debounce de 350 ms y mínimo 2 caracteres (F-04 paso 3).
   void _onQueryChanged(String raw) {
@@ -232,7 +245,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
                       // pisaran en pantalla.
                       primaryLabel: hasQuery ? 'Crear alimento' : null,
                       onPrimary: hasQuery
-                          ? () => context.push(Routes.foodNew)
+                          ? () => _openAndCloseIfAdded(Routes.foodNew)
                           : null,
                       secondaryLabel: hasQuery ? 'Sacar una foto' : null,
                       onSecondary: hasQuery
@@ -253,8 +266,9 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
                           index: index,
                           child: FoodResultRow(
                             food: visible[index],
-                            onTap: () =>
-                                context.push(Routes.food(visible[index].id)),
+                            onTap: () => _openAndCloseIfAdded(
+                              Routes.food(visible[index].id),
+                            ),
                           ),
                         ),
                       ),
@@ -272,14 +286,14 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
                   Expanded(
                     child: NmButton.secondary(
                       label: 'Crear alimento',
-                      onPressed: () => context.push(Routes.foodNew),
+                      onPressed: () => _openAndCloseIfAdded(Routes.foodNew),
                     ),
                   ),
                   const SizedBox(width: NmSpace.s2),
                   Expanded(
                     child: NmButton.secondary(
                       label: 'Escanear',
-                      onPressed: () => context.push(Routes.foodScan),
+                      onPressed: () => _openAndCloseIfAdded(Routes.foodScan),
                     ),
                   ),
                 ],
@@ -493,9 +507,16 @@ class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
                             );
                             repo.markUsed(food.id);
                             // Vuelve al borrador de la comida, no al buscador.
-                            context
-                              ..pop()
-                              ..pop();
+                            //
+                            // Antes eran dos `pop()` a ciegas, que daba por
+                            // sentado que entre el borrador y esta pantalla
+                            // hay **exactamente una** intermedia. Se cumplía
+                            // viniendo del buscador y no se cumplía viniendo
+                            // del escáner abierto desde el borrador: los dos
+                            // pop se llevaban puesto el borrador. Ahora se
+                            // avisa "agregué" y cada pantalla intermedia se
+                            // cierra sola, sin contar nada.
+                            context.pop(true);
                           }
                         : null,
                   ),
@@ -684,7 +705,13 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
               );
               await ref.read(repositoryProvider).createOwnFood(food);
               if (!context.mounted) return;
-              context.pushReplacement(Routes.food(food.id));
+              // `push` y no `pushReplacement`: reemplazarse deja sin dueño al
+              // aviso de "lo agregué a la comida" que devuelve el detalle, y
+              // esa es la señal con la que las pantallas intermedias se
+              // cierran. El alimento ya está creado, así que volver acá con
+              // "Atrás" no pierde nada.
+              final added = await context.push<bool>(Routes.food(food.id));
+              if (added == true && context.mounted) context.pop(true);
             },
           ),
         ],
@@ -764,7 +791,20 @@ class _FoodScanScreenState extends ConsumerState<FoodScanScreen> {
         _resumeCamera();
         return;
       }
-      context.pushReplacement(Routes.food(food.id));
+
+      // Se apila en vez de reemplazarse, para poder cerrarse cuando el detalle
+      // avise que agregó el alimento. Reemplazándose, ese aviso no llegaba a
+      // nadie y el detalle tenía que adivinar cuántas pantallas cerrar: dos,
+      // que sobraba una cuando el escáner se abre desde el borrador mismo.
+      final added = await context.push<bool>(Routes.food(food.id));
+      if (!mounted) return;
+      if (added == true) {
+        context.pop(true);
+        return;
+      }
+      // Volvió sin agregar: se sigue escaneando en vez de quedar con la cámara
+      // congelada y sin forma de reintentar.
+      _resumeCamera();
     } on AppError catch (error) {
       if (!mounted) return;
       setState(() {

@@ -260,6 +260,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           date: state.uri.queryParameters['date'] == null
               ? null
               : DateTime.parse(state.uri.queryParameters['date']!),
+          // "Escanear alimento" del menú Agregar entra por acá: el escáner
+          // necesita una comida abierta debajo, si no lo que se escanea no
+          // tiene dónde caer.
+          scanOnOpen: state.uri.queryParameters['scan'] == '1',
         ),
       ),
       GoRoute(

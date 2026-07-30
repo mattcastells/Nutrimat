@@ -919,11 +919,11 @@ class AboutScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: NmSpace.s4),
-          NmButton.secondary(
-            label: 'Buscar actualizaciones',
-            onPressed: () => context.push(Routes.updates),
-          ),
+          // Acá había un "Buscar actualizaciones" que empujaba a la misma
+          // pantalla que Configuración → Actualizaciones, la fila de arriba de
+          // "Acerca de Nutrimat". Dos puertas a lo mismo, a un toque de
+          // distancia, hacen dudar de si son lo mismo. Las actualizaciones
+          // tienen su sección; esta pantalla dice qué versión hay instalada.
         ],
       ),
     );

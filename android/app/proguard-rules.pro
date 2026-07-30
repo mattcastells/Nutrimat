@@ -19,6 +19,12 @@
 -keep class androidx.core.content.FileProvider { *; }
 -keep class androidx.lifecycle.** { *; }
 
+# El widget de la pantalla de inicio. Es un BroadcastReceiver que el sistema
+# instancia **por nombre** desde el manifest: ningún código de la app lo
+# referencia, así que es exactamente el caso que R8 no puede ver. Sin esto el
+# síntoma sería un widget que anda en debug y en release no se puede agregar.
+-keep class io.nutrimat.nutrimat.CaloriesWidget { *; }
+
 # No romper las anotaciones de nulabilidad que usan los plugins.
 -keepattributes *Annotation*
 -keepattributes Signature

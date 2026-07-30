@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuración del widget de calorías restantes.
+
+     `updatePeriodMillis` en 30 min es el mínimo que Android respeta, y no está
+     para traer datos nuevos —eso lo hace la app cuando se registra algo— sino
+     para que el widget se dé cuenta solo de que cambió el día: pasada la
+     medianoche, el número guardado es de ayer y tiene que dejar de mostrarse
+     como si fuera de hoy. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/nm_widget_calories"
+    android:previewLayout="@layout/nm_widget_calories"
+    android:description="@string/nm_widget_calories_description"
+    android:minWidth="110dp"
+    android:minHeight="70dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"/>

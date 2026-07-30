@@ -96,17 +96,24 @@ Deno.serve(async (req) => {
     [{ text: `${PROMPT_TEXT_V1}\n\nDescripción: ${description}` }],
   );
 
-  const registrar = (status: string, errorCode?: string, extra?: object) =>
-    supabase.from('ai_analyses').insert({
+  // `insert` no lanza: devuelve `{ error }`. Ignorarlo fue cómo esta función
+  // pasó meses sin registrar una sola fila —`photo_path` era `not null` y una
+  // estimación por texto no tiene foto (migración 26)—. Se mira el error y se
+  // deja en el log: una tabla vacía que debería tener filas no puede ser una
+  // sorpresa la próxima vez.
+  const registrar = async (status: string, errorCode?: string) => {
+    const { error } = await supabase.from('ai_analyses').insert({
       id: crypto.randomUUID(),
       user_id: user.id,
+      source: 'text',
       status,
       model: GEMINI_MODEL,
       prompt_version: PROMPT_VERSION,
       error_code: errorCode,
       latency_ms: latencyMs,
-      ...extra,
     });
+    if (error) console.error('ai_analyses insert falló:', error.message);
+  };
 
   if (parsed === null && rateLimited) {
     await registrar('failed', 'ERR_AI_RATE_LIMITED');
@@ -136,9 +143,10 @@ Deno.serve(async (req) => {
     items.reduce((acc, i) => acc + i.confidence, 0) / items.length;
 
   const id = crypto.randomUUID();
-  await supabase.from('ai_analyses').insert({
+  const { error: insertError } = await supabase.from('ai_analyses').insert({
     id,
     user_id: user.id,
+    source: 'text',
     status: 'completed',
     model: GEMINI_MODEL,
     prompt_version: PROMPT_VERSION,
@@ -147,6 +155,12 @@ Deno.serve(async (req) => {
     confidence_avg: Number(confidenceAvg.toFixed(2)),
     latency_ms: latencyMs,
   });
+  if (insertError) {
+    // La estimación es buena y se devuelve igual: no se le va a negar a nadie
+    // por un problema nuestro de registro. Pero queda en el log, y el `id` no
+    // se puede seguir usando como si la fila existiera.
+    console.error('ai_analyses insert falló:', insertError.message);
+  }
 
   return ok({
     id,

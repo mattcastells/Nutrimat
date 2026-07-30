@@ -96,41 +96,69 @@ class GeminiAnalysisClient {
   }
 
   /// Misma forma de respuesta para foto y texto: una sola lectura.
+  ///
+  /// Todo lo que no cierre sale como [ApiErrorCode.aiInvalidResponse] y no como
+  /// un error de casteo. Un `as String` sobre un campo que no vino lanza un
+  /// `TypeError`, que **no es una `Exception`**: se escapa de cualquier
+  /// `on AppError` y de cualquier `on Exception`, y la pantalla que lo pidió se
+  /// queda cargando para siempre. La forma de la respuesta la decide el
+  /// servidor, así que acá se la trata como entrada, no como promesa.
   static AiAnalysis _toAnalysis(Object? data, {required String? photoPath}) {
-    if (data is! Map) {
-      throw const AppError(
-        code: ApiErrorCode.aiInvalidResponse,
-        message:
-            'El análisis devolvió algo que no pudimos leer. Cargá la comida a '
-            'mano.',
-      );
-    }
+    if (data is! Map) throw _unreadable;
 
-    final rawItems = data['items'] as List<dynamic>? ?? <dynamic>[];
+    final id = data['id'];
+    if (id is! String || id.isEmpty) throw _unreadable;
+
+    final rawItems = data['items'];
+    if (rawItems != null && rawItems is! List) throw _unreadable;
+
     return AiAnalysis(
-      id: data['id'] as String,
+      id: id,
       photoPath: photoPath,
       status: AiAnalysisStatus.completed,
       model: data['model'] as String? ?? 'gemini',
       promptVersion: data['promptVersion'] as String? ?? 'v3',
       latencyMs: (data['latencyMs'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.now(),
-      items: rawItems
-          .map((raw) => _toItem(raw as Map<String, dynamic>))
-          .toList(),
+      items: <AiAnalysisItem>[
+        for (final raw in (rawItems as List<dynamic>?) ?? <dynamic>[])
+          _toItem(raw),
+      ],
     );
   }
 
-  static AiAnalysisItem _toItem(Map<String, dynamic> j) => AiAnalysisItem(
-    name: j['name'] as String,
-    quantity: (j['quantity'] as num).toDouble(),
-    unit: j['unit'] as String,
-    kcal: (j['kcal'] as num).round(),
-    proteinG: (j['proteinG'] as num).toDouble(),
-    carbsG: (j['carbsG'] as num).toDouble(),
-    fatG: (j['fatG'] as num).toDouble(),
-    confidence: (j['confidence'] as num).toDouble(),
+  static const AppError _unreadable = AppError(
+    code: ApiErrorCode.aiInvalidResponse,
+    message:
+        'El análisis devolvió algo que no pudimos leer. Cargá la comida a '
+        'mano.',
   );
+
+  static AiAnalysisItem _toItem(Object? raw) {
+    if (raw is! Map) throw _unreadable;
+
+    final name = raw['name'];
+    final quantity = raw['quantity'];
+    final unit = raw['unit'];
+    final kcal = raw['kcal'];
+    if (name is! String || quantity is! num || unit is! String || kcal is! num) {
+      throw _unreadable;
+    }
+
+    // Los macros y la confianza se completan en cero si faltan: un ítem con
+    // nombre y calorías ya es útil, y perderlo entero por un macro ausente
+    // sería peor que mostrarlo con un cero visible que la persona corrige.
+    return AiAnalysisItem(
+      name: name,
+      quantity: quantity.toDouble(),
+      unit: unit,
+      kcal: kcal.round(),
+      proteinG: (raw['proteinG'] as num?)?.toDouble() ?? 0,
+      carbsG: (raw['carbsG'] as num?)?.toDouble() ?? 0,
+      fatG: (raw['fatG'] as num?)?.toDouble() ?? 0,
+      confidence: (raw['confidence'] as num?)?.toDouble() ?? 0,
+    );
+  }
 
   /// La función devuelve `{error: {code, message}}`; el mensaje ya viene
   /// redactado para mostrar, así que se respeta en vez de reescribirlo acá.

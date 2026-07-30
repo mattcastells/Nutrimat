@@ -34,7 +34,16 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nm = context.nm;
-    return Padding(
+    return Container(
+      // Ancho completo, no el que ocupe el texto.
+      //
+      // Casi todas las pantallas apilan su contenido con
+      // `crossAxisAlignment: start`, y ahí una columna centrada se centra
+      // dentro de **su propio** ancho: si el cuerpo entra en una línea, el
+      // bloque entero queda corrido a la izquierda y el título no coincide con
+      // el eje de la pantalla. Se veía en "Mis cosas", donde el vacío no tiene
+      // botón que estire la columna.
+      width: double.infinity,
       padding: EdgeInsets.symmetric(
         vertical: compact ? NmSpace.s6 : NmSpace.s10,
         horizontal: NmSpace.s4,

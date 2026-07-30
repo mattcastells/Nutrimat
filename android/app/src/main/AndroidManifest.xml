@@ -85,6 +85,26 @@
                 android:resource="@xml/nm_update_paths" />
         </provider>
 
+        <!-- Widget de calorías restantes para la pantalla de inicio del
+             teléfono. Lo dibuja el launcher con la app cerrada, leyendo el
+             último dato que la app dejó guardado.
+
+             `exported="false"` es correcto y es lo que corresponde desde
+             Android 12: el sistema entrega APPWIDGET_UPDATE al componente por
+             nombre, no por broadcast implícito, así que no hace falta abrirlo a
+             terceros. -->
+        <receiver
+            android:name=".CaloriesWidget"
+            android:label="@string/nm_widget_calories_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/nm_widget_calories_info"/>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

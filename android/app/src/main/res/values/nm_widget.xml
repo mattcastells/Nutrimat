@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores del widget, tema claro.
+     Salen de design-tokens.json (color.light.*), los mismos que usa la app: un
+     widget con otra paleta se ve como de otra aplicación. La variante oscura
+     está en values-night/, así que el widget sigue el tema del sistema como lo
+     hace el launcher. -->
+<resources>
+    <color name="nm_widget_surface">#FFFFFFFF</color>
+    <color name="nm_widget_text">#FF1B1C26</color>
+    <color name="nm_widget_text_muted">#941B1C26</color>
+    <color name="nm_widget_accent">#FF796CBF</color>
+
+    <string name="nm_widget_calories_label">Calorías restantes</string>
+    <string name="nm_widget_calories_description">Cuántas calorías te quedan hoy.</string>
+</resources>

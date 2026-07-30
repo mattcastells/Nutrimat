@@ -90,6 +90,25 @@ eliminar cuenta y acerca de.
 | D-22 · duración sin tope | presets + deslizador 5–240 + campo libre `hh:mm` hasta 24:00 |
 | RN-03 · estimaciones | todo gasto lleva "≈" y su método visible |
 
+**Widget de la pantalla de inicio del teléfono.** Las calorías restantes de hoy,
+sin abrir la app. Vive en `android/app/src/main/kotlin/.../CaloriesWidget.kt` y
+lo dibuja el launcher, en su proceso, así que no puede preguntarle nada a Dart:
+la app le deja el dato escrito (`HomeWidgetPublisher`, canal
+`io.nutrimat.app/widget`) cada vez que se registra algo y cada vez que se abre
+o se vuelve a ella.
+
+Dos decisiones que no son de comodidad:
+
+- **El texto viaja ya formateado.** El separador de miles y las palabras
+  ("kcal restantes", "kcal de más") salen de `Fmt` y del mismo criterio que
+  Inicio. El widget no reimplementa nada porque dos formateadores terminan
+  diciendo cosas distintas del mismo número.
+- **El dato lleva su fecha y el widget la mira.** Si lo guardado no es de hoy no
+  muestra el número: dice "Abrí Nutrimat para hoy". Un widget que no se
+  actualizó desde ayer mostrando "te quedan 1.234 kcal" es peor que uno vacío,
+  porque no se distingue de uno al día — la misma regla por la que la app nunca
+  presenta una estimación como si fuera una medición.
+
 **Movimiento (21-motion-and-loading.md).** Anillo con crecimiento y count-up,
 barras de macros con stagger, gráficos con trazado progresivo y barras que
 crecen desde abajo, transición de pantalla de 12 px, sheets, diálogos con

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El widget de calorías restantes.
+     RemoteViews solo acepta un puñado de vistas: LinearLayout y TextView
+     alcanzan de sobra para un número y dos líneas de texto. Todos los textos
+     salen del dato que escribe la app; acá no se calcula nada. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nm_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/nm_widget_bg"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/nm_widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="NUTRIMAT"
+        android:textSize="10sp"
+        android:letterSpacing="0.12"
+        android:textColor="@color/nm_widget_text_muted"/>
+
+    <TextView
+        android:id="@+id/nm_widget_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="—"
+        android:textSize="30sp"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/nm_widget_accent"/>
+
+    <TextView
+        android:id="@+id/nm_widget_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/nm_widget_calories_label"
+        android:textSize="12sp"
+        android:maxLines="1"
+        android:textColor="@color/nm_widget_text"/>
+
+    <TextView
+        android:id="@+id/nm_widget_detail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text=""
+        android:textSize="10sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="@color/nm_widget_text_muted"/>
+</LinearLayout>

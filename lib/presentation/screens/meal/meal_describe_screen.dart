@@ -84,6 +84,23 @@ class _MealDescribeScreenState extends ConsumerState<MealDescribeScreen> {
         _busy = false;
         _error = error;
       });
+    } on Object catch (error) {
+      // Sin esta rama, cualquier fallo que no fuera `AppError` —una respuesta
+      // con una forma inesperada alcanza: `_toAnalysis` castea— dejaba `_busy`
+      // en true para siempre. El botón giraba, no había error, y no había
+      // salida más que cerrar la pantalla. Es el mismo agujero que ya se tapó
+      // en la espera del análisis por foto: una espera eterna es la peor forma
+      // de contar un fallo, porque no se distingue de estar por terminar.
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = AppError(
+          code: ApiErrorCode.server,
+          message: 'No pudimos estimar la comida. Probá de nuevo o cargala a '
+              'mano.',
+          requestId: error.toString(),
+        );
+      });
     }
   }
 

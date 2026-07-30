@@ -14,6 +14,7 @@ import 'package:nutrimat/data/repositories/local_repository.dart';
 import 'package:nutrimat/presentation/providers/app_providers.dart';
 import 'package:nutrimat/presentation/providers/auth_providers.dart';
 import 'package:nutrimat/presentation/screens/profile/body_target_screens.dart';
+import 'package:nutrimat/presentation/screens/progress/progress_detail_screens.dart';
 import 'package:nutrimat/presentation/screens/settings/water_goal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,6 +68,11 @@ void main() {
     'Perfil corporal': BodyProfileScreen.new,
     'Objetivo y macros': TargetScreen.new,
     'Meta de agua': WaterGoalScreen.new,
+    // Medidas corporales pasó de una fila de píldoras a ocho campos con su
+    // etiqueta, su unidad y la última medida abajo: es la pantalla del grupo
+    // con más chances de desbordar cuando alguien agranda el texto.
+    'Medidas corporales': MeasurementsScreen.new,
+    'Mis cosas': MyItemsScreen.new,
   };
 
   for (final entry in screens.entries) {

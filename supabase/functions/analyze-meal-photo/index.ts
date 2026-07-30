@@ -112,10 +112,11 @@ Deno.serve(async (req) => {
     ],
   );
 
-  const registrar = (errorCode: string) =>
-    supabase.from('ai_analyses').insert({
+  const registrar = async (errorCode: string) => {
+    const { error } = await supabase.from('ai_analyses').insert({
       id: crypto.randomUUID(),
       user_id: user.id,
+      source: 'photo',
       photo_path: photoPath,
       status: 'failed',
       model: GEMINI_MODEL,
@@ -123,6 +124,8 @@ Deno.serve(async (req) => {
       error_code: errorCode,
       latency_ms: latencyMs,
     });
+    if (error) console.error('ai_analyses insert falló:', error.message);
+  };
 
   // El límite del proveedor tiene su propio código y su propio texto: no es un
   // problema de la foto ni del prompt, y la app no debería sugerir sacar otra.
@@ -155,9 +158,10 @@ Deno.serve(async (req) => {
     items.reduce((acc, i) => acc + i.confidence, 0) / items.length;
 
   const id = crypto.randomUUID();
-  await supabase.from('ai_analyses').insert({
+  const { error: insertError } = await supabase.from('ai_analyses').insert({
     id,
     user_id: user.id,
+    source: 'photo',
     photo_path: photoPath,
     status: 'completed',
     model: GEMINI_MODEL,
@@ -167,6 +171,9 @@ Deno.serve(async (req) => {
     confidence_avg: Number(confidenceAvg.toFixed(2)),
     latency_ms: latencyMs,
   });
+  if (insertError) {
+    console.error('ai_analyses insert falló:', insertError.message);
+  }
 
   return ok({
     id,

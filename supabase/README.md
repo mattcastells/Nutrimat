@@ -7,7 +7,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1** (la que prescribe
 
 | Qué | Resultado |
 | --- | --- |
-| Migraciones aplicadas | 25 de 25 |
+| Migraciones aplicadas | 26 de 26 |
 | Tablas | 26 |
 | Tablas con RLS activo | **26 de 26** (ninguna sin RLS) |
 | Políticas | 83, más 5 de Storage |

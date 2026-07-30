@@ -19,6 +19,7 @@ import '../../../domain/enums/enums.dart';
 import '../../../domain/models/goal.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../components/activity/activity_cards.dart';
+import '../../components/feedback/feedback.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
@@ -703,29 +704,11 @@ class _EmptyOrList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // El vacío es el `EmptyState` del sistema y no una columna a mano: la de
+    // acá no estiraba al ancho disponible, así que el título y el cuerpo
+    // quedaban centrados entre sí pero corridos respecto de la pantalla.
     if (items.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: NmSpace.s8),
-        child: Column(
-          children: <Widget>[
-            Icon(icon, size: NmIconSize.xl, color: context.nm.textMuted),
-            const SizedBox(height: NmSpace.s4),
-            Text(
-              emptyTitle,
-              style: NmTextStyles.from(NmType.h4, color: context.nm.text),
-            ),
-            const SizedBox(height: NmSpace.s2),
-            Text(
-              emptyBody,
-              textAlign: TextAlign.center,
-              style: NmTextStyles.from(
-                NmType.bodySm,
-                color: context.nm.textMuted,
-              ),
-            ),
-          ],
-        ),
-      );
+      return EmptyState(icon: icon, title: emptyTitle, body: emptyBody);
     }
     return NmCard(
       padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),

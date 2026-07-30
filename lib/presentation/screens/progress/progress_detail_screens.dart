@@ -11,6 +11,7 @@ import '../../../core/utils/formats.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/activity.dart';
 import '../../../domain/models/summaries.dart';
+import '../../../domain/repositories/repositories.dart';
 import '../../../domain/services/summary_builder.dart';
 import '../../components/activity/activity_cards.dart';
 import '../../components/charts/charts.dart';
@@ -21,7 +22,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
-import '../weight/measurement_sheet.dart';
+import '../weight/measurement_draft.dart';
 import '../weight/weight_sheet.dart';
 
 const _uuid = Uuid();
@@ -445,16 +446,65 @@ class MeasurementsScreen extends ConsumerStatefulWidget {
   ConsumerState<MeasurementsScreen> createState() => _MeasurementsScreenState();
 }
 
+/// Las medidas del grupo son **campos**, no una fila de píldoras.
+///
+/// Antes había que elegir una métrica con una píldora para ver su número, así
+/// que las otras siete no se veían y para cargar cualquiera había que abrir un
+/// sheet aparte. La planilla de una nutricionista no se lee de a una: se ve el
+/// cuerpo entero y al lado lo que decía la vez pasada. Los campos hacen las dos
+/// cosas —mostrar la última medida y dejar cargar la nueva— sin cambiar de
+/// pantalla ni de selección.
 class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
   MeasurementGroup _group = MeasurementGroup.perimeters;
-  MeasurementMetric _metric = MeasurementMetric.waist;
+  DateTime _date = today();
 
-  void _selectGroup(MeasurementGroup group) => setState(() {
-    _group = group;
-    // La métrica elegida tiene que pertenecer al grupo visible, si no el
-    // gráfico muestra una serie que no está en ninguna de las opciones.
-    if (_metric.group != group) _metric = MeasurementMetric.inGroup(group).first;
-  });
+  final MeasurementDraft _draft = MeasurementDraft();
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _draft.loadFrom(ref.read(repositoryProvider), _date));
+    });
+  }
+
+  @override
+  void dispose() {
+    _draft.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final saved = await _draft.commit(ref.read(repositoryProvider), _date);
+    if (!mounted) return;
+
+    if (saved == null) {
+      setState(() {
+        _saving = false;
+        final first = _draft.errors.keys.firstOrNull;
+        if (first != null) _group = first.group;
+      });
+      return;
+    }
+
+    setState(() => _saving = false);
+    NmSnackbar.show(
+      context,
+      saved == 1 ? 'Medida registrada' : '$saved medidas registradas',
+    );
+  }
+
+  /// La última medida cargada de esa métrica, cualquiera sea su fecha.
+  String _lastLabel(NutrimatRepositories repo, MeasurementMetric metric) {
+    final entries = repo.measurements(metric);
+    if (entries.isEmpty) return 'Sin registros';
+    final last = entries.last;
+    final value = '${Fmt.decimal1(last.value)} ${metric.unitLabel}'.trim();
+    return 'Última: $value · ${friendlyDay(last.localDate)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -463,11 +513,11 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
     // Se lee para que la pantalla se redibuje al guardar desde el sheet.
     ref.watch(appRevisionProvider);
 
-    final entries = repo.measurements(_metric);
-    final points = entries
-        .map((m) => ChartPoint(m.localDate, m.value))
+    final metrics = MeasurementMetric.inGroup(_group);
+    final (foldSum, foldCount) = _draft.foldSum;
+    final withHistory = MeasurementMetric.values
+        .where((m) => repo.measurements(m).length >= 2)
         .toList();
-    final last = entries.isEmpty ? null : entries.last;
 
     return NmScreen(
       title: 'Medidas corporales',
@@ -482,78 +532,82 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
               (MeasurementGroup.composition, 'Balanza'),
             ],
             value: _group,
-            onChanged: _selectGroup,
+            onChanged: (v) => setState(() => _group = v),
           ),
           const SizedBox(height: NmSpace.s3),
           Text(
             _group.help,
             style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
           ),
-          const SizedBox(height: NmSpace.s4),
-          Wrap(
-            spacing: NmSpace.s2,
-            runSpacing: NmSpace.s2,
-            children: <Widget>[
-              for (final metric in MeasurementMetric.inGroup(_group))
-                NmChip(
-                  label: metric.longLabel,
-                  selected: metric == _metric,
-                  semanticsInRadioGroup: true,
-                  onTap: () => setState(() => _metric = metric),
-                ),
-            ],
-          ),
-          const SizedBox(height: NmSpace.s6),
+          const SizedBox(height: NmSpace.s5),
 
-          if (last != null) ...<Widget>[
+          for (final metric in metrics)
+            Padding(
+              padding: const EdgeInsets.only(bottom: NmSpace.s4),
+              child: NmNumberField(
+                label: metric.label,
+                controller: _draft.controller(metric),
+                decimals: 1,
+                suffix: metric.unitLabel.isEmpty
+                    ? 'índice'
+                    : metric.unitLabel,
+                helper: _lastLabel(repo, metric),
+                error: _draft.errors[metric],
+                onChanged: (_) => setState(() => _draft.errors.remove(metric)),
+              ),
+            ),
+
+          if (_group == MeasurementGroup.skinfolds && foldCount >= 2) ...<Widget>[
             NmCard(
+              raised: true,
               child: ValueRow(
-                label: 'Último registro',
-                caption: friendlyDay(last.localDate),
-                value: '${Fmt.decimal1(last.value)} ${last.unit}'.trim(),
+                label: 'Sumatoria',
+                caption: '$foldCount pliegues',
+                value: '${Fmt.decimal1(foldSum)} mm',
                 emphasis: true,
               ),
             ),
             const SizedBox(height: NmSpace.s4),
           ],
 
-          if (points.length < 2)
-            EmptyState(
-              compact: true,
-              icon: PhosphorIcons.ruler(),
-              title: last == null
-                  ? 'Sin registros de ${_metric.label.toLowerCase()}'
-                  : 'Falta un registro más',
-              body: 'Con dos registros ya podemos dibujar la serie.',
-              primaryLabel: 'Registrar medidas',
-              onPrimary: () => showMeasurementSheet(context, group: _group),
-            )
-          else ...<Widget>[
+          NmDateField(
+            label: 'Fecha',
+            value: _date,
+            lastDate: DateTime.now(),
+            onChanged: (v) => setState(() {
+              _date = v;
+              _draft.loadFrom(repo, _date);
+            }),
+          ),
+          const SizedBox(height: NmSpace.s5),
+          NmButton(
+            label: 'Guardar medidas',
+            block: true,
+            loading: _saving,
+            onPressed: _save,
+          ),
+
+          if (withHistory.isNotEmpty) ...<Widget>[
+            const SizedBox(height: NmSpace.s8),
+            const NmSectionHeader(title: 'Series'),
             NmCard(
-              child: WeightChart(
-                id: 'measure-${_metric.wire}',
-                points: points,
-                movingAverage: const <ChartPoint>[],
-              ),
-            ),
-            const SizedBox(height: NmSpace.s6),
-            NmCard(
+              padding: const EdgeInsets.symmetric(vertical: NmSpace.s1),
               child: Column(
                 children: <Widget>[
-                  for (final entry in entries.reversed.take(12))
-                    ValueRow(
-                      label: friendlyDay(entry.localDate),
-                      value: '${Fmt.decimal1(entry.value)} ${entry.unit}'
-                          .trim(),
+                  for (final metric in withHistory)
+                    NmListRow(
+                      title: metric.longLabel,
+                      subtitle:
+                          '${repo.measurements(metric).length} registros',
+                      trailing: Icon(
+                        PhosphorIcons.caretRight(),
+                        size: NmIconSize.md,
+                        color: nm.textMuted,
+                      ),
+                      onTap: () => _showSeries(metric),
                     ),
                 ],
               ),
-            ),
-            const SizedBox(height: NmSpace.s6),
-            NmButton(
-              label: 'Registrar medidas',
-              block: true,
-              onPressed: () => showMeasurementSheet(context, group: _group),
             ),
           ],
 
@@ -564,6 +618,51 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
             style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
           ),
         ],
+      ),
+    );
+  }
+
+  /// La serie de una métrica: el gráfico y los últimos doce registros.
+  ///
+  /// Estaba en la pantalla, atada a la píldora elegida. Al pasar a campos ya no
+  /// hay una métrica "elegida", así que la serie se pide por la que interesa en
+  /// vez de ser el único número visible.
+  void _showSeries(MeasurementMetric metric) {
+    final entries = ref.read(repositoryProvider).measurements(metric);
+    showNmSheet<void>(
+      context: context,
+      builder: (context) => NmSheet(
+        title: metric.longLabel,
+        subtitle: '${entries.length} registros',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            NmCard(
+              child: WeightChart(
+                id: 'measure-${metric.wire}',
+                points: entries
+                    .map((m) => ChartPoint(m.localDate, m.value))
+                    .toList(),
+                movingAverage: const <ChartPoint>[],
+              ),
+            ),
+            const SizedBox(height: NmSpace.s5),
+            NmCard(
+              child: Column(
+                children: <Widget>[
+                  for (final entry in entries.reversed.take(12))
+                    ValueRow(
+                      label: friendlyDay(entry.localDate),
+                      value: '${Fmt.decimal1(entry.value)} '
+                              '${metric.unitLabel}'
+                          .trim(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

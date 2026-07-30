@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores del widget, tema oscuro (color.dark.* de design-tokens.json). Es la
+     referencia del sistema de diseño (D-10). -->
+<resources>
+    <color name="nm_widget_surface">#FF232532</color>
+    <color name="nm_widget_text">#FFE9E9ED</color>
+    <color name="nm_widget_text_muted">#8CE9E9ED</color>
+    <color name="nm_widget_accent">#FF9184D9</color>
+</resources>

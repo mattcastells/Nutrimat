@@ -27,6 +27,7 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val CHANNEL = "io.nutrimat.app/installer"
+        const val WIDGET_CHANNEL = "io.nutrimat.app/widget"
         const val APK_MIME = "application/vnd.android.package-archive"
     }
 
@@ -63,6 +64,33 @@ class MainActivity : FlutterActivity() {
                             result.error("no_image", "Falta la foto a guardar.", null)
                         } else {
                             result.success(GallerySaver.save(this, bytes, fileName))
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // Widget de la pantalla de inicio. Canal aparte, igual que los otros
+        // dos: lo único que comparten es el proceso.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "publish" -> {
+                        val date = call.argument<String>("date")
+                        if (date == null) {
+                            result.error("no_date", "Falta la fecha del dato.", null)
+                        } else {
+                            CaloriesWidgetStore.write(
+                                this,
+                                CaloriesWidgetState(
+                                    date = date,
+                                    value = call.argument<String>("value") ?: "—",
+                                    label = call.argument<String>("label") ?: "",
+                                    detail = call.argument<String>("detail") ?: "",
+                                ),
+                            )
+                            CaloriesWidget.refresh(this)
+                            result.success(null)
                         }
                     }
                     else -> result.notImplemented()

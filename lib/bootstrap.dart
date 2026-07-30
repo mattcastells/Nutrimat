@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'app.dart';
 import 'core/config/supabase_config.dart';
 import 'core/utils/dates.dart';
 import 'data/local/android_reminder_scheduler.dart';
+import 'data/local/home_widget_publisher.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
@@ -108,8 +110,11 @@ Future<void> bootstrap() async {
   PalPublisher? palPublisher;
 
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
-  // después de crear el contenedor para evitar la dependencia circular.
+  // después de crear el contenedor para evitar la dependencia circular. El
+  // widget de la pantalla de inicio del teléfono va por el mismo camino, porque
+  // necesita al repositorio que todavía no existe.
   void Function() notify = () {};
+  void Function() publishToWidget = () {};
   final repository = LocalRepository(
     store,
     photos: photos,
@@ -127,8 +132,19 @@ Future<void> bootstrap() async {
       backup?.markDirty();
       relationalSync?.markDirty();
       palPublisher?.markDirty();
+      // El widget de la pantalla de inicio del teléfono. Sin debounce, al
+      // revés que los tres de arriba: no sale a la red —escribe un dato local—
+      // y si no hay ningún widget puesto, el lado nativo corta antes de
+      // dibujar nada.
+      publishToWidget();
     },
   );
+
+  // Sale del mismo cálculo del día que muestra Inicio, así que el widget no
+  // puede decir un número distinto del de la app.
+  const widgetPublisher = HomeWidgetPublisher();
+  publishToWidget = () =>
+      unawaited(widgetPublisher.publish(repository.daily(today())));
 
   final PalsClient? palsClient = SupabaseConfig.isConfigured
       ? PalsClient.fromInstance()

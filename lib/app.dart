@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/dates.dart';
+import 'data/local/home_widget_publisher.dart';
 import 'presentation/providers/app_providers.dart';
 import 'presentation/providers/auth_providers.dart';
 
@@ -22,10 +24,27 @@ class NutrimatApp extends ConsumerStatefulWidget {
 
 class _NutrimatAppState extends ConsumerState<NutrimatApp>
     with WidgetsBindingObserver {
+  static const HomeWidgetPublisher _homeWidget = HomeWidgetPublisher();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Arranque en frío: el widget puede tener el número de ayer.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _publishToWidget());
+  }
+
+  /// Refresca el widget de la pantalla de inicio del teléfono.
+  ///
+  /// El widget se actualiza solo cuando se registra algo (`onChanged` en
+  /// `bootstrap`), y con eso alcanza salvo en un caso: **cambió el día**. Ahí el
+  /// dato guardado es de ayer, el widget lo detecta y muestra "Abrí Nutrimat
+  /// para hoy" — pero si no se publicara al volver a la app, seguiría diciendo
+  /// eso justo después de que la persona la abrió, que es la peor versión de un
+  /// aviso: el que sigue apareciendo cuando ya se hizo lo que pedía.
+  void _publishToWidget() {
+    if (!mounted) return;
+    unawaited(_homeWidget.publish(ref.read(repositoryProvider).daily(today())));
   }
 
   @override
@@ -47,6 +66,7 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
         state == AppLifecycleState.detached) {
       unawaited(ref.read(cloudBackupProvider)?.flush() ?? Future<void>.value());
     }
+    if (state == AppLifecycleState.resumed) _publishToWidget();
   }
 
   @override

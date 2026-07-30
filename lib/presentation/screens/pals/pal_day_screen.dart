@@ -143,6 +143,17 @@ class _DaySelector extends StatelessWidget {
   }
 }
 
+/// El día de un pal, agrupado por categoría y en un orden fijo: comida, agua,
+/// deporte y sueño.
+///
+/// Antes las cuatro comidas eran cuatro secciones al mismo nivel que el agua y
+/// el sueño, así que "Desayuno" y "Sueño" se leían como cosas del mismo tipo y
+/// había que recorrer la pantalla para saber si esa persona comparte el agua.
+/// Ahora cada categoría es una sola caja, con las comidas adentro por momento
+/// del día, y **solo aparece la que esa persona decidió compartir**.
+///
+/// El orden es el mismo siempre. Que una categoría se corra de lugar según lo
+/// que haya cargado obliga a leer todo de nuevo cada vez.
 class _Day extends StatelessWidget {
   const _Day({required this.day});
 
@@ -154,14 +165,16 @@ class _Day extends StatelessWidget {
 
     final shared = <String>[
       'lo que comió',
-      if (day.activities.isNotEmpty || day.activityCount > 0) 'si se movió',
       if (day.waterGlasses != null) 'el agua',
+      'si se movió',
       if (day.sleepMinutes != null) 'el sueño',
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // El resumen del día arriba de las categorías: es la respuesta a "cómo
+        // le fue", y las categorías son el detalle de eso.
         NmCard(
           child: Column(
             children: <Widget>[
@@ -183,66 +196,105 @@ class _Day extends StatelessWidget {
           ),
         ),
 
-        for (final slot in MealSlot.values)
-          if (day.mealsIn(slot).isNotEmpty) ...<Widget>[
-            const SizedBox(height: NmSpace.s6),
-            NmSectionHeader(title: slot.label),
-            NmCard(
-              child: Column(
-                children: <Widget>[
-                  for (final meal in day.mealsIn(slot)) ...<Widget>[
-                    if (meal.photoPath != null) ...<Widget>[
-                      MealPhoto(path: meal.photoPath, height: 160),
-                      const SizedBox(height: NmSpace.s2),
-                    ],
-                    ValueRow(label: meal.name, value: Fmt.kcal(meal.kcal)),
-                  ],
-                ],
-              ),
-            ),
-          ],
-
-        if (day.activities.isNotEmpty) ...<Widget>[
-          const SizedBox(height: NmSpace.s6),
-          const NmSectionHeader(title: 'Actividad'),
-          NmCard(
+        // ── Comida ───────────────────────────────────────────────────────
+        if (day.meals.isNotEmpty)
+          _Category(
+            icon: PhosphorIcons.forkKnife(),
+            title: 'Comida',
             child: Column(
               children: <Widget>[
-                for (final activity in day.activities)
+                for (final slot in MealSlot.values)
+                  if (day.mealsIn(slot).isNotEmpty)
+                    _Slot(slot: slot, meals: day.mealsIn(slot)),
+              ],
+            ),
+          ),
+
+        // ── Agua ─────────────────────────────────────────────────────────
+        if (day.waterGlasses != null)
+          _Category(
+            icon: PhosphorIcons.drop(),
+            title: 'Agua',
+            child: ValueRow(
+              label: 'Tomó',
+              value: '${day.waterGlasses} '
+                  '${day.waterGlasses == 1 ? 'vaso' : 'vasos'}',
+              emphasis: true,
+            ),
+          ),
+
+        // ── Deporte ──────────────────────────────────────────────────────
+        // El agregado se comparte siempre; el detalle de cada actividad, solo
+        // si lo prendió. La categoría se muestra igual: "todavía no se movió"
+        // también es información del día, y si desapareciera cuando no hay
+        // nada, su ausencia se leería como "no lo comparte".
+        _Category(
+          icon: PhosphorIcons.personSimpleRun(),
+          title: 'Deporte',
+          child: day.activities.isNotEmpty
+              ? Column(
+                  children: <Widget>[
+                    for (final activity in day.activities)
+                      ValueRow(
+                        label: activity.name,
+                        caption: Fmt.duration(activity.minutes),
+                        value: activity.kcal == null
+                            ? '—'
+                            : Fmt.kcal(activity.kcal!),
+                      ),
+                  ],
+                )
+              : day.activityCount == 0
+              ? const ValueRow(
+                  label: 'Se movió',
+                  value: 'Todavía no',
+                  muted: true,
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ValueRow(
+                      label: 'Sesiones',
+                      value: '${day.activityCount} · '
+                          '${Fmt.duration(day.activityMinutes)}',
+                      emphasis: true,
+                    ),
+                    const SizedBox(height: NmSpace.s1),
+                    // Se dice por qué no hay más: sin esto, una categoría con
+                    // un solo número se lee como que esa persona hizo una sola
+                    // cosa, no como que eligió no contar cuáles.
+                    Text(
+                      'Comparte el total, no cada actividad.',
+                      style: NmTextStyles.from(
+                        NmType.caption,
+                        color: nm.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+
+        // ── Sueño ────────────────────────────────────────────────────────
+        if (day.sleepMinutes != null)
+          _Category(
+            icon: PhosphorIcons.moon(),
+            title: 'Sueño',
+            child: Column(
+              children: <Widget>[
+                ValueRow(
+                  label: 'Durmió',
+                  value: Fmt.duration(day.sleepMinutes!),
+                  emphasis: true,
+                ),
+                if (day.sleepQuality != null)
                   ValueRow(
-                    label: activity.name,
-                    caption: Fmt.duration(activity.minutes),
-                    value: activity.kcal == null ? '—' : Fmt.kcal(activity.kcal!),
+                    label: 'Cómo descansó',
+                    value: day.sleepQuality!.label,
+                    muted: true,
                   ),
               ],
             ),
           ),
-        ],
-
-        if (day.waterGlasses != null) ...<Widget>[
-          const SizedBox(height: NmSpace.s6),
-          const NmSectionHeader(title: 'Agua'),
-          NmCard(
-            padding: const EdgeInsets.symmetric(vertical: NmSpace.s1),
-            child: NmListRow(
-              title: '${day.waterGlasses} vasos',
-              leading: Icon(PhosphorIcons.drop(), size: 20, color: nm.info),
-            ),
-          ),
-        ],
-
-        if (day.sleepMinutes != null) ...<Widget>[
-          const SizedBox(height: NmSpace.s6),
-          const NmSectionHeader(title: 'Sueño'),
-          NmCard(
-            padding: const EdgeInsets.symmetric(vertical: NmSpace.s1),
-            child: NmListRow(
-              title: Fmt.duration(day.sleepMinutes!),
-              subtitle: day.sleepQuality?.label,
-              leading: Icon(PhosphorIcons.moon(), size: 20, color: nm.info),
-            ),
-          ),
-        ],
 
         const SizedBox(height: NmSpace.s6),
         Text(
@@ -250,6 +302,87 @@ class _Day extends StatelessWidget {
           'Su peso y sus medidas nunca se comparten.',
           style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
         ),
+      ],
+    );
+  }
+}
+
+/// Una categoría del día: ícono, nombre y su caja.
+///
+/// Sin número al costado a propósito: el total de cada categoría ya está en la
+/// tarjeta de arriba, y repetirlo a dos centímetros de distancia obliga a
+/// comparar dos veces el mismo dato para descubrir que es el mismo.
+class _Category extends StatelessWidget {
+  const _Category({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+    return Padding(
+      padding: const EdgeInsets.only(top: NmSpace.s6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: NmSpace.s3),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, size: NmIconSize.md, color: nm.textMuted),
+                const SizedBox(width: NmSpace.s2),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: NmTextStyles.from(
+                      NmType.overline,
+                      color: nm.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          NmCard(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un momento del día adentro de la categoría Comida.
+class _Slot extends StatelessWidget {
+  const _Slot({required this.slot, required this.meals});
+
+  final MealSlot slot;
+  final List<PalMeal> meals;
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(bottom: NmSpace.s1),
+          child: Text(
+            slot.label,
+            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+          ),
+        ),
+        for (final meal in meals) ...<Widget>[
+          if (meal.photoPath != null) ...<Widget>[
+            MealPhoto(path: meal.photoPath, height: 160),
+            const SizedBox(height: NmSpace.s2),
+          ],
+          ValueRow(label: meal.name, value: Fmt.kcal(meal.kcal)),
+        ],
       ],
     );
   }

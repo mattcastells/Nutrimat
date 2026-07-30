@@ -12,6 +12,7 @@ import '../../components/system/inputs.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import 'measurement_draft.dart';
 
 /// S-26 · Registrar medidas corporales.
 ///
@@ -49,125 +50,41 @@ class _MeasurementSheetState extends ConsumerState<_MeasurementSheet> {
   late MeasurementGroup _group = widget.group;
   late DateTime _date = widget.date;
 
-  /// Un controlador por métrica, en las tres pestañas a la vez: cambiar de
-  /// grupo no puede tirar lo que se venía escribiendo.
-  final Map<MeasurementMetric, TextEditingController> _fields =
-      <MeasurementMetric, TextEditingController>{};
-  final Map<MeasurementMetric, String> _errors =
-      <MeasurementMetric, String>{};
+  final MeasurementDraft _draft = MeasurementDraft();
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  void _load() {
-    final existing = ref.read(repositoryProvider).measurementsOn(_date);
-    for (final metric in MeasurementMetric.values) {
-      final text = existing[metric] == null
-          ? ''
-          : Fmt.decimal1(existing[metric]!.value);
-      final field = _fields[metric];
-      if (field == null) {
-        _fields[metric] = TextEditingController(text: text);
-      } else {
-        field.text = text;
-      }
-    }
-    _errors.clear();
+    _draft.loadFrom(ref.read(repositoryProvider), _date);
   }
 
   @override
   void dispose() {
-    for (final field in _fields.values) {
-      field.dispose();
-    }
+    _draft.dispose();
     super.dispose();
   }
 
-  double? _parse(MeasurementMetric metric) {
-    final raw = _fields[metric]!.text.replaceAll(',', '.').trim();
-    if (raw.isEmpty) return null;
-    return double.tryParse(raw);
-  }
-
-  /// Sumatoria de los pliegues cargados. Se muestra con cuántos, porque una
-  /// suma de cuatro y una de siete no son el mismo número ni se comparan.
-  (double sum, int count) get _foldSum {
-    var sum = 0.0;
-    var count = 0;
-    for (final metric in MeasurementMetric.folds) {
-      final value = _parse(metric);
-      if (value != null && value >= metric.min && value <= metric.max) {
-        sum += value;
-        count++;
-      }
-    }
-    return (sum, count);
-  }
-
   Future<void> _save() async {
-    final errors = <MeasurementMetric, String>{};
-    final toSave = <MeasurementMetric, double>{};
+    setState(() => _saving = true);
+    final saved = await _draft.commit(ref.read(repositoryProvider), _date);
+    if (!mounted) return;
 
-    for (final metric in MeasurementMetric.values) {
-      final raw = _fields[metric]!.text.trim();
-      if (raw.isEmpty) continue;
-      final value = _parse(metric);
-      if (value == null || value < metric.min || value > metric.max) {
-        errors[metric] =
-            'Va de ${Fmt.decimal1(metric.min)} a ${Fmt.decimal1(metric.max)}'
-            '${metric.unitLabel.isEmpty ? '' : ' ${metric.unitLabel}'}.';
-        continue;
-      }
-      toSave[metric] = value;
-    }
-
-    if (errors.isNotEmpty) {
+    if (saved == null) {
       setState(() {
-        _errors
-          ..clear()
-          ..addAll(errors);
+        _saving = false;
         // Se salta al primer grupo con problemas para que el error se vea.
-        _group = errors.keys.first.group;
+        final first = _draft.errors.keys.firstOrNull;
+        if (first != null) _group = first.group;
       });
       return;
     }
 
-    if (toSave.isEmpty) {
-      setState(() => _errors[MeasurementMetric.waist] = 'Cargá al menos una.');
-      return;
-    }
-
-    setState(() => _saving = true);
-    final repo = ref.read(repositoryProvider);
-
-    // Lo que se dejó en blanco y ya existía se borra: vaciar un campo es la
-    // forma natural de decir "esto no se midió".
-    final existing = repo.measurementsOn(_date);
-    for (final entry in existing.entries) {
-      if (!toSave.containsKey(entry.key)) {
-        await repo.deleteMeasurement(entry.value.id);
-      }
-    }
-    for (final entry in toSave.entries) {
-      await repo.logMeasurement(
-        metric: entry.key,
-        value: entry.value,
-        date: _date,
-      );
-    }
-
-    if (!mounted) return;
     setState(() => _saving = false);
     Navigator.of(context).pop();
     NmSnackbar.show(
       context,
-      toSave.length == 1
-          ? 'Medida registrada'
-          : '${toSave.length} medidas registradas',
+      saved == 1 ? 'Medida registrada' : '$saved medidas registradas',
     );
   }
 
@@ -175,7 +92,7 @@ class _MeasurementSheetState extends ConsumerState<_MeasurementSheet> {
   Widget build(BuildContext context) {
     final nm = context.nm;
     final metrics = MeasurementMetric.inGroup(_group);
-    final (foldSum, foldCount) = _foldSum;
+    final (foldSum, foldCount) = _draft.foldSum;
 
     return NmSheet(
       title: 'Registrar medidas',
@@ -211,13 +128,13 @@ class _MeasurementSheetState extends ConsumerState<_MeasurementSheet> {
               padding: const EdgeInsets.only(bottom: NmSpace.s4),
               child: NmNumberField(
                 label: metric.label,
-                controller: _fields[metric]!,
+                controller: _draft.controller(metric),
                 decimals: 1,
                 suffix: metric.unitLabel.isEmpty
                     ? 'índice'
                     : metric.unitLabel,
-                error: _errors[metric],
-                onChanged: (_) => setState(() => _errors.remove(metric)),
+                error: _draft.errors[metric],
+                onChanged: (_) => setState(() => _draft.errors.remove(metric)),
               ),
             ),
 
@@ -247,7 +164,7 @@ class _MeasurementSheetState extends ConsumerState<_MeasurementSheet> {
             lastDate: DateTime.now(),
             onChanged: (v) => setState(() {
               _date = v;
-              _load();
+              _draft.loadFrom(ref.read(repositoryProvider), _date);
             }),
           ),
           const SizedBox(height: NmSpace.s3),

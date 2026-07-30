@@ -35,7 +35,6 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
   late final TextEditingController _notes;
   late DateTime _date = widget.date;
   String? _error;
-  String? _warning;
   bool _saving = false;
 
   @override
@@ -60,6 +59,39 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
   double? get _parsed =>
       double.tryParse(_weight.text.replaceAll(',', '.').trim());
 
+  /// Cambio grande en pocos días: se avisa, no se bloquea (F-11).
+  ///
+  /// Va por diálogo y no por un cartel dentro del sheet, como estaba antes. El
+  /// cartel salía y **"Guardar" no guardaba**: hacía falta tocarlo una segunda
+  /// vez, y si en el medio se tocaba el campo —lo primero que hace cualquiera
+  /// cuando algo no pasó— el aviso se reseteaba y el botón volvía a no hacer
+  /// nada. Era indistinguible de un botón roto, y así se reportó. Un pedido de
+  /// confirmación tiene que tener el botón que confirma al lado.
+  Future<bool> _confirmBigChange(double value, double previous) async {
+    final delta = value - previous;
+    final confirmed = await showNmDialog<bool>(
+      context: context,
+      builder: (context) => NmDialog(
+        title: '¿Confirmás ese peso?',
+        body:
+            'Son ${Fmt.signedDecimal1(delta)} kg respecto de tu último '
+            'registro (${Fmt.decimal1(previous)} kg). Puede ser un error de '
+            'tipeo.',
+        actions: <Widget>[
+          NmButton.ghost(
+            label: 'Corregir',
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          NmButton(
+            label: 'Sí, guardar',
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   Future<void> _save() async {
     final value = _parsed;
     if (value == null || value < 25 || value > 400) {
@@ -71,17 +103,13 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
     final previous = repo.currentWeightKg;
     final existing = repo.weightOn(_date);
 
-    // Cambio grande en pocos días: se avisa, no se bloquea (F-11).
-    if (_warning == null && previous != null) {
+    if (previous != null) {
       final logs = repo.weightLogs;
       if (logs.isNotEmpty) {
         final days = daysBetween(logs.first.localDate, _date).abs();
         if ((value - previous).abs() > 3 && days < 3) {
-          setState(
-            () => _warning = 'Es un cambio grande respecto de tu último '
-                'registro. ¿Lo confirmás?',
-          );
-          return;
+          final proceed = await _confirmBigChange(value, previous);
+          if (!proceed || !mounted) return;
         }
       }
     }
@@ -129,10 +157,7 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
                   ),
                   style: NmTextStyles.from(NmType.display, color: nm.text).tnum,
                   decoration: const InputDecoration(border: InputBorder.none),
-                  onChanged: (_) => setState(() {
-                    _error = null;
-                    _warning = null;
-                  }),
+                  onChanged: (_) => setState(() => _error = null),
                 ),
               ),
               Padding(
@@ -148,10 +173,6 @@ class _WeightSheetState extends ConsumerState<_WeightSheet> {
           if (_error != null) ...<Widget>[
             const SizedBox(height: NmSpace.s3),
             InfoNote(text: _error!, tone: NmNoteTone.caution),
-          ],
-          if (_warning != null) ...<Widget>[
-            const SizedBox(height: NmSpace.s3),
-            InfoNote(text: _warning!, tone: NmNoteTone.caution),
           ],
           const SizedBox(height: NmSpace.s6),
           NmDateField(

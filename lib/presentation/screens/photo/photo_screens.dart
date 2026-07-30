@@ -523,72 +523,92 @@ class PhotoReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
-  late List<AiAnalysisItem> _items;
-  late MealSlot _slot;
-  bool _initialized = false;
   bool _saving = false;
-  int _edits = 0;
-  int _removed = 0;
+
+  /// Ya se guardó, así que al salir no hay que descartar el borrador.
+  bool _committed = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_initialized) return;
-    final analysis = ref.read(analysisProvider);
-    _items = <AiAnalysisItem>[...?analysis?.items];
-    // Si se entró por el "+" de una sección, ese slot manda sobre la hora.
-    _slot =
-        ref.read(photoTargetProvider)?.slot ??
-        MealSlot.forHour(DateTime.now().hour);
-    _initialized = true;
+  void initState() {
+    super.initState();
+    // Después del primer frame, no en `initState` ni en `didChangeDependencies`:
+    // Riverpod prohíbe modificar un provider durante un ciclo de vida del
+    // widget y tira *"Tried to modify a provider while the widget tree was
+    // building"*. Es el mismo motivo por el que `MealFormScreen` abre su
+    // borrador así.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _startDraft();
+    });
   }
 
-  int get _totalKcal => _items.fold(0, (acc, i) => acc + i.kcal);
+  /// El borrador se abre **al entrar**, no al guardar.
+  ///
+  /// Antes los ítems vivían en una lista de esta pantalla y el borrador se
+  /// armaba recién en `_save`. Con eso, "Agregar un ítem que falta" mandaba al
+  /// buscador, el buscador agregaba al borrador… que todavía no existía:
+  /// `addItem` sobre `null` no hace nada y no avisa. El alimento elegido se
+  /// perdía en silencio y la pantalla volvía igual que antes. Siendo el
+  /// borrador la única lista, ese camino funciona sin nada especial.
+  void _startDraft() {
+    final analysis = ref.read(analysisProvider);
+    if (analysis == null) return;
+    final target = ref.read(photoTargetProvider);
+    final photoPath = ref.read(photoPathProvider);
+
+    ref.read(mealDraftProvider.notifier).start(
+      // Si se entró por el "+" de una sección, ese slot manda sobre la hora.
+      slot: target?.slot ?? MealSlot.forHour(DateTime.now().hour),
+      date: target?.date ?? ref.read(selectedDateProvider),
+      // Sin foto, la estimación salió de una descripción escrita: se guarda
+      // como tal para que el origen del dato no diga algo que no pasó.
+      source: photoPath == null ? MealSource.aiText : MealSource.aiPhoto,
+      photoPath: photoPath,
+      aiAnalysisId: analysis.id,
+      items: <MealItem>[
+        for (var i = 0; i < analysis.items.length; i++)
+          _toMealItem(analysis.items[i], i),
+      ],
+    );
+  }
+
+  /// Un ítem estimado por la IA se distingue de uno elegido del catálogo por
+  /// tener [MealItem.aiConfidence]. No es un detalle: el badge de confianza
+  /// dice cuánta duda tiene el modelo, y ponerle uno a un alimento del catálogo
+  /// sería presentar un dato verificado como si fuera una estimación.
+  static MealItem _toMealItem(AiAnalysisItem item, int position) => MealItem(
+    id: _uuid.v4(),
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    kcal: item.kcal,
+    proteinG: item.proteinG,
+    carbsG: item.carbsG,
+    fatG: item.fatG,
+    aiConfidence: item.confidence,
+    position: position,
+  );
+
+  /// Se va sin guardar: el borrador no puede quedar dando vueltas, porque
+  /// "Nueva comida" retoma cualquier borrador abierto y aparecería con los
+  /// ítems de un análisis que se descartó.
+  void _discardIfUnsaved() {
+    if (_committed) return;
+    ref.read(mealDraftProvider.notifier).clear();
+    ref.read(analysisProvider.notifier).state = null;
+    ref.read(photoTargetProvider.notifier).state = null;
+  }
 
   Future<void> _save() async {
+    final draft = ref.read(mealDraftProvider);
+    if (draft == null || draft.isEmpty) return;
+
     setState(() => _saving = true);
     final repo = ref.read(repositoryProvider);
-    final analysis = ref.read(analysisProvider);
-    final target = ref.read(photoTargetProvider);
-    final DateTime date = target?.date ?? ref.read(selectedDateProvider);
+    final date = draft.date;
 
-    final draft = ref.read(mealDraftProvider.notifier)
-      ..start(
-        slot: _slot,
-        date: date,
-        // Sin foto, la estimación salió de una descripción escrita: se guarda
-        // como tal para que el origen del dato no diga algo que no pasó.
-        source: ref.read(photoPathProvider) == null
-            ? MealSource.aiText
-            : MealSource.aiPhoto,
-        photoPath: ref.read(photoPathProvider),
-        aiAnalysisId: analysis?.id,
-      );
-    for (final item in _items) {
-      draft.addItem(
-        MealItem(
-          id: _uuid.v4(),
-          name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
-          kcal: item.kcal,
-          proteinG: item.proteinG,
-          carbsG: item.carbsG,
-          fatG: item.fatG,
-          aiConfidence: item.confidence,
-          // Insumo para `ai_result_corrected` (F-06 paso 6).
-          wasAiCorrected: _edits > 0 || _removed > 0,
-          position: 0,
-        ),
-      );
-    }
-
-    final meal = ref
-        .read(mealDraftProvider)!
-        .toMeal(
-          syncStatus: SyncStatus.synced,
-        );
-    await repo.saveMeal(meal);
+    await repo.saveMeal(draft.toMeal(syncStatus: SyncStatus.synced));
+    _committed = true;
     ref.read(mealDraftProvider.notifier).clear();
     ref.read(analysisProvider.notifier).state = null;
     ref.read(photoTargetProvider.notifier).state = null;
@@ -599,128 +619,155 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     context.go(Routes.home);
-    NmSnackbar.show(context, 'Comida guardada desde la foto');
+    NmSnackbar.show(
+      context,
+      draft.source == MealSource.aiText
+          ? 'Comida guardada desde la descripción'
+          : 'Comida guardada desde la foto',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final nm = context.nm;
     final analysis = ref.watch(analysisProvider);
+    final draft = ref.watch(mealDraftProvider);
     final path = ref.watch(photoPathProvider);
+    final controller = ref.read(mealDraftProvider.notifier);
 
     if (analysis == null) {
       return NmScreen(
         title: 'Revisar análisis',
         child: ErrorState(
-          message: 'No pudimos leer la foto. Podés cargar la comida a mano.',
+          message: 'No pudimos leer la estimación. Podés cargar la comida a '
+              'mano.',
           onRetry: () => context.go(Routes.mealNew),
           retryLabel: 'Cargar a mano',
         ),
       );
     }
 
-    final lowConfidence = _items.any((i) => i.confidence < 0.5);
+    // El borrador se abre después del primer frame, así que este es ese frame.
+    if (draft == null) {
+      return Scaffold(
+        backgroundColor: nm.bg,
+        appBar: const NmModalHeader(title: 'Revisar análisis'),
+        body: const Center(child: NmSpinner()),
+      );
+    }
 
-    return Scaffold(
-      backgroundColor: nm.bg,
-      appBar: const NmModalHeader(title: 'Revisar análisis'),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: <Widget>[
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(context.screenPadding),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: NmLayout.contentMaxWidth,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        if (path != null)
-                          ClipRRect(
-                            borderRadius: NmRadius.brMd,
-                            child: ZoomablePhoto(
-                              file: File(path),
-                              child: Image.file(
-                                File(path),
-                                height: 160,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
+    final items = draft.items;
+    final lowConfidence = items.any(
+      (i) => i.aiConfidence != null && i.aiConfidence! < 0.5,
+    );
+
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _discardIfUnsaved();
+      },
+      child: Scaffold(
+        backgroundColor: nm.bg,
+        appBar: const NmModalHeader(title: 'Revisar análisis'),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(context.screenPadding),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: NmLayout.contentMaxWidth,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          if (path != null)
+                            ClipRRect(
+                              borderRadius: NmRadius.brMd,
+                              child: ZoomablePhoto(
+                                file: File(path),
+                                child: Image.file(
+                                  File(path),
+                                  height: 160,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
+                          const SizedBox(height: NmSpace.s4),
+                          AiEstimateBanner(
+                            confidenceAvg: analysis.confidenceAvg,
                           ),
-                        const SizedBox(height: NmSpace.s4),
-                        AiEstimateBanner(
-                          confidenceAvg: analysis.confidenceAvg,
-                        ),
-                        const SizedBox(height: NmSpace.s6),
-                        Text(
-                          'Momento del día',
-                          style: NmTextStyles.from(
-                            NmType.caption,
-                            color: nm.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: NmSpace.s2),
-                        Wrap(
-                          spacing: NmSpace.s2,
-                          children: <Widget>[
-                            for (final slot in MealSlot.values)
-                              NmChip(
-                                label: slot.label,
-                                selected: slot == _slot,
-                                semanticsInRadioGroup: true,
-                                onTap: () => setState(() => _slot = slot),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: NmSpace.s6),
-                        const NmSectionHeader(title: 'Ítems detectados'),
-                        for (var i = 0; i < _items.length; i++)
-                          StaggeredItem(
-                            index: i,
-                            child: _AiItemRow(
-                              item: _items[i],
-                              onChanged: (updated) => setState(() {
-                                _items[i] = updated;
-                                _edits++;
-                              }),
-                              onRemove: () => setState(() {
-                                _items.removeAt(i);
-                                _removed++;
-                              }),
+                          const SizedBox(height: NmSpace.s6),
+                          Text(
+                            'Momento del día',
+                            style: NmTextStyles.from(
+                              NmType.caption,
+                              color: nm.textMuted,
                             ),
                           ),
-                        const SizedBox(height: NmSpace.s4),
-                        NmButton.secondary(
-                          label: 'Agregar un ítem que falta',
-                          block: true,
-                          onPressed: () => context.push(
-                            '${Routes.foodSearch}?target=ai_item',
+                          const SizedBox(height: NmSpace.s2),
+                          Wrap(
+                            spacing: NmSpace.s2,
+                            children: <Widget>[
+                              for (final slot in MealSlot.values)
+                                NmChip(
+                                  label: slot.label,
+                                  selected: slot == draft.slot,
+                                  semanticsInRadioGroup: true,
+                                  onTap: () => controller.setSlot(slot),
+                                ),
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: NmSpace.s6),
+                          const NmSectionHeader(title: 'Ítems detectados'),
+                          for (var i = 0; i < items.length; i++)
+                            StaggeredItem(
+                              index: i,
+                              child: _AiItemRow(
+                                // La clave es el id del ítem y no su posición:
+                                // sin esto, borrar el primero le pasa el estado
+                                // (y el controlador de texto) del borrado al que
+                                // queda en su lugar.
+                                key: ValueKey<String>(items[i].id),
+                                item: items[i],
+                                onChanged: (updated) =>
+                                    controller.replaceItem(i, updated),
+                                onRemove: () =>
+                                    controller.removeItem(items[i].id),
+                              ),
+                            ),
+                          const SizedBox(height: NmSpace.s4),
+                          NmButton.secondary(
+                            label: 'Agregar un ítem que falta',
+                            block: true,
+                            icon: PhosphorIcons.plus(),
+                            onPressed: () => context.push(
+                              '${Routes.foodSearch}?target=ai_item',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            MealTotalsBar(
-              kcal: _totalKcal,
-              proteinG: _items.fold(0.0, (acc, i) => acc + i.proteinG),
-              carbsG: _items.fold(0.0, (acc, i) => acc + i.carbsG),
-              fatG: _items.fold(0.0, (acc, i) => acc + i.fatG),
-              child: NmButton(
-                label: lowConfidence ? 'Guardar igual' : 'Guardar comida',
-                block: true,
-                loading: _saving,
-                onPressed: _items.isEmpty ? null : _save,
+              MealTotalsBar(
+                kcal: draft.totalKcal,
+                proteinG: draft.proteinG,
+                carbsG: draft.carbsG,
+                fatG: draft.fatG,
+                child: NmButton(
+                  label: lowConfidence ? 'Guardar igual' : 'Guardar comida',
+                  block: true,
+                  loading: _saving,
+                  onPressed: items.isEmpty ? null : _save,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -740,10 +787,11 @@ class _AiItemRow extends StatefulWidget {
     required this.item,
     required this.onChanged,
     required this.onRemove,
+    super.key,
   });
 
-  final AiAnalysisItem item;
-  final ValueChanged<AiAnalysisItem> onChanged;
+  final MealItem item;
+  final ValueChanged<MealItem> onChanged;
   final VoidCallback onRemove;
 
   @override
@@ -759,7 +807,7 @@ class _AiItemRowState extends State<_AiItemRow> {
   /// Se guarda al empezar a editar para que reescalar sea siempre contra el
   /// original y no contra el resultado del tecleo anterior.
   late final double _base = widget.item.quantity;
-  late final AiAnalysisItem _baseItem = widget.item;
+  late final MealItem _baseItem = widget.item;
 
   static String _format(double q) => q == q.roundToDouble()
       ? q.toInt().toString()
@@ -787,6 +835,10 @@ class _AiItemRowState extends State<_AiItemRow> {
         proteinG: _baseItem.proteinG * ratio,
         carbsG: _baseItem.carbsG * ratio,
         fatG: _baseItem.fatG * ratio,
+        // Insumo para `ai_result_corrected` (F-06 paso 6). Se marca el ítem que
+        // se corrigió y no todos, como antes: un solo cambio ensuciaba la
+        // medición al dejar la comida entera marcada como corregida.
+        wasAiCorrected: _baseItem.aiConfidence != null,
       ),
     );
   }
@@ -795,7 +847,8 @@ class _AiItemRowState extends State<_AiItemRow> {
   Widget build(BuildContext context) {
     final nm = context.nm;
     final item = widget.item;
-    final low = item.confidence < 0.5;
+    final confidence = item.aiConfidence;
+    final low = confidence != null && confidence < 0.5;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: NmSpace.s3),
@@ -811,7 +864,17 @@ class _AiItemRowState extends State<_AiItemRow> {
                     style: NmTextStyles.from(NmType.body, color: nm.text),
                   ),
                 ),
-                ConfidenceBadge(value: item.confidence),
+                // El badge de confianza es del modelo. Un alimento que la
+                // persona eligió del catálogo no tiene confianza que mostrar
+                // —tiene una tabla nutricional detrás— y ponerle una sería
+                // presentar un dato verificado como si fuera una estimación.
+                if (confidence != null)
+                  ConfidenceBadge(value: confidence)
+                else
+                  const NmTag(
+                    label: 'Del catálogo',
+                    variant: NmTagVariant.outline,
+                  ),
                 NmIconButton(
                   icon: PhosphorIcons.trash(),
                   onPressed: widget.onRemove,

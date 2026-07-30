@@ -69,16 +69,20 @@ Deno.serve(async (req) => {
   // ── Cuota diaria ───────────────────────────────────────────────────────
   // Comparte el cupo con el análisis por foto: las dos gastan lo mismo del
   // proveedor, y separarlas daría 40 por día por la puerta de atrás.
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
+  //
+  // `check_rate_limit` es un `insert ... on conflict ... do update ...
+  // returning` atómico (migración 24): dos pedidos en paralelo del mismo
+  // usuario no pueden leer el mismo conteo viejo y pasar juntos el chequeo,
+  // que es lo que sí podía pasar contando filas de `ai_analyses` a mano.
+  const { data: withinQuota, error: quotaError } = await supabase.rpc(
+    'check_rate_limit',
+    { p_bucket: 'ai_analysis', p_max: DAILY_QUOTA },
+  );
 
-  const { count } = await supabase
-    .from('ai_analyses')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', since.toISOString());
-
-  if ((count ?? 0) >= DAILY_QUOTA) {
+  if (quotaError) {
+    return fail('ERR_SERVER', 'No pudimos verificar tu cuota. Probá de nuevo.', 500);
+  }
+  if (!withinQuota) {
     return fail(
       'ERR_QUOTA_EXCEEDED',
       `Llegaste a las ${DAILY_QUOTA} estimaciones de hoy. Podés cargar la comida a mano.`,

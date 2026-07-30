@@ -11,7 +11,12 @@
 // ARGENFOODS viaja dentro del APK, así que se resuelve sin red y al instante.
 // Esta función es para lo genérico que esa tabla no tiene.
 
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
 const USDA_BASE = 'https://api.nal.usda.gov/fdc/v1/foods/search';
+
+/** Consultas por día por cuenta: no había ninguna, y USDA se paga. */
+const DAILY_QUOTA = 60;
 
 /** Más que esto es una espera que la app no debería sostener. */
 const TIMEOUT_MS = 12_000;
@@ -46,9 +51,36 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   // Se exige sesión aunque el dato sea público: sin esto la función es un
-  // proxy abierto contra nuestra cuota de USDA.
-  if (!req.headers.get('Authorization')) {
-    return fail('ERR_UNAUTHENTICATED', 'Falta la sesión.', 401);
+  // proxy abierto contra nuestra cuota de USDA. Antes esto solo miraba que
+  // el header existiera, sin validar el JWT contra Supabase Auth — cualquier
+  // valor de relleno pasaba.
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return fail('ERR_UNAUTHENTICATED', 'Falta la sesión.', 401);
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user) {
+    return fail('ERR_UNAUTHENTICATED', 'Tu sesión venció.', 401);
+  }
+
+  const { data: withinQuota, error: quotaError } = await supabase.rpc(
+    'check_rate_limit',
+    { p_bucket: 'food_search', p_max: DAILY_QUOTA },
+  );
+  if (quotaError) {
+    return fail('ERR_SERVER', 'No pudimos verificar tu cuota. Probá de nuevo.', 500);
+  }
+  if (!withinQuota) {
+    return fail(
+      'ERR_QUOTA_EXCEEDED',
+      `Llegaste a las ${DAILY_QUOTA} búsquedas de hoy. Probá de nuevo mañana.`,
+      429,
+    );
   }
 
   const apiKey = Deno.env.get('USDA_API_KEY');

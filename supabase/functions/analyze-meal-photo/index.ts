@@ -74,16 +74,17 @@ Deno.serve(async (req) => {
   }
 
   // ── Cuota diaria ───────────────────────────────────────────────────────
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
+  // Atómico vía `check_rate_limit` (migración 24) — ver el comentario gemelo
+  // en `analyze-meal-text`, que comparte este mismo cupo.
+  const { data: withinQuota, error: quotaError } = await supabase.rpc(
+    'check_rate_limit',
+    { p_bucket: 'ai_analysis', p_max: DAILY_QUOTA },
+  );
 
-  const { count } = await supabase
-    .from('ai_analyses')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', since.toISOString());
-
-  if ((count ?? 0) >= DAILY_QUOTA) {
+  if (quotaError) {
+    return fail('ERR_SERVER', 'No pudimos verificar tu cuota. Probá de nuevo.', 500);
+  }
+  if (!withinQuota) {
     return fail(
       'ERR_QUOTA_EXCEEDED',
       `Llegaste a los ${DAILY_QUOTA} análisis de hoy. Podés cargar la comida a mano.`,

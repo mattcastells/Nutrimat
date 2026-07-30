@@ -1,0 +1,85 @@
+-- Suite de hardening (migración 24).
+--
+-- Dos cosas: que los jobs de mantenimiento no sean invocables por cualquier
+-- cuenta, y que `check_rate_limit` sea de verdad lo único que puede tocar
+-- `rate_limits` —ni lectura ni escritura directa desde `authenticated`.
+--
+-- Correr con:  supabase test db
+
+create extension if not exists pgtap with schema extensions;
+
+begin;
+select plan(8);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at
+)
+values
+  ('44444444-4444-4444-4444-444444444444',
+   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'd@nutrimat.test', crypt('secreto-d', gen_salt('bf')), now(), now(), now());
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+
+-- ── Los jobs de mantenimiento no son de nadie más que de pg_cron ─────────
+select throws_ok(
+  $$select public.purge_soft_deleted()$$,
+  '42501',
+  null,
+  'Ninguna cuenta puede disparar la purga de borrados'
+);
+
+select throws_ok(
+  $$select public.expire_food_cache()$$,
+  '42501',
+  null,
+  'Ninguna cuenta puede vencer el cache de alimentos a mano'
+);
+
+select throws_ok(
+  $$select public.trim_recents()$$,
+  '42501',
+  null,
+  'Ninguna cuenta puede recortar los recientes de otro a mano'
+);
+
+select throws_ok(
+  $$select public.purge_audit_log()$$,
+  '42501',
+  null,
+  'Ninguna cuenta puede purgar la auditoría a mano'
+);
+
+-- ── `rate_limits` no se lee ni se escribe directo ────────────────────────
+select is(
+  public.check_rate_limit('test_bucket', 2),
+  true,
+  'Primer uso del día: dentro del límite'
+);
+
+select is(
+  public.check_rate_limit('test_bucket', 2),
+  true,
+  'Segundo uso: todavía dentro del límite'
+);
+
+select is(
+  public.check_rate_limit('test_bucket', 2),
+  false,
+  'Tercer uso: ya pasó el límite'
+);
+
+-- Sin política de select, la fila que `check_rate_limit` sí escribió (como
+-- `security definer`) queda invisible para la propia cuenta que la generó.
+select is(
+  (select count(*)::int from public.rate_limits
+    where user_id = '44444444-4444-4444-4444-444444444444'),
+  0,
+  'La cuenta no puede leer su propio contador directo, solo por la función'
+);
+
+select * from finish();
+rollback;

@@ -32,7 +32,6 @@ class ProfileScreen extends ConsumerWidget {
     final nm = context.nm;
     final profile = ref.watch(profileProvider);
     final goal = ref.watch(currentGoalProvider);
-    final pending = ref.watch(pendingCountProvider);
     final palRequests = ref.watch(incomingPalRequestsProvider);
     final weightKg = ref.watch(currentWeightProvider);
     final activityGoals = ref.watch(activityGoalsProvider);
@@ -217,10 +216,10 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
-                  title: 'Pals',
+                  title: 'Qué ven mis pals',
                   subtitle: palRequests > 0
                       ? '$palRequests ${palRequests == 1 ? 'solicitud' : 'solicitudes'} sin responder'
-                      : 'Compartí tu día con quien vos elijas',
+                      : 'Fotos, agua, sueño y detalle de ejercicio',
                   leading: Icon(PhosphorIcons.users()),
                   trailing: palRequests == 0
                       ? null
@@ -228,7 +227,7 @@ class ProfileScreen extends ConsumerWidget {
                           label: '$palRequests',
                           variant: NmTagVariant.accent,
                         ),
-                  onTap: () => context.push(Routes.pals),
+                  onTap: () => context.push(Routes.palSharing),
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
@@ -245,29 +244,6 @@ class ProfileScreen extends ConsumerWidget {
             block: true,
             icon: PhosphorIcons.signOut(),
             onPressed: () async {
-              if (pending > 0) {
-                final confirmed = await showNmDialog<bool>(
-                  context: context,
-                  builder: (context) => NmDialog(
-                    title: 'Tenés registros sin sincronizar',
-                    body:
-                        'Tenés $pending ${pending == 1 ? 'registro' : 'registros'} '
-                        'sin sincronizar. Si cerrás sesión se pierden.',
-                    actions: <Widget>[
-                      NmButton.ghost(
-                        label: 'Volver',
-                        onPressed: () => Navigator.of(context).pop(false),
-                      ),
-                      NmButton(
-                        label: 'Cerrar sesión igual',
-                        variant: NmButtonVariant.danger,
-                        onPressed: () => Navigator.of(context).pop(true),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed != true) return;
-              }
               // Primero el servidor y después lo local: si se hiciera al
               // revés y el cierre remoto fallara, quedaría una sesión abierta
               // sin ninguna pantalla desde donde cerrarla.

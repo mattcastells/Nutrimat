@@ -38,7 +38,15 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
     // Releer al entrar, siempre. Una solicitud que llegó mientras la app estaba
     // abierta no se anuncia sola: si la lista no se vuelve a pedir acá, la
     // pantalla muestra lo que había la primera vez que se abrió.
-    ref.invalidate(palsProvider);
+    //
+    // Pals ahora es la raíz de una tab del shell: invalidar en el mismo
+    // `initState` en el que se monta rompe con "dependOnInheritedWidgetOf...
+    // called before initState() completed", porque este widget se está
+    // montando todavía dentro del build de otro (la tab que cambia). Se
+    // corre después del primer frame, no antes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(palsProvider);
+    });
   }
 
   @override
@@ -70,6 +78,8 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
           // se recarga justo abajo.
           PalRequestResult.already =>
             'Ya hay un vínculo con esa persona. Mirá la lista de abajo.',
+          PalRequestResult.rateLimited =>
+            'Mandaste muchas solicitudes hoy. Probá de nuevo mañana.',
         };
       });
       // También cuando dice "already": el vínculo que lo provoca es
@@ -140,6 +150,11 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
     return NmScreen(
       title: 'Pals',
       actions: <Widget>[
+        NmIconButton(
+          icon: PhosphorIcons.gear(),
+          tooltip: 'Qué ven mis pals',
+          onPressed: () => context.push(Routes.palSharing),
+        ),
         NmIconButton(
           icon: PhosphorIcons.arrowsClockwise(),
           tooltip: 'Actualizar',
@@ -217,8 +232,9 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
 
           const SizedBox(height: NmSpace.s6),
           Text(
-            'Un pal ve qué comiste y si te moviste. No ve tu peso, tus medidas '
-            'ni las fotos.',
+            'Un pal siempre ve qué comiste y si te moviste. Fotos, agua, '
+            'sueño y el detalle de tu ejercicio los elegís vos, acá arriba. '
+            'Tu peso y tus medidas nunca se comparten.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
         ],

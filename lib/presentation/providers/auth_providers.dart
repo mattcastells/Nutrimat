@@ -105,3 +105,15 @@ final myPalCodeProvider = FutureProvider<String?>((ref) async {
   final client = ref.watch(palsClientProvider);
   return client?.myCode();
 });
+
+/// Qué categorías, además de comida y actividad, comparte esta cuenta con sus
+/// pals. `autoDispose` para que volver a entrar a la pantalla de privacidad
+/// después de guardar traiga el valor real, no uno en caché de la visita
+/// anterior.
+final myPalSharingPrefsProvider = FutureProvider.autoDispose<PalSharingPrefs>((
+  ref,
+) async {
+  final client = ref.watch(palsClientProvider);
+  if (client == null) return const PalSharingPrefs();
+  return client.mySharingPrefs();
+});

@@ -158,6 +158,13 @@ class ProgressScreen extends ConsumerWidget {
             child: Column(
               children: <Widget>[
                 NmListRow(
+                  title: 'Historial',
+                  subtitle: 'Todos tus días, uno por uno',
+                  leading: Icon(PhosphorIcons.clockCounterClockwise()),
+                  onTap: () => context.push(Routes.progressHistory),
+                ),
+                const NmDivider(),
+                NmListRow(
                   title: 'Medidas corporales',
                   subtitle: 'Cintura, cadera, pecho y más',
                   leading: Icon(PhosphorIcons.ruler()),

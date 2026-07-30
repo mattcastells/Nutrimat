@@ -106,7 +106,7 @@ void main() {
     expect(find.text('Objetivo base'), findsOneWidget);
     // El shell muestra los cuatro destinos y el FAB.
     expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Historial'), findsOneWidget);
+    expect(find.text('Pals'), findsOneWidget);
     expect(find.text('Progreso'), findsOneWidget);
     expect(find.text('Perfil'), findsOneWidget);
   });
@@ -145,7 +145,7 @@ void main() {
     expect(container.read(profileProvider).isDemo, isTrue);
   });
 
-  testWidgets('se puede navegar a Historial, Progreso y Perfil', (
+  testWidgets('se puede navegar a Progreso (con Historial adentro), Pals y Perfil', (
     tester,
   ) async {
     late ProviderContainer container;
@@ -162,14 +162,28 @@ void main() {
     );
     await _settle(tester);
 
-    await tester.tap(find.text('Historial'));
-    await _settle(tester);
-    expect(find.textContaining('días coinciden'), findsOneWidget);
-
     await tester.tap(find.text('Progreso'));
     await _settle(tester);
     expect(find.text('Promedio diario'), findsOneWidget);
     expect(find.text('Adherencia'), findsOneWidget);
+
+    // Historial ya no es una tab: se entra desde acá, más abajo en Progreso.
+    final historyRow = find.text('Historial');
+    await tester.ensureVisible(historyRow);
+    await tester.pump();
+    await tester.tap(historyRow);
+    await _settle(tester);
+    expect(find.textContaining('días coinciden'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await _settle(tester);
+
+    // Sin servidor configurado, Pals lo dice en vez de mostrar la lista.
+    await tester.tap(find.text('Pals'));
+    await _settle(tester);
+    expect(
+      find.textContaining('Esta compilación no tiene servidor'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Perfil'));
     await _settle(tester);

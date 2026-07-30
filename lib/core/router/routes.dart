@@ -12,7 +12,6 @@ abstract final class Routes {
 
 
   static const String home = '/home';
-  static const String history = '/history';
   static const String progress = '/progress';
   static const String profile = '/profile';
 
@@ -21,7 +20,10 @@ abstract final class Routes {
   // como sheet y la exportación vive en Configuración → Privacidad. Se sacaron
   // porque una constante de ruta sugiere que hay una pantalla detrás.
 
-  static String historyDay(String date) => '/history/$date';
+  // Historial vive adentro de Progreso, no en su propia tab: se llega
+  // tocando "Historial" ahí, no desde la barra inferior.
+  static const String progressHistory = '/progress/history';
+  static String progressHistoryDay(String date) => '/progress/history/$date';
 
   static const String progressWeight = '/progress/weight';
   static const String progressCalories = '/progress/calories';
@@ -50,6 +52,7 @@ abstract final class Routes {
   static const String deleteAccount = '/settings/privacy/delete-account';
   static const String pals = '/pals';
   static String palDay(String userId) => '/pals/$userId';
+  static const String palSharing = '/pals/sharing';
 
   static const String cloudBackup = '/settings/cloud-backup';
   static const String water = '/settings/water';

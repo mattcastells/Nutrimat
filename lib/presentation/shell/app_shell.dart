@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/theme/tokens.dart';
 import '../components/system/buttons.dart';
 import '../providers/app_providers.dart';
+import '../providers/auth_providers.dart';
 import '../screens/home/add_sheet.dart';
 
 /// Shell autenticado: `BottomTabBar` de 4 destinos + FAB central elevado
@@ -31,10 +32,13 @@ class _AppShellState extends ConsumerState<AppShell> {
   static const List<({IconData icon, String label})> _tabs =
       <({IconData icon, String label})>[
         (icon: Icons.home_outlined, label: 'Inicio'),
-        (icon: Icons.history_outlined, label: 'Historial'),
+        (icon: Icons.people_outline, label: 'Pals'),
         (icon: Icons.show_chart_outlined, label: 'Progreso'),
         (icon: Icons.person_outline, label: 'Perfil'),
       ];
+
+  /// Índice de la tab de Pals: es la única que hoy necesita un aviso.
+  static const int _palsTabIndex = 1;
 
   Future<void> _openAddSheet() async {
     setState(() => _sheetOpen = true);
@@ -54,6 +58,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final nm = context.nm;
     final expanded = context.isExpanded;
+    // Antes vivía como aviso en Perfil; se muda acá, que es donde ahora se
+    // entra a Pals.
+    final palRequests = ref.watch(incomingPalRequestsProvider);
 
     if (expanded) {
       // ≥ 905 px: NavigationRail en lugar de BottomTabBar (§6).
@@ -70,14 +77,16 @@ class _AppShellState extends ConsumerState<AppShell> {
                 padding: const EdgeInsets.symmetric(vertical: NmSpace.s6),
                 child: NmFab(onPressed: _openAddSheet, expanded: _sheetOpen),
               ),
-              destinations: _tabs
-                  .map(
-                    (tab) => NavigationRailDestination(
-                      icon: Icon(tab.icon),
-                      label: Text(tab.label),
+              destinations: <NavigationRailDestination>[
+                for (var i = 0; i < _tabs.length; i++)
+                  NavigationRailDestination(
+                    icon: _TabIcon(
+                      icon: _tabs[i].icon,
+                      showDot: i == _palsTabIndex && palRequests > 0,
                     ),
-                  )
-                  .toList(),
+                    label: Text(_tabs[i].label),
+                  ),
+              ],
             ),
             Expanded(child: widget.navigationShell),
           ],
@@ -97,6 +106,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         current: widget.navigationShell.currentIndex,
         onSelect: _goBranch,
         tabs: _tabs,
+        badgeDotIndex: palRequests > 0 ? _palsTabIndex : null,
       ),
     );
   }
@@ -107,11 +117,15 @@ class _BottomTabBar extends StatelessWidget {
     required this.current,
     required this.onSelect,
     required this.tabs,
+    this.badgeDotIndex,
   });
 
   final int current;
   final ValueChanged<int> onSelect;
   final List<({IconData icon, String label})> tabs;
+
+  /// Índice de la tab que muestra un puntito de aviso, o `null` si ninguna.
+  final int? badgeDotIndex;
 
   static const double _borderWidth = 1;
 
@@ -146,12 +160,13 @@ class _BottomTabBar extends StatelessWidget {
     final nm = context.nm;
     final tab = tabs[index];
     final selected = current == index;
+    final showDot = badgeDotIndex == index;
 
     return Expanded(
       child: Semantics(
         selected: selected,
         button: true,
-        label: tab.label,
+        label: showDot ? '${tab.label}, con solicitudes pendientes' : tab.label,
         child: ExcludeSemantics(
           child: InkResponse(
             onTap: () => onSelect(index),
@@ -163,12 +178,12 @@ class _BottomTabBar extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Icon(
-                    tab.icon,
+                  _TabIcon(
+                    icon: tab.icon,
                     size: NmIconSize.lg,
-                    // `fill` solo para el estado activo (06-design-tokens §4).
                     fill: selected ? 1 : 0,
                     color: selected ? nm.accent : nm.textMuted,
+                    showDot: showDot,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -184,6 +199,49 @@ class _BottomTabBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// El ícono de una tab, con un puntito arriba a la derecha cuando hay algo
+/// pendiente que todavía no se vio (hoy, solo solicitudes de Pals).
+class _TabIcon extends StatelessWidget {
+  const _TabIcon({
+    required this.icon,
+    required this.showDot,
+    this.size = NmIconSize.lg,
+    this.fill = 0,
+    this.color,
+  });
+
+  final IconData icon;
+  final bool showDot;
+  final double size;
+  final double fill;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        Icon(icon, size: size, fill: fill, color: color),
+        if (showDot)
+          Positioned(
+            top: -1,
+            right: -2,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: nm.danger,
+                shape: BoxShape.circle,
+                border: Border.all(color: nm.surface, width: 1.5),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

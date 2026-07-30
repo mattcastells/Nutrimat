@@ -16,6 +16,7 @@ import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/meal/meal_describe_screen.dart';
 import '../../presentation/screens/meal/meal_form_screen.dart';
 import '../../presentation/screens/pals/pal_day_screen.dart';
+import '../../presentation/screens/pals/pal_sharing_screen.dart';
 import '../../presentation/screens/pals/pals_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
@@ -102,13 +103,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: Routes.history,
-                builder: (context, state) => const HistoryScreen(),
+                path: Routes.pals,
+                builder: (context, state) => const PalsScreen(),
                 routes: <RouteBase>[
                   GoRoute(
-                    path: ':date',
-                    builder: (context, state) => DayDetailScreen(
-                      date: DateTime.parse(state.pathParameters['date']!),
+                    path: 'sharing',
+                    builder: (context, state) => const PalSharingScreen(),
+                  ),
+                  GoRoute(
+                    path: ':userId',
+                    builder: (context, state) => PalDayScreen(
+                      userId: state.pathParameters['userId']!,
+                      name: state.uri.queryParameters['name'],
                     ),
                   ),
                 ],
@@ -154,6 +160,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.progressMeasurements,
         builder: (context, state) => const MeasurementsScreen(),
+      ),
+      GoRoute(
+        path: Routes.progressHistory,
+        builder: (context, state) => const HistoryScreen(),
+        routes: <RouteBase>[
+          GoRoute(
+            path: ':date',
+            builder: (context, state) => DayDetailScreen(
+              date: DateTime.parse(state.pathParameters['date']!),
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.profileBody,
@@ -214,19 +232,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
-      ),
-      GoRoute(
-        path: Routes.pals,
-        builder: (context, state) => const PalsScreen(),
-        routes: <RouteBase>[
-          GoRoute(
-            path: ':userId',
-            builder: (context, state) => PalDayScreen(
-              userId: state.pathParameters['userId']!,
-              name: state.uri.queryParameters['name'],
-            ),
-          ),
-        ],
       ),
       GoRoute(
         path: Routes.cloudBackup,

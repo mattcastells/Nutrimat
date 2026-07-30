@@ -102,7 +102,9 @@ Future<void> bootstrap() async {
 
   // Lo que ven los pals. Se arma acá y no en el repositorio para que quede a
   // la vista qué se publica: momento, nombre y calorías por comida, más
-  // minutos y sesiones. Nada de peso, medidas, ítems ni fotos.
+  // minutos y sesiones — siempre— y fotos/agua/sueño/detalle de actividad
+  // solo si `prefs` los tiene prendidos. Nada de peso, medidas ni ítems de
+  // cada comida, prenda lo que prenda la persona.
   PalPublisher? palPublisher;
 
   // El repositorio avisa a la UI por el contador de revisión; se enlaza
@@ -136,24 +138,40 @@ Future<void> bootstrap() async {
     palPublisher = PalPublisher(
       client: palsClient,
       auth: auth,
-      buildDay: (date) => PalDay(
-        userId: auth.currentAccount?.id ?? '',
-        date: date,
-        meals: <PalMeal>[
-          for (final meal in repository.mealsOn(date))
-            PalMeal(
-              slot: meal.slot,
-              // El nombre de la comida es el del primer ítem: alcanza para
-              // "cargó una milanesa" sin publicar la lista entera.
-              name: meal.items.isEmpty ? 'Comida' : meal.items.first.name,
-              kcal: meal.totalKcal,
-            ),
-        ],
-        activityMinutes: repository
-            .activitiesOn(date)
-            .fold(0, (acc, a) => acc + a.durationMinutes),
-        activityCount: repository.activitiesOn(date).length,
-      ),
+      buildDay: (date, prefs) {
+        final activities = repository.activitiesOn(date);
+        final sleep = prefs.sleep ? repository.sleepOn(date) : null;
+        return PalDay(
+          userId: auth.currentAccount?.id ?? '',
+          date: date,
+          meals: <PalMeal>[
+            for (final meal in repository.mealsOn(date))
+              PalMeal(
+                slot: meal.slot,
+                // El nombre de la comida es el del primer ítem: alcanza para
+                // "cargó una milanesa" sin publicar la lista entera.
+                name: meal.items.isEmpty ? 'Comida' : meal.items.first.name,
+                kcal: meal.totalKcal,
+                photoPath: prefs.photos ? meal.photoPath : null,
+              ),
+          ],
+          activityMinutes: activities.fold(0, (acc, a) => acc + a.durationMinutes),
+          activityCount: activities.length,
+          activities: prefs.activityDetail
+              ? <PalActivity>[
+                  for (final a in activities)
+                    PalActivity(
+                      name: a.displayName,
+                      minutes: a.durationMinutes,
+                      kcal: a.estimatedCalories,
+                    ),
+                ]
+              : const <PalActivity>[],
+          waterGlasses: prefs.water ? repository.glassesOn(date) : null,
+          sleepMinutes: sleep?.minutes,
+          sleepQuality: sleep?.quality,
+        );
+      },
     );
   }
 

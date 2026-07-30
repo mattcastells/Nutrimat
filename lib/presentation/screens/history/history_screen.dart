@@ -72,13 +72,11 @@ class HistoryScreen extends ConsumerWidget {
           (d) => !filters.onlyOutsideTarget || (d.hasRecords && !d.isWithinTarget),
         )
         .toList();
-    final offline = ref.watch(offlineProvider);
     final matching = days.where((d) => d.hasRecords).length;
 
     return NmScreen(
       title: 'Historial',
       scrollable: false,
-      banner: offline ? const OfflineBanner(pendingCount: 0) : null,
       actions: <Widget>[
         IconButton(
           tooltip: 'Filtros',
@@ -182,8 +180,9 @@ class HistoryScreen extends ConsumerWidget {
                             child: _DayRow(
                               day: day,
                               show: filters.show,
-                              onTap: () =>
-                                  context.push(Routes.historyDay(isoDate(day.date))),
+                              onTap: () => context.push(
+                                Routes.progressHistoryDay(isoDate(day.date)),
+                              ),
                             ),
                           ),
                         ],

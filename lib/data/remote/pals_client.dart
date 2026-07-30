@@ -9,7 +9,8 @@ enum PalRequestResult {
   sent('sent'),
   notFound('not_found'),
   self('self'),
-  already('already');
+  already('already'),
+  rateLimited('rate_limited');
 
   const PalRequestResult(this.wire);
 
@@ -163,8 +164,45 @@ class PalsClient {
         'meals': day.meals.map((m) => m.toJson()).toList(),
         'activity_minutes': day.activityMinutes,
         'activity_count': day.activityCount,
+        'activities': day.activities.map((a) => a.toJson()).toList(),
+        'water_glasses': day.waterGlasses,
+        'sleep_minutes': day.sleepMinutes,
+        'sleep_quality': day.sleepQuality?.wire,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
+    } on Exception {
+      throw _offline;
+    }
+  }
+
+  /// Qué categorías, además de comida y actividad, comparte esta cuenta.
+  Future<PalSharingPrefs> mySharingPrefs() async {
+    try {
+      final row = await _db
+          .from('profiles')
+          .select(
+            'pal_share_photos, pal_share_water, pal_share_sleep, '
+            'pal_share_activity_detail',
+          )
+          .eq('id', _me)
+          .maybeSingle();
+      return row == null ? const PalSharingPrefs() : PalSharingPrefs.fromRow(row);
+    } on Exception {
+      throw _offline;
+    }
+  }
+
+  Future<void> setSharingPrefs(PalSharingPrefs prefs) async {
+    try {
+      await _db
+          .from('profiles')
+          .update(<String, dynamic>{
+            'pal_share_photos': prefs.photos,
+            'pal_share_water': prefs.water,
+            'pal_share_sleep': prefs.sleep,
+            'pal_share_activity_detail': prefs.activityDetail,
+          })
+          .eq('id', _me);
     } on Exception {
       throw _offline;
     }

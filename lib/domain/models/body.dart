@@ -12,6 +12,7 @@ class WeightLog {
     this.notes,
     this.photoPath,
     this.syncStatus = SyncStatus.synced,
+    this.deletedAt,
   });
 
   final String id;
@@ -22,12 +23,17 @@ class WeightLog {
   final String? notes;
   final String? photoPath;
   final SyncStatus syncStatus;
+  final DateTime? deletedAt;
+
+  bool get isDeleted => deletedAt != null;
 
   WeightLog copyWith({
     double? weightKg,
     DateTime? loggedAt,
     String? notes,
     SyncStatus? syncStatus,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
   }) => WeightLog(
     id: id,
     weightKg: weightKg ?? this.weightKg,
@@ -37,6 +43,7 @@ class WeightLog {
     notes: notes ?? this.notes,
     photoPath: photoPath,
     syncStatus: syncStatus ?? this.syncStatus,
+    deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -48,6 +55,7 @@ class WeightLog {
     'notes': notes,
     'photoPath': photoPath,
     'syncStatus': syncStatus.wire,
+    'deletedAt': deletedAt?.toIso8601String(),
   };
 
   static WeightLog fromJson(Map<String, dynamic> j) => WeightLog(
@@ -62,6 +70,9 @@ class WeightLog {
       (e) => e.wire == j['syncStatus'],
       orElse: () => SyncStatus.synced,
     ),
+    deletedAt: j['deletedAt'] == null
+        ? null
+        : DateTime.parse(j['deletedAt'] as String),
   );
 }
 

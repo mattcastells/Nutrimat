@@ -949,13 +949,13 @@ class LocalRepository
 
   @override
   List<WeightLog> get weightLogs =>
-      <WeightLog>[...store.weightLogs]
+      <WeightLog>[...store.weightLogs.where((w) => !w.isDeleted)]
         ..sort((a, b) => b.localDate.compareTo(a.localDate));
 
   @override
   WeightLog? weightOn(DateTime date) {
     for (final w in store.weightLogs) {
-      if (isSameDay(w.localDate, date)) return w;
+      if (!w.isDeleted && isSameDay(w.localDate, date)) return w;
     }
     return null;
   }
@@ -989,7 +989,17 @@ class LocalRepository
 
   @override
   Future<void> deleteWeight(String id) async {
-    store.weightLogs.removeWhere((w) => w.id == id);
+    store.weightLogs = store.weightLogs
+        .map((w) => w.id == id ? w.copyWith(deletedAt: DateTime.now()) : w)
+        .toList();
+    await _commit();
+  }
+
+  @override
+  Future<void> restoreWeight(String id) async {
+    store.weightLogs = store.weightLogs
+        .map((w) => w.id == id ? w.copyWith(clearDeletedAt: true) : w)
+        .toList();
     await _commit();
   }
 

@@ -148,6 +148,10 @@ class RelationalSyncClient {
             'logged_at': w.loggedAt.toUtc().toIso8601String(),
             'source': w.source,
             'notes': w.notes,
+            // A diferencia de comidas/actividades (que simplemente dejan de
+            // subirse al borrarse), el peso sí escribe `deleted_at`: es lo que
+            // permite que un borrado sobreviva a un restore en otro teléfono.
+            'deleted_at': w.deletedAt?.toUtc().toIso8601String(),
           },
       ]);
 
@@ -521,6 +525,9 @@ class RelationalSyncClient {
               'source': w['source'],
               'notes': w['notes'],
               'syncStatus': 'synced',
+              'deletedAt': w['deleted_at'] == null
+                  ? null
+                  : isoOf(w['deleted_at']),
             },
         ],
         'measurements': <Map<String, dynamic>>[

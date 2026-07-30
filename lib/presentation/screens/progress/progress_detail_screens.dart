@@ -32,9 +32,11 @@ class WeightChartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final nm = context.nm;
     final progress = ref.watch(progressProvider);
     final units = ref.watch(unitSystemProvider);
-    final logs = ref.watch(repositoryProvider).weightLogs;
+    final repo = ref.watch(repositoryProvider);
+    final logs = repo.weightLogs;
 
     return NmScreen(
       title: 'Peso',
@@ -73,12 +75,61 @@ class WeightChartScreen extends ConsumerWidget {
           const SizedBox(height: NmSpace.s8),
           const NmSectionHeader(title: 'Registros'),
           NmCard(
+            padding: const EdgeInsets.symmetric(vertical: NmSpace.s1),
             child: Column(
               children: <Widget>[
                 for (final log in logs.take(20))
-                  ValueRow(
-                    label: friendlyDay(log.localDate),
-                    value: Fmt.weight(log.weightKg, units),
+                  Dismissible(
+                    key: ValueKey<String>(log.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: NmSpace.s6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: nm.danger.withValues(alpha: 0.14),
+                        borderRadius: NmRadius.brMd,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            PhosphorIcons.trash(),
+                            size: NmIconSize.md,
+                            color: nm.danger,
+                          ),
+                          const SizedBox(width: NmSpace.s2),
+                          Text(
+                            'Eliminar',
+                            style: NmTextStyles.from(
+                              NmType.caption,
+                              color: nm.danger,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      final id = log.id;
+                      await repo.deleteWeight(id);
+                      if (context.mounted) {
+                        NmSnackbar.show(
+                          context,
+                          'Registro eliminado',
+                          actionLabel: 'Deshacer',
+                          undo: true,
+                          onAction: () => repo.restoreWeight(id),
+                        );
+                      }
+                      return false;
+                    },
+                    child: ValueRow(
+                      label: friendlyDay(log.localDate),
+                      value: Fmt.weight(log.weightKg, units),
+                      onEdit: () =>
+                          showWeightSheet(context, date: log.localDate),
+                    ),
                   ),
               ],
             ),

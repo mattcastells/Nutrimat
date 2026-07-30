@@ -97,7 +97,7 @@ abstract final class SummaryBuilder {
     List<WeightLog> logs,
     DateTime date,
   ) {
-    final sorted = <WeightLog>[...logs]
+    final sorted = <WeightLog>[...logs.where((w) => !w.isDeleted)]
       ..sort((a, b) => a.localDate.compareTo(b.localDate));
     final upToDate = sorted
         .where((w) => !w.localDate.isAfter(dateOnly(date)))
@@ -185,7 +185,9 @@ abstract final class SummaryBuilder {
         weightLogs
             .where(
               (w) =>
-                  !w.localDate.isBefore(start) && !w.localDate.isAfter(end),
+                  !w.isDeleted &&
+                  !w.localDate.isBefore(start) &&
+                  !w.localDate.isAfter(end),
             )
             .toList()
           ..sort((a, b) => a.localDate.compareTo(b.localDate));

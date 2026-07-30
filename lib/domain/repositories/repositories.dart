@@ -275,6 +275,7 @@ abstract interface class BodyRepository {
     String? notes,
   });
   Future<void> deleteWeight(String id);
+  Future<void> restoreWeight(String id);
 
   List<BodyMeasurement> measurements(MeasurementMetric metric);
 

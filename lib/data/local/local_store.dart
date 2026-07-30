@@ -71,8 +71,10 @@ class LocalStore {
     status: IntegrationStatus.notConnected,
   );
 
-  /// Modo sin conexión simulado: las escrituras quedan `pending` y se muestran
-  /// el banner y los badges de F-07/F-08.
+  /// ⚠️ Siempre `false`: no hay detección real de conectividad (ver el
+  /// doc de `LocalRepository.isOffline`, que es la puerta de entrada real).
+  /// El interruptor de desarrollo que antes lo ponía en `true` se sacó de la
+  /// interfaz por ser una herramienta peligrosa en manos de quien usa la app.
   bool offline = false;
 
   /// Filtros de Historial recordados en preferencias (S-21).
@@ -126,8 +128,9 @@ class LocalStore {
   /// Peso usado por las fórmulas MET: el último registro; si no hay ninguno,
   /// el del perfil (S-07 del PRD).
   double? get currentWeightKg {
-    if (weightLogs.isEmpty) return null;
-    final sorted = <WeightLog>[...weightLogs]
+    final live = weightLogs.where((w) => !w.isDeleted);
+    if (live.isEmpty) return null;
+    final sorted = <WeightLog>[...live]
       ..sort((a, b) => b.localDate.compareTo(a.localDate));
     return sorted.first.weightKg;
   }

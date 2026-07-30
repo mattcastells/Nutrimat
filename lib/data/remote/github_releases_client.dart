@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -37,6 +38,10 @@ class GithubReleasesClient {
   static const String universalApkSuffix = '-universal.apk';
 
   static const Duration timeout = Duration(seconds: 10);
+
+  /// Cuánto se espera **un trozo** de la descarga antes de darla por cortada.
+  /// La descarga entera no lleva plazo: son 75 MB y pueden ser minutos.
+  static const Duration stalled = Duration(seconds: 60);
 
   /// Devuelve el último release publicado, o `null` si el repositorio todavía
   /// no tiene ninguno.
@@ -135,12 +140,22 @@ class GithubReleasesClient {
     );
   }
 
-  /// Descarga el APK reportando el avance de 0 a 1.
+  /// Descarga el APK **al archivo de [path]**, reportando el avance de 0 a 1.
   ///
-  /// Devuelve los bytes; escribirlos en disco es responsabilidad de quien
-  /// llama, para que esta clase no dependa del sistema de archivos.
-  Future<List<int>> downloadApk(
-    AppRelease release, {
+  /// Va a disco a medida que llega, y no a una lista de bytes en memoria, por lo
+  /// que costó exactamente todas las actualizaciones desde la 1.0.4: un
+  /// `List<int>` de Dart no guarda un byte por elemento sino una palabra de 64
+  /// bits, así que juntar el APK entero pedía **ocho veces su tamaño** de RAM
+  /// —unos 600 MB para 75 MB de archivo—, más la copia que hace cada vez que la
+  /// lista crece. Android mataba el proceso antes del final.
+  ///
+  /// En el teléfono se veía como una descarga clavada cerca del 80 %, que es
+  /// justo donde el APK pasa de necesitar 512 MB a pedir 1 GB. La 1.0.3 (57 MB)
+  /// todavía entraba; la 1.0.4 (73 MB) ya no. Nadie pudo actualizarse desde la
+  /// app en el medio.
+  Future<void> downloadApkTo(
+    AppRelease release,
+    String path, {
     void Function(double progress)? onProgress,
   }) async {
     final request = http.Request('GET', release.apkUrl)
@@ -148,7 +163,7 @@ class GithubReleasesClient {
 
     final http.StreamedResponse response;
     try {
-      response = await _client.send(request);
+      response = await _client.send(request).timeout(timeout);
     } on Exception {
       throw const AppError(
         code: ApiErrorCode.offline,
@@ -166,20 +181,53 @@ class GithubReleasesClient {
     // Para la barra alcanza con lo que diga la respuesta; `contentLength`
     // puede venir nulo y ahí el tamaño del asset es el plan B.
     final expected = response.contentLength ?? release.apkSizeBytes;
-    final bytes = <int>[];
+    final file = File(path);
+    final sink = file.openWrite();
+    var written = 0;
 
-    await for (final chunk in response.stream) {
-      bytes.addAll(chunk);
-      if (onProgress != null && expected > 0) {
-        onProgress((bytes.length / expected).clamp(0.0, 1.0));
-      }
+    try {
+      // `addStream` y no un `await for`: así el archivo frena a la red cuando no
+      // llega a escribir, en vez de acumular en memoria lo que no pudo bajar
+      // todavía.
+      //
+      // El plazo es **por trozo**, no para la descarga entera: 75 MB con datos
+      // móviles pueden tardar varios minutos sin que nada esté mal. Lo que no
+      // puede pasar es esperar para siempre un byte que ya no va a llegar.
+      await sink.addStream(
+        response.stream.timeout(stalled).map((chunk) {
+          written += chunk.length;
+          if (onProgress != null && expected > 0) {
+            onProgress((written / expected).clamp(0.0, 1.0));
+          }
+          return chunk;
+        }),
+      );
+      await sink.flush();
+      await sink.close();
+    } on FileSystemException {
+      await _discard(sink, file);
+      throw const AppError(
+        code: ApiErrorCode.server,
+        message:
+            'No pudimos guardar la actualización. Liberá espacio en el '
+            'teléfono y probá de nuevo.',
+      );
+    } on Exception {
+      await _discard(sink, file);
+      throw const AppError(
+        code: ApiErrorCode.offline,
+        message: 'Se cortó la descarga. Revisá tu conexión y probá de nuevo.',
+      );
     }
 
     // El control de integridad va contra el tamaño que declaró la API de
     // GitHub, no contra el `Content-Length` de la descarga: si un proxy corta
     // la respuesta y ajusta el header, comparar contra el header no detecta
     // nada. Instalar un APK truncado es peor que fallar.
-    if (release.apkSizeBytes > 0 && bytes.length != release.apkSizeBytes) {
+    if (release.apkSizeBytes > 0 && written != release.apkSizeBytes) {
+      // Y no se deja en el teléfono: un archivo a medias con nombre de APK es
+      // una trampa para el próximo intento.
+      await _discard(sink, file);
       throw const AppError(
         code: ApiErrorCode.upstreamFailed,
         message:
@@ -188,7 +236,21 @@ class GithubReleasesClient {
     }
 
     onProgress?.call(1);
-    return bytes;
+  }
+
+  /// Cierra y borra lo descargado a medias. Nada de esto puede tapar el error
+  /// que nos trajo hasta acá, así que falla en silencio.
+  Future<void> _discard(IOSink sink, File file) async {
+    try {
+      await sink.close();
+    } on Exception {
+      // Ya venía fallando; cerrar es solo para no dejar el descriptor abierto.
+    }
+    try {
+      if (await file.exists()) await file.delete();
+    } on FileSystemException {
+      // Si no se puede borrar, el próximo intento lo sobrescribe igual.
+    }
   }
 
   /// Página del release en GitHub, para quien prefiera bajarlo a mano.

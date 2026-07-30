@@ -10,6 +10,7 @@ import '../../../data/remote/photo_storage_client.dart';
 import '../../../domain/services/photo_sync_service.dart';
 import '../../providers/auth_providers.dart';
 import '../feedback/feedback.dart';
+import 'photo_viewer.dart';
 
 /// Muestra la foto de un registro, venga del bucket o del teléfono.
 ///
@@ -82,23 +83,29 @@ class _MealPhotoState extends ConsumerState<MealPhoto> {
 
     final Widget image;
     if (_url != null) {
-      image = Image.network(
-        _url!,
-        height: widget.height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stack) => _Unavailable(
+      image = ZoomablePhoto(
+        url: _url,
+        child: Image.network(
+          _url!,
           height: widget.height,
-          message: 'No pudimos cargar la foto.',
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) => _Unavailable(
+            height: widget.height,
+            message: 'No pudimos cargar la foto.',
+          ),
         ),
       );
     } else if (!PhotoSyncService.isRemotePath(path) &&
         File(path).existsSync()) {
-      image = Image.file(
-        File(path),
-        height: widget.height,
-        width: double.infinity,
-        fit: BoxFit.cover,
+      image = ZoomablePhoto(
+        file: File(path),
+        child: Image.file(
+          File(path),
+          height: widget.height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
       );
     } else {
       // Ruta del bucket sin URL: la sesión venció o no hay conexión. Se dice,

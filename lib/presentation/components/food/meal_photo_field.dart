@@ -10,6 +10,7 @@ import '../../../core/theme/tokens.dart';
 import '../system/buttons.dart';
 import '../system/overlays.dart';
 import 'meal_photo.dart';
+import 'photo_viewer.dart';
 
 /// Adjuntar una foto a la comida que se está registrando.
 ///
@@ -108,11 +109,14 @@ class _MealPhotoFieldState extends State<MealPhotoField> {
         if (File(path).existsSync())
           ClipRRect(
             borderRadius: NmRadius.brMd,
-            child: Image.file(
-              File(path),
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
+            child: ZoomablePhoto(
+              file: File(path),
+              child: Image.file(
+                File(path),
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             ),
           )
         else

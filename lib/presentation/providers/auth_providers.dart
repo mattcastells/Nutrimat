@@ -74,11 +74,31 @@ final photoSyncProvider = Provider<PhotoSyncService?>((ref) => null);
 final palsClientProvider = Provider<PalsClient?>((ref) => null);
 
 /// Los vínculos, recargables tras aceptar o quitar uno.
-final palsProvider = FutureProvider<List<Pal>>((ref) async {
+///
+/// `autoDispose` a propósito: sin eso la lista se consultaba **una sola vez por
+/// sesión de app** y quedaba en caché. Quien abría Pals antes de que le
+/// llegara una solicitud no la veía aparecer nunca —ni saliendo de la pantalla
+/// y volviendo— hasta cerrar y reabrir la app. La solicitud sí estaba en el
+/// servidor: lo que no se rehacía era la consulta.
+final palsProvider = FutureProvider.autoDispose<List<Pal>>((ref) async {
   final client = ref.watch(palsClientProvider);
   if (client == null) return <Pal>[];
   return client.list();
 });
+
+/// Cuántas solicitudes entrantes están sin responder, para avisar desde Perfil.
+///
+/// Una solicitud que solo se descubre entrando a Pals a ver si hay algo no
+/// llega: este es el aviso.
+final incomingPalRequestsProvider = Provider.autoDispose<int>(
+  (ref) =>
+      ref
+          .watch(palsProvider)
+          .valueOrNull
+          ?.where((p) => p.status == PalStatus.pending && p.isIncoming)
+          .length ??
+      0,
+);
 
 /// Código propio para que alguien te agregue.
 final myPalCodeProvider = FutureProvider<String?>((ref) async {

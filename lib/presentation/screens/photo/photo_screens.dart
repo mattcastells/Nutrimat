@@ -23,6 +23,7 @@ import '../../components/activity/badges.dart';
 import '../../components/feedback/analysis_progress.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/food_widgets.dart';
+import '../../components/food/photo_viewer.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
@@ -641,11 +642,14 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                         if (path != null)
                           ClipRRect(
                             borderRadius: NmRadius.brMd,
-                            child: Image.file(
-                              File(path),
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
+                            child: ZoomablePhoto(
+                              file: File(path),
+                              child: Image.file(
+                                File(path),
+                                height: 160,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         const SizedBox(height: NmSpace.s4),

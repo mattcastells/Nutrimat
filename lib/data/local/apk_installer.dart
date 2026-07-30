@@ -9,9 +9,10 @@ import '../../domain/services/update_service.dart';
 /// Instala el APK descargado delegando en el instalador de paquetes de
 /// Android.
 ///
-/// La app **no instala nada por su cuenta**: escribe el archivo y le pide al
-/// sistema que lo abra. Android muestra su propio diálogo de confirmación con
-/// el nombre y los permisos, y ahí la persona decide.
+/// La app **no instala nada por su cuenta**: elige dónde va el archivo —lo
+/// escribe la descarga, a medida que baja— y le pide al sistema que lo abra.
+/// Android muestra su propio diálogo de confirmación con el nombre y los
+/// permisos, y ahí la persona decide.
 ///
 /// Eso exige dos cosas distintas, y confundirlas fue el motivo de que la
 /// actualización se descargara sin instalarse nunca:
@@ -60,7 +61,7 @@ class AndroidApkInstaller implements ApkInstaller {
   }
 
   @override
-  Future<void> install(List<int> apkBytes, {required String fileName}) async {
+  Future<String> stagingPath(String fileName) async {
     // El directorio de soporte es privado de la app y el FileProvider de
     // `nm_update_paths.xml` lo expone; la carpeta de descargas exigiría
     // permisos de almacenamiento que no queremos pedir.
@@ -70,22 +71,26 @@ class AndroidApkInstaller implements ApkInstaller {
     try {
       // Un intento anterior pudo dejar un archivo a medias.
       if (await file.exists()) await file.delete();
-      await file.writeAsBytes(apkBytes, flush: true);
     } on FileSystemException {
       throw const AppError(
         code: ApiErrorCode.server,
         message:
-            'No pudimos guardar la actualización. Liberá espacio en el '
-            'teléfono y probá de nuevo.',
+            'No pudimos preparar la descarga. Liberá espacio en el teléfono y '
+            'probá de nuevo.',
       );
     }
 
+    return file.path;
+  }
+
+  @override
+  Future<void> install(String path) async {
     final String result;
     try {
       result =
           await _channel.invokeMethod<String>(
             'install',
-            <String, dynamic>{'path': file.path},
+            <String, dynamic>{'path': path},
           ) ??
           'unknown';
     } on PlatformException {

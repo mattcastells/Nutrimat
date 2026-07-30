@@ -33,6 +33,7 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     final goal = ref.watch(currentGoalProvider);
     final pending = ref.watch(pendingCountProvider);
+    final palRequests = ref.watch(incomingPalRequestsProvider);
     final weightKg = ref.watch(currentWeightProvider);
     final activityGoals = ref.watch(activityGoalsProvider);
     final repo = ref.watch(repositoryProvider);
@@ -217,8 +218,16 @@ class ProfileScreen extends ConsumerWidget {
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
                   title: 'Pals',
-                  subtitle: 'Compartí tu día con quien vos elijas',
+                  subtitle: palRequests > 0
+                      ? '$palRequests ${palRequests == 1 ? 'solicitud' : 'solicitudes'} sin responder'
+                      : 'Compartí tu día con quien vos elijas',
                   leading: Icon(PhosphorIcons.users()),
+                  trailing: palRequests == 0
+                      ? null
+                      : NmTag(
+                          label: '$palRequests',
+                          variant: NmTagVariant.accent,
+                        ),
                   onTap: () => context.push(Routes.pals),
                 ),
                 const NmDivider(indent: NmSpace.s6),

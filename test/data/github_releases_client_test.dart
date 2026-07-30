@@ -2,6 +2,7 @@
 // la red. Las respuestas son recortes reales de la API v2022-11-28.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -41,8 +42,15 @@ GithubReleasesClient _clientReturning(String body, {int status = 200}) =>
       ),
     );
 
+/// Instalador falso que escribe en un directorio temporal de verdad: la
+/// descarga ahora va a disco, así que el test tiene que darle un archivo real.
 class _FakeInstaller implements ApkInstaller {
-  List<int>? installed;
+  _FakeInstaller(this.dir);
+
+  final Directory dir;
+
+  /// Ruta que se le pasó a [install], o `null` si nunca se llamó.
+  String? installed;
   String? name;
   bool allowed = true;
   int settingsOpened = 0;
@@ -54,10 +62,13 @@ class _FakeInstaller implements ApkInstaller {
   Future<void> openInstallSettings() async => settingsOpened++;
 
   @override
-  Future<void> install(List<int> apkBytes, {required String fileName}) async {
-    installed = apkBytes;
+  Future<String> stagingPath(String fileName) async {
     name = fileName;
+    return '${dir.path}${Platform.pathSeparator}$fileName';
   }
+
+  @override
+  Future<void> install(String path) async => installed = path;
 }
 
 void main() {
@@ -149,7 +160,7 @@ void main() {
     UpdateService serviceReturning(String body, {int status = 200}) =>
         UpdateService(
           client: _clientReturning(body, status: status),
-          installer: _FakeInstaller(),
+          installer: _FakeInstaller(Directory.systemTemp),
         );
 
     test('ofrece la actualización cuando la publicada es posterior', () async {
@@ -185,9 +196,23 @@ void main() {
   });
 
   group('descarga', () {
-    test('informa el avance y entrega los bytes al instalador', () async {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('nm_update_test'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    AppRelease releaseOf(int declaredSize) => AppRelease(
+      version: const AppVersion(1, 1, 0),
+      tag: 'v1.1.0',
+      notes: '',
+      apkUrl: Uri.parse('https://example.test/app.apk'),
+      apkSizeBytes: declaredSize,
+      publishedAt: DateTime(2026, 7, 28),
+    );
+
+    test('informa el avance y deja el APK en disco, no en memoria', () async {
       final payload = List<int>.filled(2048, 7);
-      final installer = _FakeInstaller();
+      final installer = _FakeInstaller(dir);
       final service = UpdateService(
         client: GithubReleasesClient(
           client: MockClient(
@@ -197,47 +222,59 @@ void main() {
         installer: installer,
       );
 
-      final release = AppRelease(
-        version: const AppVersion(1, 1, 0),
-        tag: 'v1.1.0',
-        notes: '',
-        apkUrl: Uri.parse('https://example.test/app.apk'),
-        apkSizeBytes: payload.length,
-        publishedAt: DateTime(2026, 7, 28),
+      final progress = <double>[];
+      await service.downloadAndInstall(
+        releaseOf(payload.length),
+        onProgress: progress.add,
       );
 
-      final progress = <double>[];
-      await service.downloadAndInstall(release, onProgress: progress.add);
-
-      expect(installer.installed, hasLength(payload.length));
       expect(installer.name, 'nutrimat-1.1.0.apk');
+      expect(installer.installed, isNotNull);
+      // Lo que se instala es el archivo escrito, con todos los bytes.
+      final written = File(installer.installed!);
+      expect(written.existsSync(), isTrue);
+      expect(written.lengthSync(), payload.length);
       expect(progress.last, 1.0);
     });
 
     test('una descarga incompleta falla en vez de instalar basura', () async {
+      final installer = _FakeInstaller(dir);
       final service = UpdateService(
         client: GithubReleasesClient(
           client: MockClient(
             (request) async => http.Response.bytes(List<int>.filled(10, 0), 200),
           ),
         ),
-        installer: _FakeInstaller(),
-      );
-
-      final release = AppRelease(
-        version: const AppVersion(1, 1, 0),
-        tag: 'v1.1.0',
-        notes: '',
-        apkUrl: Uri.parse('https://example.test/app.apk'),
-        // El servidor manda 10 bytes pero el release declara 5000.
-        apkSizeBytes: 5000,
-        publishedAt: DateTime(2026, 7, 28),
+        installer: installer,
       );
 
       await expectLater(
-        service.downloadAndInstall(release),
+        // El servidor manda 10 bytes pero el release declara 5000.
+        service.downloadAndInstall(releaseOf(5000)),
         throwsA(isA<AppError>()),
       );
+      expect(installer.installed, isNull);
+    });
+
+    test('el archivo a medias no queda en el teléfono', () async {
+      final installer = _FakeInstaller(dir);
+      final service = UpdateService(
+        client: GithubReleasesClient(
+          client: MockClient(
+            (request) async => http.Response.bytes(List<int>.filled(10, 0), 200),
+          ),
+        ),
+        installer: installer,
+      );
+
+      await expectLater(
+        service.downloadAndInstall(releaseOf(5000)),
+        throwsA(isA<AppError>()),
+      );
+
+      // Un APK truncado con el nombre del bueno es una trampa para el próximo
+      // intento: se borra.
+      expect(dir.listSync(), isEmpty);
     });
   });
 }

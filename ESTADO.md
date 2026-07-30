@@ -1,17 +1,21 @@
 # Estado — 29 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.5.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.5.1` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
 
 ## Lo próximo (por acá se arranca)
 
-**La versión con el arreglo del updater hay que instalarla a mano una vez.**
-El que está instalado en el teléfono no puede pedir el permiso de instalación
-(ver "Cosas que ya nos mordieron" §12), así que no puede traerse el arreglo
-solo: hay que bajar el `-universal.apk` del release desde el navegador. De ahí
-en más Configuración → Actualizaciones funciona sin salir de la app.
+**La versión con el arreglo del updater hay que instalarla a mano una vez, en
+todos los teléfonos.** El updater que está instalado —cualquiera de la 1.0.4 a
+la 1.5.0— junta el APK entero en memoria y el sistema lo mata cerca del 80 % de
+la barra (§13). No puede traerse su propio arreglo: hay que bajar el
+`-universal.apk` del release desde el navegador. De ahí en más Configuración →
+Actualizaciones funciona sin salir de la app.
+
+Al que además nunca habilitó la instalación le va a faltar el permiso de §12,
+que es otro problema y tiene su propio botón en la pantalla.
 
 **Si un teléfono quedó sin datos, restaurar antes de cargar nada.**
 Configuración → Respaldo en la nube → "Restaurar desde la nube". Desde la 1.3.1
@@ -62,7 +66,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **235 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **236 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -128,9 +132,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.5.0**.
+contra un Postgres limpio. Última publicada: **v1.5.1**.
 
-Publicar una versión es empujar un tag `v1.5.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.5.2`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -247,6 +251,42 @@ Para no volver a perder tiempo con lo mismo:
    lleva a la pantalla exacta. El instalador dejó de depender de `open_filex`
    (que no contempla ese chequeo) y vive en `MainActivity.kt` con su propio
    `FileProvider` (`${applicationId}.updates`).
+13. **La descarga de la actualización se clavaba en el 78 %: era memoria, no
+    red ni permiso.** El updater juntaba el APK entero en un `List<int>` antes
+    de escribirlo. Un `List<int>` de Dart no guarda un byte por elemento sino
+    una palabra de 64 bits: **ocho veces el tamaño del archivo**, más la copia
+    que hace cada vez que la lista crece al doble. Para el APK de 75 MB eso son
+    ~600 MB de lista y un pedido de 1 GB en la última duplicación. Android
+    mataba el proceso ahí, y en el teléfono se veía como una barra que dejaba de
+    moverse cerca del 80 % sin ningún error.
+
+    Los números dicen cuándo se rompió: la lista duplica en potencias de dos,
+    así que un APK de hasta 64 MiB terminaba pidiendo 512 MB y pasaba. La 1.0.3
+    pesaba 57,5 MB y andaba; **la 1.0.4 pasó a 73 MB y no volvió a andar**.
+    Todas las versiones desde entonces comparten ese código de descarga, así que
+    **nadie pudo actualizarse desde la app entre la 1.0.4 y la 1.5.0** — y se
+    atribuyó al permiso de §12, que es un problema real pero distinto.
+
+    Desde ahora la descarga se escribe a disco a medida que llega
+    (`downloadApkTo`, con `addStream` para que el archivo le ponga freno a la
+    red) y el trozo que no llega tiene plazo propio. Corolario incómodo: **el
+    arreglo no puede llegar por el updater**, porque el updater instalado es el
+    roto. La versión que lo trae hay que bajarla del navegador una vez.
+14. **Una lista de pals cacheada para toda la sesión se vivía como "las
+    invitaciones no llegan".** `palsProvider` era un `FutureProvider` sin
+    `autoDispose`: se resolvía una vez por sesión de app y no se volvía a pedir,
+    ni saliendo de la pantalla y volviendo. Quien abría Pals antes de que le
+    llegara una solicitud no la veía aparecer nunca, hasta cerrar y reabrir la
+    app. Peor: al escribir el código de alguien que ya le había mandado una
+    solicitud, el RPC devolvía `already` y la pantalla decía "ya tenés un
+    vínculo con esa persona" **arriba de una lista vacía**, porque esa rama
+    tampoco invalidaba el provider.
+
+    Verificado contra la base antes de tocar nada: la fila `pending` estaba ahí,
+    las policies la dejaban leer de los dos lados y `request_pal` en vivo es
+    igual a la migración. Lo único que no se rehacía era la consulta. Ahora se
+    relee al entrar, hay botón de actualizar, y Perfil muestra cuántas
+    solicitudes quedaron sin responder.
 
 ---
 
@@ -256,7 +296,7 @@ Para no volver a perder tiempo con lo mismo:
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 235 tests
+flutter test                              # 236 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

@@ -38,12 +38,11 @@ class _MealDescribeScreenState extends ConsumerState<MealDescribeScreen> {
   bool _busy = false;
   AppError? _error;
 
-  static const List<String> _ejemplos = <String>[
-    'dos empanadas de carne y una coca',
-    'milanesa con puré y una ensalada chica',
-    'café con leche y tres medialunas',
-    'un plato de fideos con tuco',
-  ];
+  /// Un solo ejemplo, y distinto del que ya muestra el campo vacío.
+  ///
+  /// Cuatro chips ocupaban media pantalla y empujaban el botón de estimar fuera
+  /// de la vista: para entender cómo se escribe alcanza con uno.
+  static const String _ejemplo = 'milanesa con puré y una ensalada chica';
 
   @override
   void dispose() {
@@ -118,20 +117,13 @@ class _MealDescribeScreenState extends ConsumerState<MealDescribeScreen> {
           ),
 
           const SizedBox(height: NmSpace.s3),
-          Wrap(
-            spacing: NmSpace.s2,
-            runSpacing: NmSpace.s2,
-            children: <Widget>[
-              for (final ejemplo in _ejemplos)
-                NmChip(
-                  label: ejemplo,
-                  selected: false,
-                  onTap: () => setState(() {
-                    _text.text = ejemplo;
-                    _error = null;
-                  }),
-                ),
-            ],
+          NmChip(
+            label: _ejemplo,
+            selected: false,
+            onTap: () => setState(() {
+              _text.text = _ejemplo;
+              _error = null;
+            }),
           ),
 
           if (_error != null) ...<Widget>[

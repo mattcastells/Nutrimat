@@ -33,6 +33,15 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
   String? _message;
 
   @override
+  void initState() {
+    super.initState();
+    // Releer al entrar, siempre. Una solicitud que llegó mientras la app estaba
+    // abierta no se anuncia sola: si la lista no se vuelve a pedir acá, la
+    // pantalla muestra lo que había la primera vez que se abrió.
+    ref.invalidate(palsProvider);
+  }
+
+  @override
   void dispose() {
     _code.dispose();
     super.dispose();
@@ -56,12 +65,18 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
           PalRequestResult.sent => null,
           PalRequestResult.notFound => 'No hay nadie con ese código.',
           PalRequestResult.self => 'Ese es tu propio código.',
-          PalRequestResult.already => 'Ya tenés un vínculo con esa persona.',
+          // El servidor no dice de qué lado está el vínculo —el código no
+          // revela nada de su dueño—, así que la respuesta la da la lista, que
+          // se recarga justo abajo.
+          PalRequestResult.already =>
+            'Ya hay un vínculo con esa persona. Mirá la lista de abajo.',
         };
       });
+      // También cuando dice "already": el vínculo que lo provoca es
+      // exactamente lo que hay que mostrar.
+      ref.invalidate(palsProvider);
       if (result == PalRequestResult.sent) {
         _code.clear();
-        ref.invalidate(palsProvider);
         if (mounted) NmSnackbar.show(context, 'Solicitud enviada');
       }
     } on AppError catch (error) {
@@ -124,6 +139,13 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
 
     return NmScreen(
       title: 'Pals',
+      actions: <Widget>[
+        NmIconButton(
+          icon: PhosphorIcons.arrowsClockwise(),
+          tooltip: 'Actualizar',
+          onPressed: () => ref.invalidate(palsProvider),
+        ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

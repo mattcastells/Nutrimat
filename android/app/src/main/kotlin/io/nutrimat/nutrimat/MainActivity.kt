@@ -49,6 +49,25 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // Bajar a la galería la foto de una comida. Canal aparte porque no
+        // tiene nada que ver con instalar el APK de una actualización.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GallerySaver.CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "canSave" -> result.success(GallerySaver.canSave())
+                    "save" -> {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val fileName = call.argument<String>("fileName")
+                        if (bytes == null || fileName == null) {
+                            result.error("no_image", "Falta la foto a guardar.", null)
+                        } else {
+                            result.success(GallerySaver.save(this, bytes, fileName))
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     /** Antes de API 26 el permiso del manifest alcanzaba. */

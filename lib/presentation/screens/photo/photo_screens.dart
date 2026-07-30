@@ -586,7 +586,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     final meal = ref
         .read(mealDraftProvider)!
         .toMeal(
-          syncStatus: repo.isOffline ? SyncStatus.pending : SyncStatus.synced,
+          syncStatus: SyncStatus.synced,
         );
     await repo.saveMeal(meal);
     ref.read(mealDraftProvider.notifier).clear();

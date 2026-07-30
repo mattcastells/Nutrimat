@@ -267,49 +267,6 @@ class NmSpinner extends StatelessWidget {
   );
 }
 
-/// Banner fijo bajo la cabecera cuando no hay conexión.
-class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({required this.pendingCount, super.key});
-
-  final int pendingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final nm = context.nm;
-    final detail = pendingCount == 0
-        ? 'Sin conexión — se va a sincronizar solo'
-        : 'Sin conexión — $pendingCount ${pendingCount == 1 ? 'registro pendiente' : 'registros pendientes'}';
-
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: NmSpace.s4,
-          vertical: NmSpace.s3,
-        ),
-        color: nm.caution.withValues(alpha: nm.isDark ? 0.16 : 0.12),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              PhosphorIcons.cloudSlash(),
-              size: NmIconSize.md,
-              color: nm.caution,
-            ),
-            const SizedBox(width: NmSpace.s2),
-            Expanded(
-              child: Text(
-                detail,
-                style: NmTextStyles.from(NmType.caption, color: nm.caution),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Conmuta entre skeleton y contenido respetando la duración mínima visible
 /// de 400 ms y el umbral de 200 ms (21-motion §4.1).
 class LoadingSwitcher extends StatelessWidget {

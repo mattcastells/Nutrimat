@@ -58,8 +58,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final date = ref.watch(selectedDateProvider);
     final summary = ref.watch(dailySummaryProvider(date));
     final profile = ref.watch(profileProvider);
-    final offline = ref.watch(offlineProvider);
-    final pending = ref.watch(pendingCountProvider);
     final units = ref.watch(unitSystemProvider);
     final repo = ref.read(repositoryProvider);
     final isFutureDate = isFuture(date);
@@ -71,7 +69,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: <Widget>[
             _Header(date: date),
-            if (offline) OfflineBanner(pendingCount: pending),
             Expanded(
               child: RefreshIndicator(
                 color: nm.accent,

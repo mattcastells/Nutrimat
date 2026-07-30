@@ -112,7 +112,7 @@ portador de información.
 | Persistencia | Documento JSON en preferencias, con la forma del esquema de Drift |
 | Análisis de foto | **Apagado** tras `FeatureFlags.aiPhotoAnalysis`: devolvía un resultado fijo |
 | Sincronización de salud | **Apagada** tras `FeatureFlags.healthConnectSync`: insertaba 3 actividades inventadas |
-| Sin conexión | Interruptor en Configuración → Avanzado: las escrituras quedan pendientes |
+| Sin conexión | No hay detección real. Existió un interruptor de desarrollo en Configuración → Avanzado para simularlo; se sacó de la interfaz por peligroso en manos de quien usa la app |
 
 La regla de los flags: **mientras una integración devuelva datos inventados, su
 flag va en `false`**. Es preferible una pantalla que diga "todavía no" a un

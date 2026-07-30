@@ -38,7 +38,6 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final repo = ref.watch(repositoryProvider);
-    final pending = ref.watch(pendingCountProvider);
 
     return NmScreen(
       title: 'Configuración',
@@ -123,25 +122,6 @@ class SettingsScreen extends ConsumerWidget {
           NmCard(
             child: Column(
               children: <Widget>[
-                // El interruptor de "simular modo sin conexión" era una
-                // herramienta para probar los estados pendientes durante el
-                // desarrollo. En manos de alguien que usa la app solo puede
-                // hacer daño: deja las escrituras en pendiente sin que se note
-                // por qué, y en una app de datos personales eso se parece
-                // demasiado a perder registros. Se saca de la interfaz.
-                if (pending > 0) ...<Widget>[
-                  NmListRow(
-                    title: 'Registros sin sincronizar',
-                    subtitle:
-                        '$pending ${pending == 1 ? 'pendiente' : 'pendientes'}',
-                    leading: Icon(PhosphorIcons.cloudSlash()),
-                    trailing: NmButton.ghost(
-                      label: 'Reintentar',
-                      onPressed: repo.flushQueue,
-                    ),
-                  ),
-                  const NmDivider(),
-                ],
                 NmSwitchRow(
                   title: 'Mostrar calorías netas',
                   subtitle: 'Consumidas menos aplicadas, en Inicio',
@@ -592,6 +572,7 @@ class PrivacyScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final nm = context.nm;
+    final cloudEnabled = ref.watch(isCloudEnabledProvider);
 
     return NmScreen(
       title: 'Privacidad y datos',
@@ -637,18 +618,24 @@ class PrivacyScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: NmSpace.s6),
-          const InfoNote(
-            text: 'En esta versión todo vive en tu teléfono. Cuando conectes '
-                'la cuenta, los datos se guardan en Supabase; las fotos se '
-                'analizan con Gemini y los errores se reportan a Sentry.',
+          InfoNote(
+            text: cloudEnabled
+                ? 'Tus datos se guardan en Supabase a medida que registrás '
+                      'algo; las fotos se analizan con Gemini.'
+                : 'Esta compilación no tiene servidor: todo vive solo en tu '
+                      'teléfono y no sale de acá.',
           ),
           const SizedBox(height: NmSpace.s6),
           const NmSectionHeader(title: 'Respaldo'),
-          const InfoNote(
-            tone: NmNoteTone.caution,
-            text: 'Mientras no haya nube, este archivo es tu único respaldo: '
-                'si perdés el teléfono, perdés el historial. Guardalo cada '
-                'tanto en Drive o mandátelo por correo.',
+          InfoNote(
+            tone: cloudEnabled ? NmNoteTone.info : NmNoteTone.caution,
+            text: cloudEnabled
+                ? 'Ya tenés respaldo automático en la nube (Configuración → '
+                      'Respaldo en la nube). Este archivo es una copia '
+                      'portátil adicional, para llevarte los datos a mano.'
+                : 'Sin servidor, este archivo es tu único respaldo: si '
+                      'perdés el teléfono, perdés el historial. Guardalo '
+                      'cada tanto en Drive o mandátelo por correo.',
           ),
           const SizedBox(height: NmSpace.s4),
           const _BackupActions(),

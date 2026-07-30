@@ -112,7 +112,6 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
   Widget build(BuildContext context) {
     final nm = context.nm;
     final repo = ref.watch(repositoryProvider);
-    final offline = ref.watch(offlineProvider);
     final hasQuery = _query.text.trim().length >= 2;
 
     final tabResults = switch (_tab) {
@@ -129,8 +128,6 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
         top: false,
         child: Column(
           children: <Widget>[
-            if (offline)
-              const OfflineBanner(pendingCount: 0),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 context.screenPadding,
@@ -177,20 +174,6 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
                   ],
                   value: _tab,
                   onChanged: (v) => setState(() => _tab = v),
-                ),
-              ),
-            if (offline && hasQuery)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  context.screenPadding,
-                  NmSpace.s3,
-                  context.screenPadding,
-                  0,
-                ),
-                child: const InfoNote(
-                  tone: NmNoteTone.caution,
-                  text: 'Sin conexión — buscando solo en tus alimentos y en '
-                      'lo que ya está guardado.',
                 ),
               ),
             if (_remoteError != null && hasQuery)

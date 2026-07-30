@@ -91,7 +91,6 @@ class _MainPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offline = ref.watch(offlineProvider);
     final date = ref.watch(selectedDateProvider);
     final slot = MealSlot.forHour(DateTime.now().hour);
 
@@ -129,8 +128,6 @@ class _MainPane extends ConsumerWidget {
             icon: PhosphorIcons.barcode(),
             label: 'Escanear alimento',
             subtitle: 'Buscar por código de barras',
-            enabled: !offline,
-            disabledNote: 'Necesita conexión',
             onTap: () => onGo(Routes.foodScan),
           ),
           ActionRow(

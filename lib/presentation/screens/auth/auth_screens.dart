@@ -103,14 +103,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     setState(() => _submitting = true);
     final repo = ref.read(repositoryProvider);
 
-    if (repo.isOffline) {
-      setState(() {
-        _submitting = false;
-        _formError = 'No hay conexión. Necesitás internet para iniciar sesión.';
-      });
-      return;
-    }
-
     final email = AuthValidation.normalizeEmail(_email.text);
     try {
       await ref
@@ -262,13 +254,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (_emailError != null || _passwordError != null) return;
 
     final repo = ref.read(repositoryProvider);
-    if (repo.isOffline) {
-      setState(
-        () => _formError =
-            'No hay conexión. Necesitás internet para crear la cuenta.',
-      );
-      return;
-    }
 
     setState(() => _submitting = true);
     final email = AuthValidation.normalizeEmail(_email.text);

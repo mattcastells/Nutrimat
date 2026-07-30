@@ -67,7 +67,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
     setState(() => _saving = true);
     final repo = ref.read(repositoryProvider);
     final meal = draft.toMeal(
-      syncStatus: repo.isOffline ? SyncStatus.pending : SyncStatus.synced,
+      syncStatus: SyncStatus.synced,
     );
     await repo.saveMeal(meal);
     ref.read(mealDraftProvider.notifier).clear();

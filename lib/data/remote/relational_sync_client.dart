@@ -81,13 +81,37 @@ class RelationalSyncClient {
   }) async {
     final escritas = <String, int>{};
 
+    /// Las tablas que fallaron, con el motivo. Se juntan en vez de cortar.
+    final fallaron = <String, String>{};
+
+    /// Sube una tabla y **se queda con su fallo**.
+    ///
+    /// Antes las once tablas compartían un `try`: la primera que fallaba
+    /// abortaba el método y las que venían después no se intentaban siquiera.
+    /// Fue lo que convirtió una restricción desactualizada en una base sin una
+    /// sola comida — `body_measurements` es la cuarta de once, y con ella se
+    /// perdieron las siete que le siguen.
+    ///
+    /// Ahora cada tabla se juega su suerte sola. Al final se lanza igual, con
+    /// los nombres de las que fallaron, pero lo que sí entró queda escrito.
     Future<void> subir(String tabla, List<Map<String, dynamic>> filas) async {
       if (filas.isEmpty) {
         escritas[tabla] = 0;
         return;
       }
-      await _db.from(tabla).upsert(filas).timeout(timeout);
-      escritas[tabla] = filas.length;
+      try {
+        await _db.from(tabla).upsert(filas).timeout(timeout);
+        escritas[tabla] = filas.length;
+      } on PostgrestException catch (error) {
+        escritas[tabla] = 0;
+        fallaron[tabla] = error.message;
+      } on TimeoutException {
+        escritas[tabla] = 0;
+        fallaron[tabla] = 'tardó demasiado';
+      } on Exception catch (error) {
+        escritas[tabla] = 0;
+        fallaron[tabla] = error.toString();
+      }
     }
 
     try {
@@ -310,6 +334,21 @@ class RelationalSyncClient {
         });
       }
       await subir('activities', actividades);
+
+      // Lo que entró, entró. Pero una tabla que no sube es un dato de alguien
+      // que no está en la base, así que esto **tiene** que llegar a la pantalla
+      // en vez de quedar en un log: el mensaje nombra las tablas.
+      if (fallaron.isNotEmpty) {
+        final detalle = fallaron.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join('; ');
+        throw AppError(
+          code: ApiErrorCode.server,
+          message: 'No pudimos guardar ${fallaron.keys.join(', ')} en la base '
+              '($detalle).',
+          requestId: fallaron.keys.join(','),
+        );
+      }
 
       return escritas;
     } on PostgrestException catch (error) {

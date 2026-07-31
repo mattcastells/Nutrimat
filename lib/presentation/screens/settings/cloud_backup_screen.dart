@@ -9,6 +9,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
 import '../../../data/remote/cloud_backup_client.dart';
 import '../../../domain/services/cloud_backup_service.dart';
+import '../../../domain/services/relational_sync_service.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/nm_screen.dart';
@@ -291,6 +292,13 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             ),
           ],
 
+          // ── La escritura en las tablas ──────────────────────────────────
+          // Acá vivía el botón de Comparar. Lo que hace falta en su lugar no es
+          // una herramienta para auditar a mano: es que un fallo **se vea**.
+          // Cuatro restricciones desactualizadas rechazaron cada fila durante
+          // meses y la app no lo dijo en ningún lado.
+          _SyncStatus(state: ref.watch(syncStateProvider).valueOrNull),
+
           const SizedBox(height: NmSpace.s6),
           NmButton.secondary(
             label: 'Respaldar ahora',
@@ -329,4 +337,66 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
     BackupHeldEmpty() => 'En pausa',
     _ => 'Al día',
   };
+}
+
+/// Cómo viene la escritura en las tablas.
+///
+/// El respaldo JSON y las tablas son dos caminos distintos con dos estados
+/// distintos, y hasta ahora esta pantalla solo mostraba el primero. El segundo
+/// —el que guarda cada comida como fila— podía estar fallando en todas las
+/// subidas sin que nada lo dijera: así se perdieron meses de datos.
+///
+/// Cuando anda, esto ocupa una línea gris. Cuando no, dice qué tabla falló y
+/// por qué, que es lo que hace falta para arreglarlo.
+class _SyncStatus extends StatelessWidget {
+  const _SyncStatus({required this.state});
+
+  final SyncState? state;
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+    final current = state;
+    if (current == null) return const SizedBox.shrink();
+
+    if (current is SyncFailed) {
+      return Padding(
+        padding: const EdgeInsets.only(top: NmSpace.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            ErrorState(
+              message: current.error.message,
+              code: current.error.code.wire,
+            ),
+            const SizedBox(height: NmSpace.s2),
+            Text(
+              // Lo importante que la persona necesita saber, y que es verdad:
+              // el dato está en el teléfono. Lo que falta es que llegue.
+              'Tus datos están en este teléfono y se reintenta con cada '
+              'cambio. Si esto no se va, mostrale este mensaje a quien '
+              'mantiene la app.',
+              style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final texto = switch (current) {
+      SyncRunning() => 'Guardando en la base…',
+      SyncIdle(:final lastPush) when lastPush != null =>
+        'Última escritura en la base: ${timeOfDay(lastPush)}',
+      _ => null,
+    };
+    if (texto == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: NmSpace.s3),
+      child: Text(
+        texto,
+        style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+      ),
+    );
+  }
 }

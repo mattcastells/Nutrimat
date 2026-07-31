@@ -46,6 +46,34 @@ visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
 borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
 nombre.
 
+**⚠️ Falta aplicar la migración `20260801002600_enum_constraints_al_dia`.** Es lo
+primero de todo: hasta que se aplique, la base sigue rechazando lo que la app
+manda.
+
+Cuatro restricciones de valores fijos se habían quedado atrás de sus enums y
+rechazaban cada fila. No se notó porque el síntoma no se parece a la causa:
+`push` sube cada tabla con un solo `upsert`, así que una fila mala tiraba el lote
+entero, y como las once tablas compartían un `try`, la excepción se llevaba
+puestas todas las siguientes. El error terminaba en un `SyncFailed` que ninguna
+pantalla mostraba. Resultado: **`public.meals` con cero filas** mientras los
+teléfonos tenían meses de comidas.
+
+| Restricción | Le faltaba | Posición en el push |
+| --- | --- | --- |
+| `goals_type` | `gain_muscle` | 2 de 11 |
+| `body_measurements_metric` | los 7 pliegues, la bioimpedancia y 2 perímetros | 4 de 11 |
+| `body_measurements_unit` | `mm`, `kg`, `index` (y el rango, que asumía cm/pct) | 4 de 11 |
+| `meals_source` | `ai_text` | 9 de 11 |
+
+**No se perdió nada**: está todo en los teléfonos y sube con el próximo registro
+de cada persona. Para verificar, `docs/verificar-sincronizacion.md`.
+
+Lo que impide que vuelva a pasar es `test/data/enum_constraints_test.dart`, que
+compara cada enum de Dart contra cada `check` de las migraciones y falla si se
+separan. Además, ahora cada tabla del push tiene su propio `try` —una rota ya no
+se lleva las que siguen— y el fallo se muestra en Configuración → Respaldo en la
+nube, donde antes no se veía en ningún lado.
+
 **Las tablas son la fuente de verdad de la cuenta**: al entrar se traen y se
 reconcilian con lo local, y desde ahora **también al volver a la app** desde
 segundo plano (`RelationalSyncService.refresh`, como mucho una consulta cada 30
@@ -84,7 +112,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **342 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **366 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -164,7 +192,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 26 de 26 aplicadas |
+| Migraciones | 26 aplicadas + **1 sin aplicar** (`20260801002600_enum_constraints_al_dia`) |
 | Tablas | 26, **todas con RLS** — se sumó `rate_limits` (migración 24) |
 | Políticas | 83, más 5 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
@@ -587,7 +615,7 @@ capturas en [`docs/handoff/widget-actual/`](docs/handoff/widget-actual/)
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 342 tests
+flutter test                              # 366 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

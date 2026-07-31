@@ -175,9 +175,15 @@ class WelcomeScreen extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: NmSpace.s4),
+                  // Acá decía "y podés migrarlos cuando te registres". No es
+                  // cierto y nunca lo fue: crear la cuenta llama a
+                  // `startDemoSession`, que vacía la base local. Prometer una
+                  // migración que no existe es peor que no ofrecer nada —
+                  // alguien carga una semana confiando en eso y la pierde.
                   Text(
                     'Sin cuenta no hay respaldo: los datos viven solo en este '
-                    'teléfono y podés migrarlos cuando te registres.',
+                    'teléfono. Y crear una cuenta después arranca de cero, así '
+                    'que lo que cargues probando no se lleva.',
                     style: NmTextStyles.from(
                       NmType.caption,
                       color: nm.textMuted,

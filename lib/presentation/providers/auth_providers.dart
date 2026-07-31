@@ -66,6 +66,23 @@ final backupStateProvider = StreamProvider<BackupState>((ref) {
 /// tablas. Null sin servidor.
 final relationalSyncProvider = Provider<RelationalSyncService?>((ref) => null);
 
+/// Cómo viene la escritura en las tablas, para poder mirarla desde Ajustes.
+///
+/// **Existe porque su ausencia costó meses de datos.** Cuatro restricciones de
+/// la base se habían quedado atrás de sus enums y rechazaban cada fila que la
+/// app mandaba; el servicio lo registraba como `SyncFailed` y ninguna pantalla
+/// lo mostraba, así que la app se veía perfecta mientras la base quedaba vacía.
+/// Un fallo que no se ve no existe hasta que es tarde.
+final syncStateProvider = StreamProvider<SyncState>((ref) async* {
+  final service = ref.watch(relationalSyncProvider);
+  if (service == null) return;
+  // El estado actual primero: `states` es un broadcast y quien abre la pantalla
+  // después de un fallo no vería nada hasta el próximo cambio — justo el caso
+  // en el que uno la abre.
+  yield service.state;
+  yield* service.states;
+});
+
 /// Sube y sirve las fotos del bucket. Null sin servidor: las fotos quedan
 /// solo en este teléfono.
 final photoSyncProvider = Provider<PhotoSyncService?>((ref) => null);

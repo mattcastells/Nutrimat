@@ -46,7 +46,7 @@ void main() {
 
   test('el dato lleva la fecha del día que describe', () async {
     await conObjetivo(2000);
-    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()));
+    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()), glasses: 0, waterGoal: 8);
 
     // Sin esto el widget no puede saber si lo que tiene guardado sigue valiendo.
     expect(payload['date'], isoDate(today()));
@@ -54,7 +54,7 @@ void main() {
 
   test('sin comidas, quedan todas las calorías del objetivo', () async {
     await conObjetivo(2000);
-    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()));
+    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()), glasses: 0, waterGoal: 8);
 
     expect(payload['value'], '2.000');
     expect(payload['label'], 'kcal restantes');
@@ -89,7 +89,7 @@ void main() {
       ),
     );
 
-    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()));
+    final payload = HomeWidgetPublisher.payloadFor(repo.daily(today()), glasses: 0, waterGoal: 8);
 
     // El valor va en positivo y lo que cambia es la palabra: las mismas que usa
     // Inicio, sin rojo ni reto (D-17).
@@ -122,17 +122,112 @@ void main() {
       isRestDay: false,
     );
 
-    final payload = HomeWidgetPublisher.payloadFor(sinObjetivo);
+    final payload = HomeWidgetPublisher.payloadFor(sinObjetivo, glasses: 0, waterGoal: 8);
 
     expect(payload['value'], '—');
     expect(payload['label'], 'Sin objetivo configurado');
     expect(payload['detail'], 'Abrí Nutrimat para elegir uno');
   });
 
+  test('el agua viaja como cuenta, para que el widget dibuje las gotas', () {
+    final payload = HomeWidgetPublisher.payloadFor(
+      repo.daily(today()),
+      glasses: 6,
+      waterGoal: 8,
+    );
+
+    // Números y no texto: de esto el widget decide **cuántas** gotas pinta, no
+    // cómo se escribe un número.
+    expect(payload['waterGlasses'], 6);
+    expect(payload['waterGoal'], 8);
+  });
+
+  test('los macros llevan su etiqueta escrita y cuánta barra pintar', () async {
+    await conObjetivo(2000);
+    await repo.saveMeal(
+      Meal(
+        id: 'm-1',
+        slot: MealSlot.lunch,
+        loggedAt: DateTime.now(),
+        localDate: today(),
+        items: <MealItem>[
+          const MealItem(
+            id: 'i-1',
+            name: 'Pollo',
+            quantity: 200,
+            unit: 'g',
+            kcal: 330,
+            proteinG: 60,
+            carbsG: 0,
+            fatG: 8,
+            position: 0,
+          ),
+        ],
+        source: MealSource.manual,
+        syncStatus: SyncStatus.synced,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    final payload = HomeWidgetPublisher.payloadFor(
+      repo.daily(today()),
+      glasses: 0,
+      waterGoal: 8,
+    );
+
+    // El objetivo del fixture: 120 g de proteína.
+    expect(payload['proteinLabel'], 'P 60/120');
+    expect(payload['proteinPercent'], 50);
+    expect(payload['carbsLabel'], 'C 0/220');
+    expect(payload['carbsPercent'], 0);
+    expect(payload['fatLabel'], 'G 8/70');
+  });
+
+  test('pasarse de un macro llena la barra pero no la desborda', () async {
+    await conObjetivo(2000);
+    await repo.saveMeal(
+      Meal(
+        id: 'm-1',
+        slot: MealSlot.dinner,
+        loggedAt: DateTime.now(),
+        localDate: today(),
+        items: <MealItem>[
+          const MealItem(
+            id: 'i-1',
+            name: 'Suplemento',
+            quantity: 1,
+            unit: 'unidad',
+            kcal: 720,
+            proteinG: 180,
+            carbsG: 0,
+            fatG: 0,
+            position: 0,
+          ),
+        ],
+        source: MealSource.manual,
+        syncStatus: SyncStatus.synced,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    final payload = HomeWidgetPublisher.payloadFor(
+      repo.daily(today()),
+      glasses: 0,
+      waterGoal: 8,
+    );
+
+    // La barra se recorta —una desbordada no dibuja nada legible— pero la
+    // etiqueta dice los gramos de verdad, así que el exceso se sigue viendo.
+    expect(payload['proteinPercent'], 100);
+    expect(payload['proteinLabel'], 'P 180/120');
+  });
+
   test('publicar sin plataforma nativa no revienta', () async {
     // En un test no hay canal del lado de Android. El widget es una comodidad:
     // no puede hacer fallar el registro de una comida.
     await conObjetivo(2000);
-    await const HomeWidgetPublisher().publish(repo.daily(today()));
+    await const HomeWidgetPublisher().publish(repo.daily(today()), glasses: 3, waterGoal: 8);
   });
 }

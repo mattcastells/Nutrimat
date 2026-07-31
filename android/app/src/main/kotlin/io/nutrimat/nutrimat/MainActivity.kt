@@ -87,6 +87,14 @@ class MainActivity : FlutterActivity() {
                                     value = call.argument<String>("value") ?: "—",
                                     label = call.argument<String>("label") ?: "",
                                     detail = call.argument<String>("detail") ?: "",
+                                    waterGlasses = call.argument<Int>("waterGlasses") ?: 0,
+                                    waterGoal = call.argument<Int>("waterGoal") ?: 0,
+                                    proteinLabel = call.argument<String>("proteinLabel") ?: "",
+                                    proteinPercent = call.argument<Int>("proteinPercent") ?: 0,
+                                    carbsLabel = call.argument<String>("carbsLabel") ?: "",
+                                    carbsPercent = call.argument<Int>("carbsPercent") ?: 0,
+                                    fatLabel = call.argument<String>("fatLabel") ?: "",
+                                    fatPercent = call.argument<Int>("fatPercent") ?: 0,
                                 ),
                             )
                             CaloriesWidget.refresh(this)

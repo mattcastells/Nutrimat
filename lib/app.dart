@@ -44,7 +44,14 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
   /// aviso: el que sigue apareciendo cuando ya se hizo lo que pedía.
   void _publishToWidget() {
     if (!mounted) return;
-    unawaited(_homeWidget.publish(ref.read(repositoryProvider).daily(today())));
+    final repo = ref.read(repositoryProvider);
+    unawaited(
+      _homeWidget.publish(
+        repo.daily(today()),
+        glasses: repo.glassesOn(today()),
+        waterGoal: repo.profile.waterGoalGlasses,
+      ),
+    );
   }
 
   @override

@@ -143,8 +143,13 @@ Future<void> bootstrap() async {
   // Sale del mismo cálculo del día que muestra Inicio, así que el widget no
   // puede decir un número distinto del de la app.
   const widgetPublisher = HomeWidgetPublisher();
-  publishToWidget = () =>
-      unawaited(widgetPublisher.publish(repository.daily(today())));
+  publishToWidget = () => unawaited(
+    widgetPublisher.publish(
+      repository.daily(today()),
+      glasses: repository.glassesOn(today()),
+      waterGoal: repository.profile.waterGoalGlasses,
+    ),
+  );
 
   final PalsClient? palsClient = SupabaseConfig.isConfigured
       ? PalsClient.fromInstance()

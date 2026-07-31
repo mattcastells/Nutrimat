@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La gota de un vaso que falta: el mismo contorno, sin llenar. Se distingue
+     de la llena por la forma y no solo por el color, que es la regla de
+     accesibilidad del proyecto — el color nunca es el único portador de
+     información. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="12dp"
+    android:height="12dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="@color/nm_widget_track"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M12,2.7 C12,2.7 5,10.3 5,14.6 a7,7 0 0,0 14,0 C19,10.3 12,2.7 12,2.7 z"/>
+</vector>

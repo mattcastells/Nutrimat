@@ -6,4 +6,6 @@
     <color name="nm_widget_text">#FFE9E9ED</color>
     <color name="nm_widget_text_muted">#8CE9E9ED</color>
     <color name="nm_widget_accent">#FF9184D9</color>
+    <color name="nm_widget_track">#29E9E9ED</color>
+    <color name="nm_widget_water">#FF7FA8D9</color>
 </resources>

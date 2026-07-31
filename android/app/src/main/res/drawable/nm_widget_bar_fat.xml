@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Barra de fat. El color es fijo, el mismo que usa MacroBar en Inicio
+     (NmChartColors): proteínas `intake`, carbohidratos `running`, grasas
+     `sports`. Va hardcodeado y no por `progressTint` porque cada macro tiene
+     siempre su color: una barra por archivo no depende de que el tintado se
+     comporte igual en todos los launchers. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/nm_widget_track"/>
+            <corners android:radius="2dp"/>
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip android:clipOrientation="horizontal" android:gravity="left">
+            <shape android:shape="rectangle">
+                <solid android:color="#FFD9B46A"/>
+                <corners android:radius="2dp"/>
+            </shape>
+        </clip>
+    </item>
+</layer-list>

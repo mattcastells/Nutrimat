@@ -90,24 +90,41 @@ eliminar cuenta y acerca de.
 | D-22 · duración sin tope | presets + deslizador 5–240 + campo libre `hh:mm` hasta 24:00 |
 | RN-03 · estimaciones | todo gasto lleva "≈" y su método visible |
 
-**Widget de la pantalla de inicio del teléfono.** Las calorías restantes de hoy,
-sin abrir la app. Vive en `android/app/src/main/kotlin/.../CaloriesWidget.kt` y
-lo dibuja el launcher, en su proceso, así que no puede preguntarle nada a Dart:
-la app le deja el dato escrito (`HomeWidgetPublisher`, canal
-`io.nutrimat.app/widget`) cada vez que se registra algo y cada vez que se abre
-o se vuelve a ella.
+**Widget de la pantalla de inicio del teléfono.** El día completo sin abrir la
+app: los vasos de agua, las calorías restantes, lo consumido contra el objetivo
+y las tres barras de macros. Vive en
+`android/app/src/main/kotlin/.../CaloriesWidget.kt` y lo dibuja el launcher, en
+su proceso, así que no puede preguntarle nada a Dart: la app le deja el dato
+escrito (`HomeWidgetPublisher`, canal `io.nutrimat.app/widget`) cada vez que se
+registra algo y cada vez que se abre o se vuelve a ella.
 
-Dos decisiones que no son de comodidad:
+Cuatro decisiones que no son de comodidad:
 
 - **El texto viaja ya formateado.** El separador de miles y las palabras
-  ("kcal restantes", "kcal de más") salen de `Fmt` y del mismo criterio que
-  Inicio. El widget no reimplementa nada porque dos formateadores terminan
-  diciendo cosas distintas del mismo número.
+  ("kcal restantes", "kcal de más", "P 118/140") salen de `Fmt` y del mismo
+  criterio que Inicio. El widget no reimplementa nada porque dos formateadores
+  terminan diciendo cosas distintas del mismo número. Lo único que viaja como
+  número son las **cuentas** —vasos y porcentajes—, porque de eso el widget
+  decide *cuánto dibuja*, no cómo se escribe.
 - **El dato lleva su fecha y el widget la mira.** Si lo guardado no es de hoy no
-  muestra el número: dice "Abrí Nutrimat para hoy". Un widget que no se
-  actualizó desde ayer mostrando "te quedan 1.234 kcal" es peor que uno vacío,
-  porque no se distingue de uno al día — la misma regla por la que la app nunca
-  presenta una estimación como si fuera una medición.
+  muestra **nada** de él —ni el número, ni las gotas, ni las barras—: dice
+  "Abrí Nutrimat para hoy". Un widget que no se actualizó desde ayer mostrando
+  "te quedan 1.234 kcal" es peor que uno vacío, porque no se distingue de uno al
+  día — la misma regla por la que la app nunca presenta una estimación como si
+  fuera una medición. Media pantalla con los macros de ayer al lado de un guion
+  sería la misma mentira en versión parcial.
+- **Una barra de macro se recorta al 100 %, la etiqueta no.** Con 180 g sobre un
+  objetivo de 140, la barra queda llena y la etiqueta dice "P 180/140": las dos
+  cosas —que se pasó y cuánto— en vez de una barra desbordada que no dice
+  ninguna.
+- **Las gotas de más allá de la meta se esconden.** Ocho gotas fijas con una
+  meta de cinco dirían que faltan tres que nadie se propuso. Al lado va la
+  cuenta exacta, que sí puede pasar de ocho.
+
+Los colores de las barras son los de `MacroBar` en Inicio (`NmChartColors`), y
+van hardcodeados uno por drawable en vez de por `progressTint`: cada macro tiene
+siempre el mismo color, y así no depende de que el tintado se comporte igual en
+todos los launchers.
 
 **Movimiento (21-motion-and-loading.md).** Anillo con crecimiento y count-up,
 barras de macros con stagger, gráficos con trazado progresivo y barras que

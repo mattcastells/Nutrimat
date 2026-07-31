@@ -1,6 +1,6 @@
 # Estado — 30 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.7.1` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.8.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -66,13 +66,13 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **268 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **271 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
 Comidas, actividades con cálculo MET, peso, medidas, agua, historial, progreso
-y objetivos. Hay un **widget de calorías restantes** para la pantalla de inicio
-del teléfono. El catálogo consulta Open Food Facts (con prioridad a productos
+y objetivos. Hay un **widget** con el resumen del día
+para la pantalla de inicio del teléfono. El catálogo consulta Open Food Facts (con prioridad a productos
 argentinos) y el escáner lee el código de barras con la cámara. Recordatorios
 locales de agua y de registro con horario configurable, sueño por noche y
 planificación de comidas hasta tres días adelante.
@@ -133,9 +133,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.7.1**.
+contra un Postgres limpio. Última publicada: **v1.8.0**.
 
-Publicar una versión es empujar un tag `v1.7.2`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.8.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -380,20 +380,28 @@ decía**.
 8. El día de un pal quedó por categorías en orden fijo —comida, agua, deporte,
    sueño— con las comidas adentro por momento del día.
 
-### Widget de calorías restantes
+### Widget de la pantalla de inicio
 
-En la pantalla de inicio del teléfono, sin abrir la app. Detalle en
-[`docs/estado-de-la-app.md`](docs/estado-de-la-app.md) §3; lo que importa acá
-es que **el dato lleva su fecha y el widget la mira**: si lo guardado no es de
-hoy no muestra el número, dice "Abrí Nutrimat para hoy". Un widget con el
-número de ayer no se distingue de uno al día, y eso es la misma clase de
-mentira que la app no se permite en ningún otro lado.
+El día completo sin abrir la app: los vasos de agua, las calorías restantes, lo
+consumido contra el objetivo y las tres barras de macros. Detalle en
+[`docs/estado-de-la-app.md`](docs/estado-de-la-app.md) §3; lo que importa acá es
+que **el dato lleva su fecha y el widget la mira**: si lo guardado no es de hoy
+no muestra nada de él —ni el número, ni las gotas, ni las barras—, dice "Abrí
+Nutrimat para hoy". Un widget con el número de ayer no se distingue de uno al
+día, y eso es la misma clase de mentira que la app no se permite en ningún otro
+lado.
 
-Verificado en el emulador: el sistema registra el provider
-(`dumpsys appwidget`), la app escribe el dato del día
-(`shared_prefs/nm_widget.xml`) y un `APPWIDGET_UPDATE` forzado dibuja sin
-excepciones. **Falta verlo puesto en una pantalla de inicio de verdad**: eso
-pide un toque largo en el launcher.
+Verificado **puesto en la pantalla de inicio del emulador**, con captura de los
+cuatro estados: con datos en tema claro y en oscuro, en cero, y con el dato de
+otro día. Dos cosas que solo aparecieron ahí y que ningún test hubiera
+atrapado: el título "NUTRIMAT" se leía **"NUT"** —las ocho gotas no le dejaban
+lugar, y el nombre de la app sobra en una pantalla de inicio donde la persona
+puso el widget a propósito—, y el guion del estado sin datos, a 26 sp y en color
+de acento, se leía como una raya de la interfaz en vez de como "acá iba un
+número". Los dos se fueron.
+
+Queda anotado que el widget **no se puede probar de verdad sin ponerlo**: se
+agrega con un toque largo en la pantalla de inicio → Widgets → Nutrimat.
 
 ---
 

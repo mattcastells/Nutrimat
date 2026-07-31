@@ -5,14 +5,21 @@
      para traer datos nuevos —eso lo hace la app cuando se registra algo— sino
      para que el widget se dé cuenta solo de que cambió el día: pasada la
      medianoche, el número guardado es de ayer y tiene que dejar de mostrarse
-     como si fuera de hoy. -->
+     como si fuera de hoy.
+
+     `minResizeWidth` es el piso al que se puede encoger. Sin él el launcher lo
+     deja achicar hasta que las ocho gotas de agua no entran y la fila se corta,
+     que es exactamente lo que pasaba cuando esta fila además tenía el nombre de
+     la app: se leía "NUT". -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/nm_widget_calories"
     android:previewLayout="@layout/nm_widget_calories"
     android:description="@string/nm_widget_calories_description"
-    android:minWidth="110dp"
-    android:minHeight="70dp"
-    android:targetCellWidth="2"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"

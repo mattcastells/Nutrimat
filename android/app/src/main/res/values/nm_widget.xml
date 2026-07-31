@@ -9,6 +9,9 @@
     <color name="nm_widget_text">#FF1B1C26</color>
     <color name="nm_widget_text_muted">#941B1C26</color>
     <color name="nm_widget_accent">#FF796CBF</color>
+    <!-- Lo que falta de una barra y el contorno de un vaso sin tomar. -->
+    <color name="nm_widget_track">#1F1B1C26</color>
+    <color name="nm_widget_water">#FF3C6EA8</color>
 
     <string name="nm_widget_calories_label">Calorías restantes</string>
     <string name="nm_widget_calories_description">Cuántas calorías te quedan hoy.</string>

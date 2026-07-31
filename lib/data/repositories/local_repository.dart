@@ -28,6 +28,7 @@ import '../../domain/models/water.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/services/photo_sync_service.dart';
 import '../../domain/services/summary_builder.dart';
+import '../local/health_connect_gateway.dart';
 import '../local/local_store.dart';
 import '../remote/gemini_analysis_client.dart';
 import '../remote/open_food_facts_client.dart';
@@ -65,6 +66,7 @@ class LocalRepository
     this.photos,
     this.aiAnalysis,
     this.usdaFoods,
+    this.health,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
 
   final LocalStore store;
@@ -76,6 +78,11 @@ class LocalRepository
 
   /// Análisis de foto por la Edge Function. Null sin servidor.
   final GeminiAnalysisClient? aiAnalysis;
+
+  /// Health Connect, el almacén de salud del teléfono: de ahí salen el peso, la
+  /// grasa corporal y el sueño que miden la balanza y el reloj. Null en los
+  /// tests y en cualquier plataforma que no sea Android.
+  final HealthConnectGateway? health;
 
   /// Alimentos genéricos de USDA por la Edge Function. Null sin servidor: la
   /// búsqueda sigue andando con Open Food Facts y con la tabla argentina.
@@ -1240,16 +1247,48 @@ class LocalRepository
 
   @override
   Future<void> connect() async {
+    final gateway = health;
+    if (gateway == null) {
+      store.integration = store.integration.copyWith(
+        status: IntegrationStatus.error,
+        lastError: 'Esta compilación no tiene el puente de Health Connect.',
+      );
+      await _commit();
+      return;
+    }
+
+    // Tres estados, tres arreglos distintos: sin soporte no hay nada que hacer,
+    // "actualizá Health Connect" sí tiene salida, y recién con permiso se
+    // conecta. Meterlos en un solo "falló" mandaría a la persona a buscar el
+    // problema donde no está.
+    final availability = await gateway.availability();
+    if (availability != HealthConnectAvailability.available) {
+      store.integration = store.integration.copyWith(
+        status: IntegrationStatus.error,
+        lastError: availability == HealthConnectAvailability.updateRequired
+            ? 'Actualizá Health Connect desde Play Store y volvé a intentar.'
+            : 'Este teléfono no tiene Health Connect. Necesita Android 9 o más '
+                  'nuevo.',
+      );
+      await _commit();
+      return;
+    }
+
+    final granted = await gateway.requestPermissions();
+    if (!granted) {
+      store.integration = store.integration.copyWith(
+        status: IntegrationStatus.error,
+        lastError: 'Sin los tres permisos no podemos importar. Se dan desde '
+            'Health Connect.',
+      );
+      await _commit();
+      return;
+    }
+
     store.integration = store.integration.copyWith(
       status: IntegrationStatus.connected,
       connectedAt: DateTime.now(),
-      permissions: const <String>[
-        'ExerciseSession',
-        'ActiveCaloriesBurned',
-        'Steps',
-        'Distance',
-        'HeartRate',
-      ],
+      permissions: const <String>['Weight', 'BodyFat', 'SleepSession'],
       clearError: true,
     );
     await _commit();
@@ -1257,6 +1296,10 @@ class LocalRepository
 
   @override
   Future<void> disconnect() async {
+    // No se revoca el permiso desde acá: eso lo hace la persona en Health
+    // Connect. Una app que dijera "desconectado" con el permiso todavía dado
+    // estaría mintiendo sobre lo que puede leer; lo que se corta es la
+    // importación, que es lo que sí depende de nosotros.
     store.integration = store.integration.copyWith(
       status: IntegrationStatus.notConnected,
       permissions: const <String>[],
@@ -1264,13 +1307,26 @@ class LocalRepository
     await _commit();
   }
 
-  /// Importación simulada: trae 3 sesiones, una de ellas solapada con un
-  /// registro manual, para ejercitar el diálogo de duplicado (D-07).
+  /// Trae de Health Connect el peso, la grasa corporal y el sueño de los
+  /// últimos 30 días.
+  ///
+  /// **No puede duplicar nada**, y eso no es suerte: las tres cosas son una por
+  /// día o por noche en Nutrimat, y volver a registrarlas actualiza el registro
+  /// que ya estaba (D-16). Sincronizar diez veces deja lo mismo que una.
+  ///
+  /// Tampoco toca las calorías: lo que mide el reloj es la estimación de otro
+  /// modelo, y presentarla como propia rompería RN-03. Las sesiones de ejercicio
+  /// —lo único que sí podría duplicar— no entran todavía: necesitan la revisión
+  /// de duplicados de por medio, que ya existe, y merecen su propio paso.
   @override
   Future<HealthSyncResult> sync() async {
-    final walking = typeBySlug('walking');
-    final cycling = typeBySlug('cycling');
-    if (walking == null || cycling == null) {
+    final gateway = health;
+    if (gateway == null || !await gateway.hasPermissions()) {
+      store.integration = store.integration.copyWith(
+        status: IntegrationStatus.error,
+        lastError: 'Faltan los permisos de Health Connect.',
+      );
+      await _commit();
       return const HealthSyncResult(
         imported: 0,
         updated: 0,
@@ -1279,155 +1335,84 @@ class LocalRepository
       );
     }
 
-    final now = DateTime.now();
-    final weight = store.currentWeightKg ?? 70;
-    final credit = profile.effectiveCreditPercentage;
-    final enabled = profile.exerciseCreditEnabled;
-
-    Activity imported({
-      required ActivityType type,
-      required DateTime startedAt,
-      required int minutes,
-      required int calories,
-      required String externalId,
-      SyncStatus status = SyncStatus.synced,
-      int? steps,
-      int? distanceMeters,
-    }) {
-      final valid = providerCaloriesAreValid(
-        activeCalories: calories,
-        durationMinutes: minutes,
+    final HealthConnectSnapshot snapshot;
+    try {
+      snapshot = await gateway.read();
+    } on AppError catch (error) {
+      store.integration = store.integration.copyWith(
+        status: IntegrationStatus.error,
+        lastError: error.message,
       );
-      final kcal = valid
-          ? calories
-          : calculateCaloriesFromMet(
-              met: type.metFor(Intensity.moderate),
-              weightKg: weight,
-              durationMinutes: minutes,
-            );
-      return Activity(
-        id: _uuid.v4(),
-        activityTypeId: type.id,
-        activityType: type,
-        startedAt: startedAt,
-        endedAt: startedAt.add(Duration(minutes: minutes)),
-        localDate: dateOnly(startedAt),
-        durationMinutes: minutes,
-        intensity: Intensity.moderate,
-        distanceMeters: distanceMeters,
-        steps: steps,
-        estimatedCalories: kcal,
-        appliedCalories: calculateAppliedExerciseCalories(
-          estimatedCalories: kcal,
-          creditPercentage: credit,
-          creditEnabled: enabled,
-        ),
-        exerciseCreditPercentage: credit,
-        // Se usa ActiveCaloriesBurned; si es inválido se recalcula (D-12, RN-05).
-        estimationMethod: valid
-            ? EstimationMethod.provider
-            : EstimationMethod.metRecalculated,
-        metValue: valid ? null : type.metFor(Intensity.moderate),
-        weightKgUsed: valid ? null : weight,
-        sourceType: ActivitySourceType.imported,
-        externalSource: HealthProvider.healthConnect.wire,
-        externalId: externalId,
-        sourceUpdatedAt: now,
-        deviceName: 'Pixel Watch',
-        syncStatus: status,
-        createdAt: now,
-        updatedAt: now,
-      );
+      await _commit();
+      rethrow;
     }
 
-    final existingIds = store.activities
-        .map((a) => a.externalId)
-        .whereType<String>()
-        .toSet();
+    var imported = 0;
+    var updated = 0;
 
-    final candidates = <Activity>[
-      imported(
-        type: cycling,
-        startedAt: DateTime(now.year, now.month, now.day, 6, 40),
-        minutes: 40,
-        calories: 355,
-        externalId: 'hc-ride-01',
-        distanceMeters: 12400,
-      ),
-      imported(
-        type: walking,
-        startedAt: DateTime(now.year, now.month, now.day, 12, 15),
-        minutes: 18,
-        calories: 74,
-        externalId: 'hc-walk-02',
-        steps: 2140,
-        distanceMeters: 1600,
-      ),
-      // Esta se solapa con la caminata manual de las 7:30 del seed.
-      imported(
-        type: walking,
-        startedAt: DateTime(now.year, now.month, now.day, 7, 35),
-        minutes: 28,
-        calories: 176,
-        externalId: 'hc-walk-03',
-        steps: 3310,
-        distanceMeters: 2500,
-        status: SyncStatus.needsReview,
-      ),
-    ].where((a) => !existingIds.contains(a.externalId)).toList();
-
-    final duplicates = <DuplicateCandidate>[];
-    for (final candidate in candidates) {
-      final incoming = DuplicateInput(
-        activityTypeId: candidate.activityTypeId,
-        startedAt: candidate.startedAt,
-        durationMinutes: candidate.durationMinutes,
-        estimatedCalories: candidate.estimatedCalories,
-        distanceMeters: candidate.distanceMeters,
-        externalSource: candidate.externalSource,
-        externalId: candidate.externalId,
-      );
-      for (final existing in store.activities) {
-        if (existing.isDeleted ||
-            existing.sourceType == ActivitySourceType.imported) {
-          continue;
-        }
-        final score = duplicateScore(
-          incoming,
-          DuplicateInput(
-            activityTypeId: existing.activityTypeId,
-            startedAt: existing.startedAt,
-            durationMinutes: existing.durationMinutes,
-            estimatedCalories: existing.estimatedCalories,
-            distanceMeters: existing.distanceMeters,
-          ),
-        );
-        if (score.score >= DuplicateThresholds.suspicious) {
-          duplicates.add(
-            DuplicateCandidate(
-              incoming: candidate,
-              existing: existing,
-              score: score,
-            ),
-          );
-        }
+    // Se cuenta aparte lo que entra por primera vez de lo que corrige un
+    // registro que ya estaba: son dos cosas distintas y la pantalla las dice
+    // por separado.
+    for (final entry in snapshot.weightKg.entries) {
+      final existing = weightOn(entry.key) != null;
+      await logWeight(weightKg: entry.value, date: entry.key);
+      if (existing) {
+        updated++;
+      } else {
+        imported++;
       }
-      store.activities.add(candidate);
+    }
+
+    for (final entry in snapshot.bodyFatPct.entries) {
+      final existing = measurementsOn(
+        entry.key,
+      ).containsKey(MeasurementMetric.bodyFatPct);
+      await logMeasurement(
+        metric: MeasurementMetric.bodyFatPct,
+        value: entry.value,
+        date: entry.key,
+      );
+      if (existing) {
+        updated++;
+      } else {
+        imported++;
+      }
+    }
+
+    for (final entry in snapshot.sleepMinutes.entries) {
+      final existing = sleepOn(entry.key);
+      await logSleep(
+        date: entry.key,
+        minutes: entry.value,
+        // La calidad no la mide Health Connect de una forma que se pueda
+        // traducir sin inventar, así que se conserva la que haya puesto la
+        // persona y si no hay ninguna queda en "normal". Lo importado es la
+        // duración, que es lo que el reloj sí sabe.
+        quality: existing?.quality ?? SleepQuality.ok,
+        notes: existing?.notes,
+      );
+      if (existing != null) {
+        updated++;
+      } else {
+        imported++;
+      }
     }
 
     store.integration = store.integration.copyWith(
       status: IntegrationStatus.connected,
-      lastSyncAt: now,
-      importedCount: store.integration.importedCount + candidates.length,
+      lastSyncAt: DateTime.now(),
+      importedCount: store.integration.importedCount + imported,
       clearError: true,
     );
     await _commit();
 
     return HealthSyncResult(
-      imported: candidates.length,
-      updated: 0,
+      imported: imported,
+      updated: updated,
       skipped: 0,
-      duplicates: duplicates,
+      // Ninguna de las tres cosas que se importan puede duplicar, así que no
+      // hay nada que mandar a revisar.
+      duplicates: const <DuplicateCandidate>[],
     );
   }
 

@@ -6,10 +6,16 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import androidx.health.connect.client.PermissionController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import kotlinx.coroutines.launch
 
 /**
  * Instalación del APK de una actualización.
@@ -29,6 +35,47 @@ class MainActivity : FlutterActivity() {
         const val CHANNEL = "io.nutrimat.app/installer"
         const val WIDGET_CHANNEL = "io.nutrimat.app/widget"
         const val APK_MIME = "application/vnd.android.package-archive"
+        const val REQ_HEALTH_PERMISSIONS = 7301
+    }
+
+    /** La llamada de Dart que espera el resultado del pedido de permisos. */
+    private var pendingPermissionResult: MethodChannel.Result? = null
+
+    /**
+     * El pedido de permisos de Health Connect, con `startActivityForResult`.
+     *
+     * `registerForActivityResult` sería más lindo y **no está**:
+     * `FlutterActivity` hereda de `android.app.Activity`, no de
+     * `ComponentActivity`, así que no trae la API nueva ni `lifecycleScope`.
+     * Cambiar la clase base a `FlutterFragmentActivity` los traería, y también
+     * cambiaría la actividad de la que dependen la cámara, el escáner y el
+     * selector de fotos — no vale la pena arriesgar eso por azúcar sintáctica.
+     * El contrato se usa igual: solo se crea el intent y se parsea el resultado
+     * a mano.
+     */
+    private val healthContract = PermissionController.createRequestPermissionResultContract()
+
+    /**
+     * Para las llamadas `suspend` del puente. Propio y no `lifecycleScope`, por
+     * lo mismo de arriba; se cancela con la actividad para no dejar corrutinas
+     * hablándole a una pantalla que ya no está.
+     */
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    @Deprecated("Sin ComponentActivity no hay otra forma; ver healthContract.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_HEALTH_PERMISSIONS) return
+        val granted = healthContract.parseResult(resultCode, data)
+        pendingPermissionResult?.success(
+            granted.containsAll(HealthConnectBridge.PERMISSIONS),
+        )
+        pendingPermissionResult = null
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -107,6 +154,40 @@ class MainActivity : FlutterActivity() {
                     // los anota y la app se los lleva acá.
                     "drainPendingWater" ->
                         result.success(CaloriesWidgetStore.drainPending(this))
+                    else -> result.notImplemented()
+                }
+            }
+
+        // Health Connect. Todo lo de acá es `suspend`, así que cada llamada
+        // corre en el scope de la actividad y contesta cuando termina.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, HealthConnectBridge.CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "availability" ->
+                        result.success(HealthConnectBridge.availability(this))
+                    "hasPermissions" -> scope.launch {
+                        result.success(HealthConnectBridge.hasAllPermissions(this@MainActivity))
+                    }
+                    // El permiso lo concede Health Connect en su propia pantalla,
+                    // no el diálogo de permisos de Android: se pide con un
+                    // contrato de resultado de actividad y la respuesta llega por
+                    // el callback, no de vuelta de esta llamada.
+                    "requestPermissions" -> {
+                        pendingPermissionResult = result
+                        startActivityForResult(
+                            healthContract.createIntent(this, HealthConnectBridge.PERMISSIONS),
+                            REQ_HEALTH_PERMISSIONS,
+                        )
+                    }
+                    "read" -> scope.launch {
+                        try {
+                            result.success(HealthConnectBridge.read(this@MainActivity))
+                        } catch (error: Exception) {
+                            // Un fallo de lectura no puede quedar en silencio: la
+                            // pantalla de Integraciones muestra el motivo.
+                            result.error("read_failed", error.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

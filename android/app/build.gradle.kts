@@ -37,9 +37,17 @@ android {
 
     defaultConfig {
         applicationId = "io.nutrimat.app"
-        // 24 es el piso de los plugins usados y del ícono adaptativo.
-        // Health Connect (D-21) va a exigir 29 cuando se integre de verdad.
-        minSdk = 24
+        // 26 lo pide `androidx.health.connect:connect-client`, que es lo que
+        // trae los datos de Samsung Health y de Zepp (D-21). Antes era 24; subir
+        // deja afuera Android 7.0 y 7.1, que es de 2016 y no está en ningún
+        // teléfono en uso de los que conocemos.
+        //
+        // Ojo: 26 es el piso para **compilar**. Health Connect en sí necesita
+        // Android 9 para instalarse como app aparte, y desde Android 14 viene en
+        // el sistema. `HealthConnectBridge.availability` distingue los tres
+        // casos, porque "tu Android no lo soporta" y "instalá Health Connect" se
+        // arreglan de formas distintas.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -101,4 +109,12 @@ dependencies {
     // de paquetes como `content://`. Va explícita y no de arrastre: lo que
     // llega transitivamente de un AAR no queda en el classpath de compilación.
     implementation("androidx.core:core-ktx:1.13.1")
+    // Health Connect: el almacén de datos de salud del teléfono. Samsung Health
+    // y el Zepp app escriben ahí, así que con esta sola integración llegan los
+    // datos de los relojes Samsung y de los Amazfit — Zepp no tiene API pública
+    // para leerle nada, pero sí sincroniza hacia Health Connect.
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+    // Corrutinas: `connect-client` es `suspend` de punta a punta. Va explícita
+    // porque lo que llega transitivamente de un AAR no queda en el classpath.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

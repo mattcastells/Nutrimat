@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'app.dart';
 import 'core/config/supabase_config.dart';
 import 'core/utils/dates.dart';
 import 'data/local/android_reminder_scheduler.dart';
+import 'data/local/health_connect_gateway.dart';
 import 'data/local/home_widget_publisher.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
@@ -126,6 +128,11 @@ Future<void> bootstrap() async {
     // tabla argentina que viaja adentro del APK.
     usdaFoods: SupabaseConfig.isConfigured
         ? UsdaFoodClient.fromInstance()
+        : null,
+    // Health Connect no necesita servidor ni cuenta: es el almacén de salud
+    // del propio teléfono. Solo Android lo tiene.
+    health: defaultTargetPlatform == TargetPlatform.android
+        ? const HealthConnectGateway()
         : null,
     onChanged: () {
       notify();

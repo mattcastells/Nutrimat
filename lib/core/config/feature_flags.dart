@@ -26,10 +26,18 @@ abstract final class FeatureFlags {
 
   /// Importación desde Health Connect.
   ///
-  /// Para prenderlo hace falta el adaptador nativo en `data/native/`, los
-  /// permisos de lectura y `minSdk 29` (D-21). Hoy la sincronización inserta
-  /// tres actividades de ejemplo.
-  static const bool healthConnectSync = bool.fromEnvironment('NM_HEALTH_SYNC');
+  /// Ya no inserta actividades de ejemplo: lee de verdad el peso, la grasa
+  /// corporal y el sueño de los últimos 30 días (`HealthConnectGateway`). Con
+  /// esto entran los datos de Samsung Health y del Zepp app, que escriben ahí —
+  /// Zepp no tiene API pública para leerle nada a nadie, así que este es el
+  /// único camino que existe para un Amazfit.
+  ///
+  /// Encendido por defecto. En un teléfono sin Health Connect la pantalla de
+  /// Integraciones lo dice y no ofrece conectar.
+  static const bool healthConnectSync = bool.fromEnvironment(
+    'NM_HEALTH_SYNC',
+    defaultValue: true,
+  );
 
   // El flag `cloudBackup` se sacó: no lo leía nadie y encima mentía. Decía
   // "mientras esté apagado, los datos viven solo en este teléfono", y el

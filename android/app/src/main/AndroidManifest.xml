@@ -18,6 +18,25 @@
     <!-- Lectura de códigos de barras. La foto de comida no la necesita: usa el
          intent de cámara del sistema, que no exige permiso. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- Health Connect: solo **lectura**, y solo de estas tres cosas.
+         Cada permiso que se pide hay que poder justificarlo en la pantalla de
+         Privacidad, así que se piden los que se usan y ninguno más:
+
+         · Peso y grasa corporal → los mide la balanza, mejor que la memoria.
+         · Sueño → lo mide el reloj, la persona lo estima.
+
+         Lo que **no** se pide, a propósito:
+         · Calorías activas. El reloj las estima con su modelo y Nutrimat con
+           MET; traer el número ajeno como si fuera medición rompe RN-03. Se
+           trae la sesión y Nutrimat calcula, como ya hace.
+         · Pasos. En Nutrimat solo existen colgados de una actividad, así que
+           importarlos inventaría actividades y esas sí suman calorías.
+         · Nutrición. De la comida Nutrimat es la fuente de verdad.
+         · Escritura de cualquier cosa. Todavía nada sale de acá. -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT"/>
+    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
     <!-- Alguna dependencia puede declarar permisos de lectura de la galería
@@ -70,7 +89,28 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="nutrimat"/>
             </intent-filter>
+
+            <!-- Health Connect exige que la app pueda explicar **por qué** pide
+                 cada permiso, y entra a esa explicación por acá. Los dos filtros
+                 son el mismo contrato en dos formas: el de arriba para Android
+                 14+, donde Health Connect es del sistema, y el de abajo para
+                 Android 9–13, donde es una app aparte. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
+            </intent-filter>
         </activity>
+
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
+            </intent-filter>
+        </activity-alias>
         <!-- Le pasa al instalador de paquetes una URI `content://` del APK
              recién descargado. Un `file://` haría que Android lance
              FileExposedException desde API 24; el provider concede lectura
@@ -121,5 +161,9 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Para poder preguntarle al sistema si Health Connect está instalado
+             sin esto la consulta devuelve "no está" en Android 11+ aunque esté,
+             y la app mandaría a instalar algo que ya existe. -->
+        <package android:name="com.google.android.apps.healthdata"/>
     </queries>
 </manifest>

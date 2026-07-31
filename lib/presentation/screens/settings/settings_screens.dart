@@ -336,10 +336,8 @@ class _IntegrationsScreenState extends ConsumerState<IntegrationsScreen> {
             InfoNote(
               tone: NmNoteTone.caution,
               text: repo.isPlatformSupported
-                  ? 'La importación desde Health Connect todavía no está '
-                        'conectada. Preferimos dejarla apagada antes que '
-                        'meterte en el historial actividades que no '
-                        'registraste.'
+                  ? 'Esta compilación tiene la importación apagada '
+                        '(`NM_HEALTH_SYNC=false`).'
                   : 'Health Connect está disponible solo en Android.',
             ),
             const SizedBox(height: NmSpace.s6),

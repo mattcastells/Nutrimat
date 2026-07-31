@@ -51,15 +51,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // Con la sesión ya guardada no se pasa por la pantalla de entrar, así que
     // la puerta del respaldo hay que abrirla acá. Si no, la app dejaría de
     // respaldar en silencio en cada arranque normal.
-    // Primero las tablas: son la persistencia con la que queremos quedarnos.
-    // Si traen algo, el respaldo JSON ya no tiene que restaurar nada y su
-    // puerta se abre igual, sin pisar lo que acabamos de traer.
+    //
+    // Primero las tablas, y **siempre**, tenga o no datos este dispositivo: son
+    // la fuente de verdad de la cuenta. Lo que traen se reconcilia con lo local
+    // en vez de reemplazarlo, así que lo que se cargó acá sin conexión
+    // sobrevive y lo que se cargó en otro lado entra. Es lo que permite usar la
+    // misma cuenta desde el teléfono y desde el navegador.
     final desdeTablas = await ref
         .read(relationalSyncProvider)
-        ?.openAfterPull(
-          localIsEmpty: !repo.hasUserData,
-          apply: repo.importDocument,
-        );
+        ?.openAfterPull(apply: repo.importDocument);
 
     await ref
         .read(cloudBackupProvider)

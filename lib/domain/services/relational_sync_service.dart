@@ -4,6 +4,7 @@ import '../../core/error/app_error.dart';
 import '../../data/local/local_store.dart';
 import '../../data/remote/relational_sync_client.dart';
 import '../repositories/auth_gateway.dart';
+import 'document_merge.dart';
 
 /// Estado de la persistencia relacional, para poder mirarla desde Ajustes.
 sealed class SyncState {
@@ -32,16 +33,23 @@ class SyncFailed extends SyncState {
   final DateTime? lastPush;
 }
 
-/// Mantiene las tablas al día con lo que hay en el teléfono.
+/// Mantiene las tablas y el dispositivo al día, en los dos sentidos.
 ///
-/// Convive con el respaldo JSON en vez de reemplazarlo, **a propósito**. Los
-/// dos escriben: el documento sigue siendo la fuente de verdad de la app y las
-/// filas se llenan en paralelo. Así, si esto falla, no puede romper nada de lo
-/// que ya funcionaba — y si el documento se pierde, las filas están.
+/// **Las tablas son la fuente de verdad de la cuenta**; el documento local es la
+/// copia con la que trabaja este dispositivo, y el respaldo JSON quedó como red
+/// de seguridad. Al entrar se trae lo que hay en las filas y se reconcilia con
+/// lo local ([openAfterPull]); de ahí en más cada cambio se escribe en los dos
+/// lados.
 ///
-/// Cuando las filas estén verificadas contra varios días de uso real se da
-/// vuelta la verdad: mandan las tablas y el documento queda como respaldo. Ese
-/// paso es una línea acá, no una reescritura.
+/// Antes era al revés —el documento mandaba y las filas eran una copia de solo
+/// escritura— y así estuvo a propósito mientras se verificaba que las filas
+/// coincidieran. Eso alcanzaba para un solo dispositivo y no alcanza para dos:
+/// sin traer, la misma cuenta abierta en el teléfono y en el navegador diverge
+/// desde el primer registro y no se vuelve a encontrar.
+///
+/// Que esto falle sigue sin romper nada: el dato ya está en el dispositivo y en
+/// el respaldo JSON, y la reconciliación no puede quedarse con menos registros
+/// de los que había.
 class RelationalSyncService {
   RelationalSyncService({
     required RelationalSyncClient client,
@@ -84,17 +92,25 @@ class RelationalSyncService {
     if (!_states.isClosed) _states.add(next);
   }
 
-  /// Decide qué hacer al entrar y recién ahí habilita la escritura.
+  /// Trae las filas al entrar, las reconcilia con lo local y recién ahí
+  /// habilita la escritura.
   ///
-  /// Si el teléfono está vacío y la base tiene filas, se traen. Es el caso de
-  /// reinstalar o cambiar de dispositivo, y es lo que convierte a las tablas
-  /// en persistencia de verdad y no en una copia de solo escritura.
+  /// **Acá es donde las tablas pasan a ser la fuente de verdad.** Antes solo se
+  /// consultaban si el teléfono estaba vacío: en cuanto había algo local, la app
+  /// no volvía a mirarlas nunca, y las filas eran un respaldo de solo escritura.
+  /// Con eso la misma cuenta no se puede usar desde dos lados — un navegador que
+  /// ya se visitó una vez tiene su propia copia en `localStorage`, así que desde
+  /// la segunda visita la web y el teléfono divergen y no se vuelven a
+  /// encontrar.
   ///
-  /// Con datos locales no se toca nada: pisarlos sería el mismo error al
-  /// revés. Pase lo que pase se abre la puerta, porque dejarla cerrada por un
+  /// Ahora se trae siempre y se reconcilia con [mergeDocuments], que es una
+  /// unión por id donde gana el más reciente y **no puede quedar con menos
+  /// registros que los que había**. Lo local que todavía no se subió sobrevive;
+  /// lo que se cargó en otro dispositivo entra.
+  ///
+  /// Pase lo que pase se abre la puerta de escritura: dejarla cerrada por un
   /// fallo de red sería no volver a escribir nunca.
   Future<bool> openAfterPull({
-    required bool localIsEmpty,
     required Future<void> Function(Map<String, dynamic> document) apply,
   }) async {
     final account = _auth.currentAccount;
@@ -102,21 +118,31 @@ class RelationalSyncService {
 
     var traido = false;
     try {
-      if (localIsEmpty) {
-        final document = await _client.pull(
-          userId: account.id,
-          store: _store,
+      final remote = await _client.pull(userId: account.id, store: _store);
+      if (remote != null) {
+        final merged = mergeDocuments(
+          local: _store.toDocument(),
+          remote: remote,
         );
-        if (document != null) {
-          await apply(document);
-          traido = true;
-        }
+        await apply(merged);
+        traido = true;
       }
     } on AppError {
-      // Sin conexión no se trae, pero tampoco se bloquea la escritura.
+      // Sin conexión no se trae, pero tampoco se bloquea la escritura ni se
+      // toca lo local: un fallo de lectura no puede parecerse a "no había
+      // nada".
     } finally {
       _canPush = true;
     }
+
+    // Después de abrir la puerta, no antes: `markDirty` sale temprano mientras
+    // `_canPush` sea false, así que llamarlo adentro del `try` no habría hecho
+    // nada — y en silencio.
+    //
+    // Sube lo que quedó solo de este lado. Sin esto, un registro cargado sin
+    // conexión se reconcilia bien en pantalla y nunca llega a las tablas: la
+    // próxima vez volvería a estar solo de este lado.
+    if (traido) markDirty();
     return traido;
   }
 

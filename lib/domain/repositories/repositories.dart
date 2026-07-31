@@ -134,6 +134,13 @@ abstract interface class GoalRepository {
 
 abstract interface class MealRepository {
   List<Meal> mealsOn(DateTime date);
+
+  /// Todo el historial, **incluido lo borrado**. Es lo que permite comparar
+  /// contra las filas del servidor, que también conservan el borrado lógico:
+  /// comparar una lista filtrada contra una que no lo está daría una diferencia
+  /// que no existe.
+  List<Meal> get allMeals;
+
   Meal? mealById(String id);
   Future<Meal> saveMeal(Meal meal);
   Future<void> deleteMeal(String id);
@@ -157,6 +164,10 @@ abstract interface class ActivityRepository {
   Future<ActivityType> createCustomType(ActivityType type);
 
   List<Activity> activitiesOn(DateTime date);
+
+  /// Todo el historial, incluido lo borrado. Ver [MealRepository.allMeals].
+  List<Activity> get allActivities;
+
   Activity? activityById(String id);
   List<Activity> recentActivities({int limit = 5});
   List<Activity> favoriteActivities();
@@ -278,6 +289,10 @@ abstract interface class BodyRepository {
   Future<void> restoreWeight(String id);
 
   List<BodyMeasurement> measurements(MeasurementMetric metric);
+
+  /// Todas las medidas de todas las métricas, incluido lo borrado.
+  /// Ver [MealRepository.allMeals].
+  List<BodyMeasurement> get allMeasurements;
 
   /// Todas las medidas de un día, indexadas por métrica.
   ///

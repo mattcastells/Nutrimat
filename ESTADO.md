@@ -46,16 +46,27 @@ visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
 borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
 nombre.
 
-**Verificar las filas contra uso real.** Desde la 1.5.0 los datos se guardan
-por **dos caminos a la vez**: el documento JSON en Storage (con historial de
-diez copias fechadas desde la 1.4.3) y **filas en las tablas**. El documento
-sigue siendo la fuente de verdad de la app; las filas se llenan en paralelo
-para poder compararlas sin arriesgar nada.
+**Comparar las filas contra este dispositivo, y hacerlo pronto.** Las tablas ya
+son la fuente de verdad de la cuenta: al entrar se traen y se reconcilian con lo
+local. Antes solo se consultaban si el teléfono estaba vacío, así que las filas
+eran una copia de solo escritura — eso alcanzaba para un dispositivo y no
+alcanza para dos.
 
-Lo que falta es mirar unos días de uso y confirmar que las filas coinciden con
-el documento. Recién ahí se invierte la prioridad —que es cambiar el orden en
-`splash_screen.dart`, no una reescritura— y las tablas pasan a mandar
-(13-state-management.md §5 y §8).
+Está el botón que faltaba para comprobarlo: **Configuración → Respaldo en la
+nube → Comparar** muestra, tabla por tabla, cuántos registros hay acá y cuántos
+en el servidor. Que no coincidan no es necesariamente un problema —lo cargado
+sin conexión todavía no subió, y sube con el próximo cambio—, pero una
+diferencia grande y persistente sí lo es.
+
+La reconciliación **no puede dejar menos registros de los que había**: es unión
+por id, gana el más reciente, y ante empate o falta de fecha gana lo local
+(`domain/services/document_merge.dart`, 15 tests). Lo único que hace desaparecer
+algo es un borrado que alguien pidió y que llega con fecha más nueva.
+
+Lo que todavía no hace: reconciliar **al volver a la app**, solo al arrancarla.
+En el navegador da igual —recargar es arrancar— pero en el teléfono significa
+que un cambio hecho en la web aparece recién al reabrir la app, no al traerla de
+segundo plano.
 
 Para compilar con servidor hay que pasarle la config:
 
@@ -78,7 +89,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **279 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **294 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -436,7 +447,7 @@ contada al revés— y con eso el widget pasó de 4×2 celdas a 4×1.
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 268 tests
+flutter test                              # 294 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -451,13 +462,22 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. **Dar vuelta la fuente de verdad.** Desde la 1.5.0 cada cambio se escribe
-   en las tablas *además* del documento JSON, y al entrar con el teléfono
-   vacío los datos se traen de las tablas. Pero el documento **sigue siendo la
-   fuente de verdad de la app**: las filas se llenan en paralelo para poder
-   verificarlas contra uso real sin arriesgar nada. Cuando estén verificadas,
-   invertir la prioridad es cambiar el orden en `splash_screen.dart`, no una
-   reescritura.
+2. ~~**Dar vuelta la fuente de verdad.**~~ Hecho. Las tablas mandan: al entrar
+   se traen siempre y se reconcilian con lo local (`document_merge.dart`), y el
+   documento pasó a ser la copia con la que trabaja cada dispositivo. Lo que
+   queda de este hilo es más chico y está arriba, en "lo próximo": comparar
+   contra uso real, y reconciliar también al volver a la app y no solo al
+   arrancarla.
+
+   Esto es además lo que **habilita la versión web** para quien tiene iPhone: un
+   navegador arranca sin nada y se hidrata de las tablas, y desde la segunda
+   visita reconcilia en vez de quedarse con su copia aislada. La app ya compila
+   a web sin cambios (`flutter build web` verificado); lo que falta ahí es
+   `flutter create . --platforms web`, guardas de plataforma en los siete
+   archivos que usan APIs que no existen en el navegador —notificaciones,
+   escáner, `path_provider`, `image_picker`—, recortar las fuentes y un
+   `vercel.json` con el rewrite a `index.html` para que go_router no dé 404 al
+   recargar.
 
 **Health Connect ya no está descartado, pero solo entró la mitad segura.**
 Estuvo afuera mientras la app la usaba una sola persona que cargaba todo a mano:

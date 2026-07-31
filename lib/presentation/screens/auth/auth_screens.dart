@@ -125,13 +125,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     // Traer el respaldo **antes** de habilitar la subida. En un teléfono
     // recién instalado esto devuelve lo que había; si no se hiciera acá, el
     // documento vacío del alta pisaría el respaldo bueno a los pocos segundos.
-    // Las tablas primero: son la persistencia con la que queremos quedarnos.
+    // Las tablas primero y siempre: son la fuente de verdad de la cuenta, y lo
+    // que traen se reconcilia con lo local en vez de reemplazarlo.
     final desdeTablas = await ref
         .read(relationalSyncProvider)
-        ?.openAfterPull(
-          localIsEmpty: !repo.hasUserData,
-          apply: repo.importDocument,
-        );
+        ?.openAfterPull(apply: repo.importDocument);
 
     final restored = await ref
         .read(cloudBackupProvider)
@@ -286,10 +284,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     // así que esto solo habilita la subida.
     await ref
         .read(relationalSyncProvider)
-        ?.openAfterPull(
-          localIsEmpty: !repo.hasUserData,
-          apply: repo.importDocument,
-        );
+        ?.openAfterPull(apply: repo.importDocument);
     await ref
         .read(cloudBackupProvider)
         ?.openAfterRestore(

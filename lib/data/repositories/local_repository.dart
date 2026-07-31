@@ -253,6 +253,9 @@ class LocalRepository
       SummaryBuilder.mealsOn(store.meals, date);
 
   @override
+  List<Meal> get allMeals => List<Meal>.unmodifiable(store.meals);
+
+  @override
   Meal? mealById(String id) {
     for (final m in store.meals) {
       if (m.id == id) return m;
@@ -445,6 +448,10 @@ class LocalRepository
   @override
   List<Activity> activitiesOn(DateTime date) =>
       SummaryBuilder.activitiesOn(store.activities, date);
+
+  @override
+  List<Activity> get allActivities =>
+      List<Activity>.unmodifiable(store.activities);
 
   @override
   Activity? activityById(String id) {
@@ -1140,6 +1147,10 @@ class LocalRepository
   List<BodyMeasurement> measurements(MeasurementMetric metric) =>
       store.measurements.where((m) => m.metric == metric).toList()
         ..sort((a, b) => a.localDate.compareTo(b.localDate));
+
+  @override
+  List<BodyMeasurement> get allMeasurements =>
+      List<BodyMeasurement>.unmodifiable(store.measurements);
 
   @override
   Map<MeasurementMetric, BodyMeasurement> measurementsOn(DateTime date) =>

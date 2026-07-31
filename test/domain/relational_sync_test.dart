@@ -143,25 +143,46 @@ void main() {
       );
       final service = build();
 
-      await service.openAfterPull(localIsEmpty: true, apply: (_) async {});
+      await service.openAfterPull(apply: (_) async {});
 
       expect(service.canPush, isTrue);
       service.dispose();
     });
 
-    test('con datos locales no trae nada de la base', () async {
+    test('con datos locales también trae, y reconcilia en vez de pisar', () async {
+      // Este test decía lo contrario —"con datos locales no trae nada"— y era
+      // correcto mientras el documento era la fuente de verdad. Al darla vuelta
+      // hay que traer siempre, si no la misma cuenta abierta en dos lados
+      // diverge y no se vuelve a encontrar.
+      //
+      // La preocupación que protegía el test viejo, "pisar lo local es el mismo
+      // error al revés", sigue en pie: lo que cambió es cómo se protege. Ahora
+      // se reconcilia, y `document_merge_test.dart` prueba que reconciliar no
+      // puede dejar menos registros de los que había.
       await cargarUnaComida();
-      client.paraTraer = <String, dynamic>{'profile': <String, dynamic>{}};
+      client.paraTraer = <String, dynamic>{
+        'profile': <String, dynamic>{},
+        'meals': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'de-otro-dispositivo',
+            'slot': 'dinner',
+            'loggedAt': '2026-07-31T21:00:00.000Z',
+            'localDate': '2026-07-31T00:00:00.000Z',
+            'items': <Map<String, dynamic>>[],
+            'source': 'manual',
+            'syncStatus': 'synced',
+            'createdAt': '2026-07-31T21:00:00.000Z',
+            'updatedAt': '2026-07-31T21:00:00.000Z',
+          },
+        ],
+      };
       final service = build();
-      var aplicado = false;
 
-      final traido = await service.openAfterPull(
-        localIsEmpty: false,
-        apply: (_) async => aplicado = true,
-      );
+      final traido = await service.openAfterPull(apply: repo.importDocument);
 
-      expect(traido, isFalse);
-      expect(aplicado, isFalse, reason: 'pisar lo local es el mismo error al revés');
+      expect(traido, isTrue);
+      // La local sigue estando y la del otro dispositivo se sumó.
+      expect(store.meals, hasLength(2));
       service.dispose();
     });
   });
@@ -169,7 +190,7 @@ void main() {
   group('un teléfono vacío no vacía la base', () {
     test('sin datos locales no escribe, aunque la puerta esté abierta', () async {
       final service = build();
-      await service.openAfterPull(localIsEmpty: true, apply: (_) async {});
+      await service.openAfterPull(apply: (_) async {});
 
       await service.push();
 
@@ -179,7 +200,7 @@ void main() {
 
     test('con un registro real sí escribe', () async {
       final service = build();
-      await service.openAfterPull(localIsEmpty: true, apply: (_) async {});
+      await service.openAfterPull(apply: (_) async {});
       await cargarUnaComida();
 
       await service.push();
@@ -251,10 +272,7 @@ void main() {
       };
 
       final service = build();
-      final traido = await service.openAfterPull(
-        localIsEmpty: true,
-        apply: repo.importDocument,
-      );
+      final traido = await service.openAfterPull(apply: repo.importDocument);
 
       expect(traido, isTrue);
       expect(store.meals, hasLength(1));
@@ -271,10 +289,7 @@ void main() {
       client.paraTraer = null; // el cliente devuelve null cuando no hay filas
       final service = build();
 
-      await service.openAfterPull(
-        localIsEmpty: false,
-        apply: repo.importDocument,
-      );
+      await service.openAfterPull(apply: repo.importDocument);
 
       expect(store.meals, hasLength(1));
       service.dispose();
@@ -283,7 +298,7 @@ void main() {
 
   test('un fallo de escritura no rompe nada y queda dicho', () async {
     final service = build();
-    await service.openAfterPull(localIsEmpty: true, apply: (_) async {});
+    await service.openAfterPull(apply: (_) async {});
     await cargarUnaComida();
     client.fallaCon = const AppError(
       code: ApiErrorCode.server,

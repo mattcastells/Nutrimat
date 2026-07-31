@@ -58,7 +58,9 @@ void main() {
 
     expect(payload['value'], '2.000');
     expect(payload['label'], 'kcal restantes');
-    expect(payload['detail'], 'Comió 0 de 2.000');
+    // El "Comió X de Y" se sacó del widget: es la misma cuenta que el número
+    // grande, contada al revés, y ocupaba una línea entera.
+    expect(payload.containsKey('detail'), isFalse);
   });
 
   test('pasarse del objetivo se cuenta, no se reta', () async {
@@ -126,7 +128,7 @@ void main() {
 
     expect(payload['value'], '—');
     expect(payload['label'], 'Sin objetivo configurado');
-    expect(payload['detail'], 'Abrí Nutrimat para elegir uno');
+    expect(payload['waterMax'], 40);
   });
 
   test('el agua viaja como cuenta, para que el widget dibuje las gotas', () {

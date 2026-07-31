@@ -35,7 +35,29 @@ class CaloriesWidget : AppWidgetProvider() {
         render(context, manager, appWidgetIds)
     }
 
+    /**
+     * Tocar una gota anota un vaso y redibuja.
+     *
+     * No escribe en la base de la app **a propósito**: los datos viven en un
+     * único documento JSON y un proceso de fondo que lo lea y lo reescriba puede
+     * pisar comidas cargadas mientras tanto. Acá solo se anota la intención
+     * —fecha y delta— y la app la aplica cuando corre, que es la única que sabe
+     * escribir ese documento.
+     */
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_SET_WATER) {
+            val target = intent.getIntExtra(EXTRA_GLASSES, -1)
+            if (target >= 0) CaloriesWidgetStore.queueWater(context, target)
+            refresh(context)
+            return
+        }
+        super.onReceive(context, intent)
+    }
+
     companion object {
+
+        private const val ACTION_SET_WATER = "io.nutrimat.app.SET_WATER"
+        private const val EXTRA_GLASSES = "glasses"
 
         /**
          * Las gotas que hay dibujadas en el layout. RemoteViews no puede crear
@@ -79,7 +101,7 @@ class CaloriesWidget : AppWidgetProvider() {
                 val views = RemoteViews(context.packageName, R.layout.nm_widget_calories)
 
                 if (fresh) {
-                    renderDay(views, state!!)
+                    renderDay(context, views, state!!)
                 } else {
                     renderStale(views, hadData = state != null)
                 }
@@ -89,18 +111,27 @@ class CaloriesWidget : AppWidgetProvider() {
             }
         }
 
-        private fun renderDay(views: RemoteViews, state: CaloriesWidgetState) {
+        private fun renderDay(
+            context: Context,
+            views: RemoteViews,
+            state: CaloriesWidgetState,
+        ) {
             views.setViewVisibility(R.id.nm_widget_value, View.VISIBLE)
             views.setTextViewText(R.id.nm_widget_value, state.value)
             views.setTextViewText(R.id.nm_widget_label, state.label)
-            views.setTextViewText(R.id.nm_widget_detail, state.detail)
 
             // ── Agua ──────────────────────────────────────────────────────
+            // Lo guardado más lo que se tocó y todavía no se aplicó: el número
+            // que se ve es siempre el que la persona tocó, no uno a medio
+            // camino.
+            val glasses = (state.waterGlasses + CaloriesWidgetStore.pendingWater(context, state.date))
+                .coerceIn(0, state.waterMax)
+
             // Una gota llena por vaso tomado y una vacía por cada uno que falta
             // hasta la meta. Las de más allá de la meta se esconden en vez de
             // quedar dibujadas: ocho gotas fijas con una meta de cinco diría que
             // faltan tres que nadie se propuso.
-            val visible = maxOf(state.waterGoal, state.waterGlasses)
+            val visible = maxOf(state.waterGoal, glasses)
             for ((index, dropId) in DROPS.withIndex()) {
                 val nth = index + 1
                 if (nth > visible) {
@@ -110,17 +141,24 @@ class CaloriesWidget : AppWidgetProvider() {
                 views.setViewVisibility(dropId, View.VISIBLE)
                 views.setImageViewResource(
                     dropId,
-                    if (nth <= state.waterGlasses) {
+                    if (nth <= glasses) {
                         R.drawable.nm_widget_drop_full
                     } else {
                         R.drawable.nm_widget_drop_empty
                     },
                 )
+                // Tocar la gota N deja el día en N vasos, salvo que ya esté en N:
+                // ahí baja a N−1, y así el último toque se puede desandar sin
+                // abrir la app. Es la única forma de restar que tiene el widget.
+                views.setOnClickPendingIntent(
+                    dropId,
+                    setWaterIntent(context, if (nth == glasses) nth - 1 else nth),
+                )
             }
             views.setViewVisibility(R.id.nm_widget_water_count, View.VISIBLE)
             views.setTextViewText(
                 R.id.nm_widget_water_count,
-                "${state.waterGlasses}/${state.waterGoal}",
+                "$glasses/${state.waterGoal}",
             )
 
             // ── Macros ────────────────────────────────────────────────────
@@ -152,15 +190,37 @@ class CaloriesWidget : AppWidgetProvider() {
             // equivocado.
             views.setTextViewText(
                 R.id.nm_widget_label,
-                if (hadData) "Datos de otro día" else "Todavía sin datos",
+                if (hadData) {
+                    "Datos de otro día · abrí Nutrimat"
+                } else {
+                    "Todavía sin datos · abrí Nutrimat"
+                },
             )
-            views.setTextViewText(R.id.nm_widget_detail, "Abrí Nutrimat para hoy")
-
             for (dropId in DROPS) {
                 views.setViewVisibility(dropId, View.GONE)
             }
             views.setViewVisibility(R.id.nm_widget_water_count, View.GONE)
             views.setViewVisibility(R.id.nm_widget_macros, View.GONE)
+        }
+
+        /**
+         * El intent que deja el día en [glasses] vasos.
+         *
+         * El `requestCode` es el propio número: sin eso, `getBroadcast` devuelve
+         * el mismo `PendingIntent` para todas las gotas —los extras no entran en
+         * la comparación— y las ocho terminarían haciendo lo que pidió la
+         * primera.
+         */
+        private fun setWaterIntent(context: Context, glasses: Int): PendingIntent {
+            val intent = Intent(context, CaloriesWidget::class.java)
+                .setAction(ACTION_SET_WATER)
+                .putExtra(EXTRA_GLASSES, glasses)
+            return PendingIntent.getBroadcast(
+                context,
+                glasses,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         }
 
         /**
@@ -211,9 +271,9 @@ data class CaloriesWidgetState(
     val date: String,
     val value: String,
     val label: String,
-    val detail: String,
     val waterGlasses: Int,
     val waterGoal: Int,
+    val waterMax: Int,
     val proteinLabel: String,
     val proteinPercent: Int,
     val carbsLabel: String,
@@ -235,15 +295,23 @@ object CaloriesWidgetStore {
     private const val PREFS = "nm_widget"
     private const val KEY_DATE = "date"
 
+    /**
+     * Los toques de agua que la app todavía no aplicó, como `fecha:delta`
+     * separados por coma. Se guarda el **delta** y no el total porque entre el
+     * toque y la app puede haberse registrado agua desde la propia app: sumar
+     * deltas conserva las dos cosas, mientras que guardar un total pisaría una.
+     */
+    private const val KEY_PENDING = "pendingWater"
+
     fun write(context: Context, state: CaloriesWidgetState) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_DATE, state.date)
             .putString("value", state.value)
             .putString("label", state.label)
-            .putString("detail", state.detail)
             .putInt("waterGlasses", state.waterGlasses)
             .putInt("waterGoal", state.waterGoal)
+            .putInt("waterMax", state.waterMax)
             .putString("proteinLabel", state.proteinLabel)
             .putInt("proteinPercent", state.proteinPercent)
             .putString("carbsLabel", state.carbsLabel)
@@ -260,9 +328,9 @@ object CaloriesWidgetStore {
             date = date,
             value = prefs.getString("value", "—") ?: "—",
             label = prefs.getString("label", "") ?: "",
-            detail = prefs.getString("detail", "") ?: "",
             waterGlasses = prefs.getInt("waterGlasses", 0),
             waterGoal = prefs.getInt("waterGoal", 0),
+            waterMax = prefs.getInt("waterMax", 40),
             proteinLabel = prefs.getString("proteinLabel", "") ?: "",
             proteinPercent = prefs.getInt("proteinPercent", 0),
             carbsLabel = prefs.getString("carbsLabel", "") ?: "",
@@ -270,5 +338,60 @@ object CaloriesWidgetStore {
             fatLabel = prefs.getString("fatLabel", "") ?: "",
             fatPercent = prefs.getInt("fatPercent", 0),
         )
+    }
+
+    // ── Toques de agua pendientes ──────────────────────────────────────────
+
+    /** Cuántos vasos se tocaron para [date] y todavía no se aplicaron. */
+    fun pendingWater(context: Context, date: String): Int =
+        readPending(context)[date] ?: 0
+
+    /**
+     * Anota que el día [date] tiene que quedar en [target] vasos.
+     *
+     * Se guarda contra el total que el widget está mostrando, así que el delta
+     * que queda es exactamente lo que hay que sumarle a lo registrado.
+     */
+    fun queueWater(context: Context, target: Int) {
+        val state = read(context) ?: return
+        if (state.date != CaloriesWidget.todayIso()) return
+
+        val pending = readPending(context).toMutableMap()
+        val shown = (state.waterGlasses + (pending[state.date] ?: 0))
+            .coerceIn(0, state.waterMax)
+        val delta = target.coerceIn(0, state.waterMax) - shown
+        if (delta == 0) return
+
+        val next = (pending[state.date] ?: 0) + delta
+        if (next == 0) pending.remove(state.date) else pending[state.date] = next
+        writePending(context, pending)
+    }
+
+    /** Devuelve los pendientes y los borra: la app se los lleva para aplicarlos. */
+    fun drainPending(context: Context): Map<String, Int> {
+        val pending = readPending(context)
+        if (pending.isNotEmpty()) writePending(context, emptyMap())
+        return pending
+    }
+
+    private fun readPending(context: Context): Map<String, Int> {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_PENDING, null)
+        if (raw.isNullOrEmpty()) return emptyMap()
+        return raw.split(',').mapNotNull { chunk ->
+            val parts = chunk.split(':')
+            val delta = parts.getOrNull(1)?.toIntOrNull()
+            if (parts.size == 2 && delta != null) parts[0] to delta else null
+        }.toMap()
+    }
+
+    private fun writePending(context: Context, pending: Map<String, Int>) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                KEY_PENDING,
+                pending.entries.joinToString(",") { "${it.key}:${it.value}" },
+            )
+            .apply()
     }
 }

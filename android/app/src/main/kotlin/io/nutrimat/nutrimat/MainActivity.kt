@@ -86,9 +86,9 @@ class MainActivity : FlutterActivity() {
                                     date = date,
                                     value = call.argument<String>("value") ?: "—",
                                     label = call.argument<String>("label") ?: "",
-                                    detail = call.argument<String>("detail") ?: "",
                                     waterGlasses = call.argument<Int>("waterGlasses") ?: 0,
                                     waterGoal = call.argument<Int>("waterGoal") ?: 0,
+                                    waterMax = call.argument<Int>("waterMax") ?: 40,
                                     proteinLabel = call.argument<String>("proteinLabel") ?: "",
                                     proteinPercent = call.argument<Int>("proteinPercent") ?: 0,
                                     carbsLabel = call.argument<String>("carbsLabel") ?: "",
@@ -101,6 +101,12 @@ class MainActivity : FlutterActivity() {
                             result.success(null)
                         }
                     }
+                    // Los vasos que se tocaron en el widget mientras la app no
+                    // corría. El widget no escribe en la base —el documento es
+                    // uno y reescribirlo de a dos procesos pisa datos—, así que
+                    // los anota y la app se los lleva acá.
+                    "drainPendingWater" ->
+                        result.success(CaloriesWidgetStore.drainPending(this))
                     else -> result.notImplemented()
                 }
             }

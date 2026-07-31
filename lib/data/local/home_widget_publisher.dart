@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../core/utils/dates.dart';
 import '../../core/utils/formats.dart';
 import '../../domain/models/summaries.dart';
+import '../../domain/models/water.dart';
 
 /// Publica el día para el widget de la pantalla de inicio del teléfono.
 ///
@@ -47,6 +48,37 @@ class HomeWidgetPublisher {
     }
   }
 
+  /// Los vasos que se sumaron tocando el widget y todavía no están registrados,
+  /// por fecha. Los devuelve **y los borra**: quien llama tiene que aplicarlos.
+  ///
+  /// El widget no puede escribir en la base de la app. Podría —las
+  /// preferencias son las mismas— y sería un error grave: los datos viven en un
+  /// único documento JSON, así que un proceso de fondo que lo lea y lo reescriba
+  /// puede pisar comidas cargadas mientras tanto. No es un riesgo teórico: este
+  /// proyecto ya perdió los datos de alguien por una escritura así.
+  ///
+  /// Entonces el toque solo **anota su intención** de un lado (fecha y delta) y
+  /// la app la aplica cuando corre, que es la única que sabe escribir el
+  /// documento. El widget muestra lo guardado más lo pendiente, así que el
+  /// número que se ve siempre es el que la persona tocó.
+  Future<Map<DateTime, int>> drainPendingWater() async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, int>(
+        'drainPendingWater',
+      );
+      if (raw == null) return const <DateTime, int>{};
+      return <DateTime, int>{
+        for (final entry in raw.entries)
+          if (DateTime.tryParse(entry.key) != null)
+            DateTime.parse(entry.key): entry.value,
+      };
+    } on MissingPluginException {
+      return const <DateTime, int>{};
+    } on PlatformException {
+      return const <DateTime, int>{};
+    }
+  }
+
   /// Lo que ve el widget. Público para poder verificarlo sin plataforma nativa
   /// de por medio: es donde vive la decisión de qué se muestra.
   static Map<String, Object> payloadFor(
@@ -76,15 +108,15 @@ class HomeWidgetPublisher {
       'label': hasTarget
           ? (balance.isOverBudget ? 'kcal de más' : 'kcal restantes')
           : 'Sin objetivo configurado',
-      'detail': hasTarget
-          ? 'Comió ${Fmt.integer(summary.consumedKcal)} '
-                'de ${Fmt.integer(balance.adjustedTarget)}'
-          : 'Abrí Nutrimat para elegir uno',
 
       // ── Agua ──────────────────────────────────────────────────────────
-      // Cuentas, no texto: el widget dibuja una gota por vaso.
+      // Cuentas, no texto: el widget dibuja una gota por vaso, y las gotas se
+      // pueden tocar para sumar. El tope viaja para que el widget no pueda
+      // ofrecer un vaso que la app después va a recortar — dos topes, uno por
+      // lenguaje, es un tope que en algún momento discrepa.
       'waterGlasses': glasses,
       'waterGoal': waterGoal,
+      'waterMax': WaterLog.maxGlasses,
 
       // ── Macros ────────────────────────────────────────────────────────
       // Las tres, en el orden de Inicio: proteínas, carbohidratos, grasas.

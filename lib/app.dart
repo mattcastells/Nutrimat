@@ -42,15 +42,25 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
   /// para hoy" — pero si no se publicara al volver a la app, seguiría diciendo
   /// eso justo después de que la persona la abrió, que es la peor versión de un
   /// aviso: el que sigue apareciendo cuando ya se hizo lo que pedía.
-  void _publishToWidget() {
+  void _publishToWidget() => unawaited(_syncWidget());
+
+  Future<void> _syncWidget() async {
     if (!mounted) return;
     final repo = ref.read(repositoryProvider);
-    unawaited(
-      _homeWidget.publish(
-        repo.daily(today()),
-        glasses: repo.glassesOn(today()),
-        waterGoal: repo.profile.waterGoalGlasses,
-      ),
+
+    // Primero se aplican los vasos que se tocaron en el widget mientras la app
+    // no corría. Va acá y no en `onChanged` de `bootstrap`: aplicarlos dispara
+    // un cambio, que vuelve a publicar, y drenar ahí sería una vuelta infinita.
+    final pending = await _homeWidget.drainPendingWater();
+    for (final entry in pending.entries) {
+      await repo.addGlasses(entry.key, entry.value);
+    }
+    if (!mounted) return;
+
+    await _homeWidget.publish(
+      repo.daily(today()),
+      glasses: repo.glassesOn(today()),
+      waterGoal: repo.profile.waterGoalGlasses,
     );
   }
 

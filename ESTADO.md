@@ -1,6 +1,6 @@
 # Estado — 30 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.9.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.10.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -156,9 +156,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.9.0**.
+contra un Postgres limpio. Última publicada: **v1.10.0**.
 
-Publicar una versión es empujar un tag `v1.9.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.10.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 

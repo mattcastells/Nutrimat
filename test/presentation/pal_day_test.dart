@@ -123,8 +123,12 @@ void main() {
     // El agregado de actividad se comparte siempre, así que Deporte está —y
     // dice que todavía no se movió, que también es información del día.
     expect(find.text('DEPORTE'), findsOneWidget);
-    expect(find.text('Todavía no'), findsWidgets);
     expect(find.text('COMIDA'), findsOneWidget);
+
+    // "Se movió" una sola vez, en su categoría. Arriba había otro igual, en la
+    // tarjeta del total del día, y decía exactamente lo mismo.
+    expect(find.text('Se movió'), findsOneWidget);
+    expect(find.text('Todavía no'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });

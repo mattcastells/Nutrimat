@@ -173,26 +173,17 @@ class _Day extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // El resumen del día arriba de las categorías: es la respuesta a "cómo
-        // le fue", y las categorías son el detalle de eso.
+        // El total del día arriba de las categorías.
+        //
+        // Acá había también un "Se movió" que decía lo mismo que la categoría
+        // Deporte, dos cajas más abajo. El total de calorías se queda porque no
+        // está en ningún otro lado —la categoría Comida muestra cada comida,
+        // no la suma—; el de actividad se fue porque sí lo estaba.
         NmCard(
-          child: Column(
-            children: <Widget>[
-              ValueRow(
-                label: 'Comió',
-                value: Fmt.kcal(day.totalKcal),
-                emphasis: true,
-              ),
-              ValueRow(
-                label: 'Se movió',
-                value: day.activityCount == 0
-                    ? 'Todavía no'
-                    : '${day.activityCount} '
-                          '${day.activityCount == 1 ? 'vez' : 'veces'} · '
-                          '${Fmt.duration(day.activityMinutes)}',
-                muted: day.activityCount == 0,
-              ),
-            ],
+          child: ValueRow(
+            label: 'Comió',
+            value: Fmt.kcal(day.totalKcal),
+            emphasis: true,
           ),
         ),
 

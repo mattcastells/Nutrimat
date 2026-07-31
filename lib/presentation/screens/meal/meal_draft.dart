@@ -129,6 +129,45 @@ class MealDraftController extends Notifier<MealDraft?> {
     state = draft.copyWith(items: <MealItem>[...draft.items, item]);
   }
 
+  /// Suma a la comida abierta lo que estimó la IA, sin tirar lo que ya había.
+  ///
+  /// Es lo que hace falta cuando el análisis se pide **desde** una comida a
+  /// medio armar: empezar un borrador nuevo ahí borraría los ítems ya cargados
+  /// sin decirlo. Si no hay ninguno abierto no hace nada y quien llama arranca
+  /// uno con `start`.
+  ///
+  /// El `source` pasa a ser el del análisis aunque la comida tenga ítems
+  /// cargados a mano. Es a propósito: marcarla como manual diría que ninguno de
+  /// sus números es una estimación, y eso sería falso. Ante la duda se marca
+  /// como estimada, que es el lado que no engaña. La procedencia fina está por
+  /// ítem, en `MealItem.aiConfidence`.
+  void appendAnalysis({
+    required MealSource source,
+    required List<MealItem> items,
+    String? photoPath,
+    String? aiAnalysisId,
+  }) {
+    final current = state;
+    if (current == null) return;
+    state = MealDraft(
+      id: current.id,
+      slot: current.slot,
+      date: current.date,
+      loggedAt: current.loggedAt,
+      items: <MealItem>[...current.items, ...items],
+      source: source,
+      editingMealId: current.editingMealId,
+      photoPath: photoPath ?? current.photoPath,
+      aiAnalysisId: aiAnalysisId ?? current.aiAnalysisId,
+    );
+  }
+
+  /// Devuelve el borrador a un estado anterior, o lo cierra si no había ninguno.
+  ///
+  /// Se usa al descartar un análisis: quien lo abrió puede haber estado armando
+  /// una comida, y cerrar la revisión tiene que dejarla como estaba.
+  void restore(MealDraft? previous) => state = previous;
+
   void replaceItem(int index, MealItem item) {
     final draft = state;
     if (draft == null) return;

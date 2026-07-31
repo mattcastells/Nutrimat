@@ -528,6 +528,11 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   /// Ya se guardó, así que al salir no hay que descartar el borrador.
   bool _committed = false;
 
+  /// Cómo estaba el borrador antes de entrar acá, para poder dejarlo igual si
+  /// el análisis se descarta. Es `null` cuando no había ninguno abierto —el
+  /// caso del menú Agregar—, y ahí descartar es cerrarlo.
+  MealDraft? _previousDraft;
+
   @override
   void initState() {
     super.initState();
@@ -555,20 +560,43 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     if (analysis == null) return;
     final target = ref.read(photoTargetProvider);
     final photoPath = ref.read(photoPathProvider);
+    final controller = ref.read(mealDraftProvider.notifier);
 
-    ref.read(mealDraftProvider.notifier).start(
+    _previousDraft = ref.read(mealDraftProvider);
+
+    // Sin foto, la estimación salió de una descripción escrita: se guarda como
+    // tal para que el origen del dato no diga algo que no pasó.
+    final source = photoPath == null
+        ? MealSource.aiText
+        : MealSource.aiPhoto;
+    final items = <MealItem>[
+      for (var i = 0; i < analysis.items.length; i++)
+        _toMealItem(analysis.items[i], _previousDraft == null
+            ? i
+            : _previousDraft!.items.length + i),
+    ];
+
+    // Con una comida ya abierta —el análisis se pidió **desde** "Nueva
+    // comida"— lo estimado se suma a esa comida. Empezar un borrador nuevo le
+    // borraría a la persona los ítems que ya había cargado, y en silencio.
+    if (_previousDraft != null) {
+      controller.appendAnalysis(
+        source: source,
+        items: items,
+        photoPath: photoPath,
+        aiAnalysisId: analysis.id,
+      );
+      return;
+    }
+
+    controller.start(
       // Si se entró por el "+" de una sección, ese slot manda sobre la hora.
       slot: target?.slot ?? MealSlot.forHour(DateTime.now().hour),
       date: target?.date ?? ref.read(selectedDateProvider),
-      // Sin foto, la estimación salió de una descripción escrita: se guarda
-      // como tal para que el origen del dato no diga algo que no pasó.
-      source: photoPath == null ? MealSource.aiText : MealSource.aiPhoto,
+      source: source,
       photoPath: photoPath,
       aiAnalysisId: analysis.id,
-      items: <MealItem>[
-        for (var i = 0; i < analysis.items.length; i++)
-          _toMealItem(analysis.items[i], i),
-      ],
+      items: items,
     );
   }
 
@@ -589,12 +617,15 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     position: position,
   );
 
-  /// Se va sin guardar: el borrador no puede quedar dando vueltas, porque
-  /// "Nueva comida" retoma cualquier borrador abierto y aparecería con los
-  /// ítems de un análisis que se descartó.
+  /// Se va sin guardar: el borrador vuelve a como estaba antes de entrar.
+  ///
+  /// Sin borrador previo eso es cerrarlo —si quedara abierto, "Nueva comida"
+  /// lo retomaría y aparecería con los ítems de un análisis que se descartó—.
+  /// Y si venía de una comida a medio armar, esa comida queda intacta: se
+  /// descarta el análisis, no lo que la persona ya había cargado.
   void _discardIfUnsaved() {
     if (_committed) return;
-    ref.read(mealDraftProvider.notifier).clear();
+    ref.read(mealDraftProvider.notifier).restore(_previousDraft);
     ref.read(analysisProvider.notifier).state = null;
     ref.read(photoTargetProvider.notifier).state = null;
   }

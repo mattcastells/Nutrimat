@@ -1,6 +1,6 @@
 # Estado — 30 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.7.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.7.1` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -66,7 +66,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **262 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **268 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -133,9 +133,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.7.0**.
+contra un Postgres limpio. Última publicada: **v1.7.1**.
 
-Publicar una versión es empujar un tag `v1.7.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.7.2`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -403,7 +403,7 @@ pide un toque largo en el launcher.
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 262 tests
+flutter test                              # 268 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

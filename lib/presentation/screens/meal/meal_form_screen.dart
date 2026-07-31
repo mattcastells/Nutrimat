@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/config/feature_flags.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
@@ -18,6 +20,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../photo/photo_screens.dart';
 import 'edit_portion_sheet.dart';
 import 'meal_draft.dart';
 
@@ -51,6 +54,11 @@ class MealFormScreen extends ConsumerStatefulWidget {
 
 class _MealFormScreenState extends ConsumerState<MealFormScreen> {
   bool _saving = false;
+
+  /// Sin servidor no hay Edge Function a la que preguntarle, así que el botón
+  /// se muestra deshabilitado y con el motivo, en vez de fallar al tocarlo.
+  static bool get _aiAvailable =>
+      FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured;
 
   @override
   void initState() {
@@ -189,15 +197,23 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                               color: nm.textMuted,
                             ),
                             const SizedBox(width: NmSpace.s2),
-                            Text(
-                              '${friendlyDay(draft.date)} · '
-                              '${timeOfDay(draft.loggedAt)}',
-                              style: NmTextStyles.from(
-                                NmType.bodySm,
-                                color: nm.textMuted,
-                              ).tnum,
+                            // `Expanded` y no un `Text` suelto con `Spacer`:
+                            // así estaba y se desbordaba. La app promete texto
+                            // escalable hasta 200 % y con la fecha larga —un
+                            // día que no es hoy ni ayer— más "Cambiar hora" al
+                            // lado, la fila no daba. Ahora el que cede es el
+                            // texto, con puntos suspensivos.
+                            Expanded(
+                              child: Text(
+                                '${friendlyDay(draft.date)} · '
+                                '${timeOfDay(draft.loggedAt)}',
+                                overflow: TextOverflow.ellipsis,
+                                style: NmTextStyles.from(
+                                  NmType.bodySm,
+                                  color: nm.textMuted,
+                                ).tnum,
+                              ),
                             ),
-                            const Spacer(),
                             NmButton.ghost(
                               label: 'Cambiar hora',
                               onPressed: () async {
@@ -223,19 +239,23 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                         ),
                         const SizedBox(height: NmSpace.s6),
                         const NmSectionHeader(title: 'Ítems'),
+                        // El vacío solo cuenta qué se puede hacer; los botones
+                        // de abajo lo hacen.
+                        //
+                        // Antes tenía sus propias acciones y terminaban
+                        // repetidas: "Buscar alimento" arriba y "Agregar
+                        // alimento" abajo iban al mismo buscador, y "Escanear un
+                        // código" aparecía dos veces en la misma pantalla. Dos
+                        // botones que hacen lo mismo a diez píxeles de distancia
+                        // hacen dudar de si hacen lo mismo.
                         if (draft.items.isEmpty)
                           EmptyState(
                             compact: true,
                             icon: PhosphorIcons.magnifyingGlass(),
                             title: 'Agregá el primer alimento',
-                            body: 'Buscá en el catálogo, escaneá un código o '
-                                'creá uno propio.',
-                            primaryLabel: 'Buscar alimento',
-                            onPrimary: () => context.push(
-                              '${Routes.foodSearch}?target=meal',
-                            ),
-                            secondaryLabel: 'Escanear un código',
-                            onSecondary: () => context.push(Routes.foodScan),
+                            body: 'Buscalo en el catálogo, escaneá su código de '
+                                'barras o sacale una foto y que la IA la '
+                                'estime.',
                           )
                         else
                           NmCard(
@@ -276,17 +296,48 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                               context.push('${Routes.foodSearch}?target=meal'),
                         ),
                         const SizedBox(height: NmSpace.s2),
-                        // El vacío ya decía "escaneá un código" y no había
-                        // dónde hacerlo: el escáner solo existía en el menú
-                        // general de Agregar y adentro del buscador. Es la
-                        // pantalla donde se arma la comida, así que es acá
-                        // donde tiene que estar.
+                        // El escáner solo existía en el menú general de Agregar
+                        // y adentro del buscador. Es la pantalla donde se arma
+                        // la comida, así que es acá donde tiene que estar.
                         NmButton.secondary(
                           label: 'Escanear un código',
                           block: true,
                           icon: PhosphorIcons.barcode(),
                           onPressed: () => context.push(Routes.foodScan),
                         ),
+                        const SizedBox(height: NmSpace.s2),
+                        // La tercera forma de sumar ítems, la que faltaba acá.
+                        //
+                        // Lo que se estime se agrega a **esta** comida: la
+                        // revisión del análisis absorbe el borrador abierto en
+                        // vez de empezar uno nuevo, si no lo que ya estaba
+                        // cargado se perdía sin decirlo.
+                        NmButton.secondary(
+                          label: 'Sacar foto y analizarla con IA',
+                          block: true,
+                          icon: PhosphorIcons.camera(),
+                          onPressed: _aiAvailable
+                              ? () {
+                                  // El slot y el día los manda el borrador, no
+                                  // la hora: se limpia el objetivo por si quedó
+                                  // uno de otra entrada.
+                                  ref
+                                      .read(photoTargetProvider.notifier)
+                                      .state = null;
+                                  context.push(Routes.photoCapture);
+                                }
+                              : null,
+                        ),
+                        if (!_aiAvailable) ...<Widget>[
+                          const SizedBox(height: NmSpace.s2),
+                          Text(
+                            'El análisis con IA necesita servidor configurado.',
+                            style: NmTextStyles.from(
+                              NmType.caption,
+                              color: nm.caution,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: NmSpace.s8),
                         const NmSectionHeader(title: 'Foto'),
                         MealPhotoField(

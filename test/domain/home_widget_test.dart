@@ -7,6 +7,7 @@
 // Kotlin, que un dato de otra fecha no se muestre.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:nutrimat/core/utils/dates.dart';
 import 'package:nutrimat/data/local/home_widget_publisher.dart';
 import 'package:nutrimat/data/local/local_store.dart';
@@ -20,6 +21,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // El dato del widget incluye un `staleLabel` con la fecha escrita en palabras
+  // —"Lo último guardado es del miércoles 30 de julio"—, así que el payload pasó
+  // a depender de los símbolos de fecha, igual que el resto de la app.
+  setUpAll(() => initializeDateFormatting(appLocale));
 
   late LocalRepository repo;
 
@@ -41,6 +47,32 @@ void main() {
       fatG: 70,
       macroMethod: 'default',
       startsOn: today().subtract(const Duration(days: 1)),
+    ),
+  );
+
+  Future<void> conComida({required int kcal}) => repo.saveMeal(
+    Meal(
+      id: 'm-$kcal',
+      slot: MealSlot.lunch,
+      loggedAt: DateTime.now(),
+      localDate: today(),
+      items: <MealItem>[
+        MealItem(
+          id: 'i-$kcal',
+          name: 'Plato',
+          quantity: 1,
+          unit: 'porción',
+          kcal: kcal,
+          proteinG: 0,
+          carbsG: 0,
+          fatG: 0,
+          position: 0,
+        ),
+      ],
+      source: MealSource.manual,
+      syncStatus: SyncStatus.synced,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     ),
   );
 
@@ -231,5 +263,163 @@ void main() {
     // no puede hacer fallar el registro de una comida.
     await conObjetivo(2000);
     await const HomeWidgetPublisher().publish(repo.daily(today()), glasses: 3, waterGoal: 8);
+  });
+
+  // ── La barra del día (rediseño §1) ──────────────────────────────────────
+
+  group('la barra del día', () {
+    test('sale del consumido sobre el objetivo', () async {
+      await conObjetivo(2000);
+      await conComida(kcal: 500);
+
+      final payload = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+      );
+
+      expect(payload['caloriesPercent'], 25);
+      expect(payload['intakeLabel'], '500 de 2.000');
+    });
+
+    test('sin objetivo llega en −1 y el widget la esconde', () {
+      // El día sin objetivo se arma a mano por lo mismo que el de más arriba:
+      // el repositorio siempre devuelve uno de referencia, así que esto es la
+      // guarda y no un caso que se pueda producir desde la app.
+      //
+      // Cero sería una barra vacía **dibujada**, o sea un número inventado con
+      // forma de cuenta. −1 es "acá no hay nada que dibujar".
+      final payload = HomeWidgetPublisher.payloadFor(
+        DailySummary(
+          date: today(),
+          baseTarget: 0,
+          consumedKcal: 1123,
+          exerciseEstimatedKcal: 0,
+          exerciseAppliedKcal: 0,
+          creditPercentage: 0,
+          creditEnabled: false,
+          macros: const MacroSet(
+            protein: MacroProgress(current: 0, target: 0),
+            carbs: MacroProgress(current: 0, target: 0),
+            fat: MacroProgress(current: 0, target: 0),
+          ),
+          meals: const <Meal>[],
+          activities: const <Activity>[],
+          activityTotals: const ActivityTotals(minutes: 0, sessions: 0),
+          isRestDay: false,
+        ),
+        glasses: 0,
+        waterGoal: 8,
+      );
+
+      expect(payload['caloriesPercent'], -1);
+      expect(payload['intakeLabel'], '');
+    });
+
+    test('pasarse la llena, no la desborda ni la pinta de otro color', () async {
+      await conObjetivo(2000);
+      await conComida(kcal: 2600);
+
+      final payload = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+      );
+
+      expect(payload['caloriesPercent'], 100);
+      // Lo que cambia al pasarse es la palabra, y nada más.
+      expect(payload['label'], 'kcal de más');
+    });
+  });
+
+  // ── Los extras del tamaño grande (rediseño §3.3) ────────────────────────
+
+  group('los extras', () {
+    test('un día sin nada los manda vacíos, y el widget esconde esa línea', () async {
+      await conObjetivo(2000);
+
+      final payload = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+      );
+
+      // "Actividad 0 min" ocupa el mismo lugar que un dato y no es uno.
+      expect(payload['activityLabel'], '');
+      expect(payload['sleepLabel'], '');
+      expect(payload['streakLabel'], '');
+    });
+
+    test('el sueño llega escrito desde acá, no formateado en Kotlin', () async {
+      await conObjetivo(2000);
+
+      final payload = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+        sleepMinutes: 432,
+      );
+
+      expect(payload['sleepLabel'], 'Sueño 7 h 12 min');
+    });
+  });
+
+  // ── La racha ────────────────────────────────────────────────────────────
+
+  group('la racha', () {
+    String dia(int atras) =>
+        isoDate(today().subtract(Duration(days: atras)));
+
+    test('cuenta los días seguidos hacia atrás', () {
+      final dias = <String>{dia(0), dia(1), dia(2), dia(4)};
+      expect(HomeWidgetPublisher.streakDays(dias, today()), 3);
+    });
+
+    test('si hoy todavía no hay nada, no se corta: cuenta desde ayer', () {
+      // Cortarla a las 00:01 sería castigar a alguien por no haber desayunado
+      // todavía, y una racha que se pierde durmiendo no se quiere mirar.
+      final dias = <String>{dia(1), dia(2), dia(3)};
+      expect(HomeWidgetPublisher.streakDays(dias, today()), 3);
+    });
+
+    test('sin nada, ni ayer ni hoy, es cero', () {
+      expect(HomeWidgetPublisher.streakDays(<String>{dia(3)}, today()), 0);
+      expect(HomeWidgetPublisher.streakDays(<String>{}, today()), 0);
+    });
+
+    test('un día suelto no se muestra como racha', () async {
+      await conObjetivo(2000);
+
+      final unSoloDia = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+        daysWithRecords: <String>{dia(0)},
+      );
+      expect(unSoloDia['streakLabel'], '');
+
+      final dosDias = HomeWidgetPublisher.payloadFor(
+        repo.daily(today()),
+        glasses: 0,
+        waterGoal: 8,
+        daysWithRecords: <String>{dia(0), dia(1)},
+      );
+      expect(dosDias['streakLabel'], 'Racha 2 días');
+    });
+  });
+
+  test('el aviso de dato viejo lleva fecha absoluta, no "ayer"', () async {
+    await conObjetivo(2000);
+
+    final payload = HomeWidgetPublisher.payloadFor(
+      repo.daily(today()),
+      glasses: 0,
+      waterGoal: 8,
+    );
+
+    // El widget lo va a mostrar en un día que todavía no sabemos cuál es: si
+    // dijera "ayer", pasado mañana estaría mintiendo.
+    expect(payload['staleLabel'], contains(longDay(today())));
+    expect(payload['staleLabel'], isNot(contains('Ayer')));
   });
 }

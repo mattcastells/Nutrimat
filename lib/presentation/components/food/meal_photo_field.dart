@@ -7,6 +7,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../data/local/photo_normalizer.dart';
 import '../system/buttons.dart';
 import '../system/overlays.dart';
 import 'meal_photo.dart';
@@ -48,9 +49,12 @@ class _MealPhotoFieldState extends State<MealPhotoField> {
         maxHeight: 1024,
         imageQuality: 80,
       );
+      // Salvo cuando no: si la imagen traía alfa, `imageQuality` se ignoró y lo
+      // que hay es un PNG sin comprimir de varios MB (`PhotoNormalizer`).
+      final path = file == null ? null : await PhotoNormalizer.toJpeg(file.path);
       if (!mounted) return;
       setState(() => _busy = false);
-      if (file != null) widget.onChanged(file.path);
+      if (path != null) widget.onChanged(path);
     } on Object {
       if (!mounted) return;
       setState(() => _busy = false);

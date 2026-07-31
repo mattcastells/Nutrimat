@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
+
+import 'supabase_config.dart';
+
 /// Interruptores de las integraciones que todavía no están conectadas de
 /// verdad.
 ///
@@ -11,6 +15,42 @@
 /// flutter run --dart-define=NM_AI_PHOTO=true
 /// ```
 abstract final class FeatureFlags {
+  /// Los 30 días de historial inventados de `data/mock/seed.dart`.
+  ///
+  /// **Solo existen mientras se desarrolla, y en una compilación sin
+  /// servidor.** Un usuario nuevo entró a la plataforma y se encontró con las
+  /// comidas, el peso y el nombre de una persona que no existe; ese historial
+  /// además viaja a las tablas en cuanto se abre sesión, así que datos
+  /// inventados y datos reales terminan en la misma cuenta y no se distinguen.
+  ///
+  /// Las tres condiciones tienen que darse juntas:
+  ///
+  /// - `kDebugMode`: un APK de release nunca siembra, ni siquiera el que se
+  ///   compila sin credenciales. Publicar no es depurar.
+  /// - `!SupabaseConfig.isConfigured`: si hay servidor hay cuentas, y donde hay
+  ///   cuentas no puede haber una persona de mentira.
+  /// - `NM_DEMO_SEED`: la salida para depurar sin datos de ejemplo
+  ///   (`--dart-define=NM_DEMO_SEED=false`).
+  ///
+  /// No alcanza con no llamar a la siembra: `LocalStore.seed` la vuelve a
+  /// mirar, así que una llamada nueva desde cualquier lado tampoco puede
+  /// meter datos inventados en una compilación de verdad.
+  static bool get seededDemoData =>
+      seededDemoDataOverride ??
+      (kDebugMode &&
+          !SupabaseConfig.isConfigured &&
+          const bool.fromEnvironment('NM_DEMO_SEED', defaultValue: true));
+
+  /// Fuerza el valor de [seededDemoData] desde un test.
+  ///
+  /// Las tres condiciones de arriba se resuelven en tiempo de compilación y
+  /// `flutter test` corre justo en la combinación que **sí** siembra, así que
+  /// sin esto el caso que importa —una compilación de verdad, donde la siembra
+  /// tiene que estar muerta— sería el único que no se puede probar. Y ese es el
+  /// que se rompió.
+  @visibleForTesting
+  static bool? seededDemoDataOverride;
+
   /// Análisis de foto con Gemini.
   ///
   /// Ya no devuelve un resultado fijo: la Edge Function `analyze-meal-photo`

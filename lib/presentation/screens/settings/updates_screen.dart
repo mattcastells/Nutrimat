@@ -21,9 +21,10 @@ import '../../providers/update_providers.dart';
 /// nueva lo da la app: consulta los releases del repositorio, y si hay una
 /// posterior a la instalada ofrece bajarla e instalarla.
 ///
-/// El chequeo lo dispara la persona. No hay consulta automática al abrir la
-/// app ni descarga que arranque sola: bajar 25 MB con datos móviles sin haberlo
-/// pedido no es una decisión que le toque tomar al software.
+/// Al abrir la app se consulta sola cada tanto y, si hay algo nuevo, lo ofrece
+/// (`update_prompt.dart`); acá se puede comprobar cuando se quiera. Lo que
+/// **nunca** arranca solo es la descarga: bajar 25 MB con datos móviles sin
+/// haberlo pedido no es una decisión que le toque tomar al software.
 class UpdatesScreen extends ConsumerStatefulWidget {
   const UpdatesScreen({super.key});
 

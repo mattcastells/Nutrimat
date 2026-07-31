@@ -112,6 +112,22 @@ abstract interface class ProfileRepository {
   UserProfile? get profileOrNull;
   UserProfile get profile;
   bool get hasSession;
+
+  /// Faltan los datos con los que la app calcula.
+  ///
+  /// Sin fecha de nacimiento, altura y peso no hay Mifflin-St Jeor: no hay
+  /// metabolismo basal, ni gasto diario, ni calorías de ejercicio. Todo lo que
+  /// se muestre en Inicio hasta que estén es un valor de referencia con forma de
+  /// cuenta, que es justo lo que el producto no hace (RN-03). Mientras sea
+  /// `true` el router no deja entrar al shell y manda a completarlos.
+  ///
+  /// Los tres se eligieron porque son los únicos que **no tienen un valor por
+  /// omisión honesto**: el sexo biológico admite "Otro", el nivel de actividad
+  /// arranca en moderado y el objetivo en mantener, y ahí un valor por defecto
+  /// es una respuesta válida, no un hueco. Estos tres, en cambio, o están o la
+  /// fórmula no corre.
+  bool get needsOnboarding;
+
   Future<void> updateProfile(UserProfile profile);
   Future<void> setExerciseCredit({
     required int percentage,
@@ -155,6 +171,19 @@ abstract interface class MealRepository {
 
   /// Cuántas veces se registró una comida con ese título.
   int mealUseCount(Meal meal);
+
+  /// Borra del bucket las fotos de comidas que se borraron hace rato, y
+  /// devuelve cuántas sacó.
+  ///
+  /// Borrar una comida es un borrado suave: la fila queda como lápida para que
+  /// la reconciliación sepa que no volvió a aparecer sola. La **foto**, en
+  /// cambio, no tiene por qué quedarse: es lo único del registro que ocupa
+  /// megabytes, no la mira nadie nunca más y hasta ahora se quedaba en el
+  /// servidor para siempre.
+  ///
+  /// Espera un día antes de tocar nada, así la ventana de deshacer y cualquier
+  /// arrepentimiento del mismo rato encuentran la foto donde estaba.
+  Future<int> purgeDeletedPhotos();
 }
 
 abstract interface class ActivityRepository {

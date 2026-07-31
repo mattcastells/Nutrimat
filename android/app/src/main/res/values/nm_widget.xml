@@ -13,6 +13,10 @@
     <color name="nm_widget_track">#1F1B1C26</color>
     <color name="nm_widget_water">#FF3C6EA8</color>
 
+    <!-- Fondo de la pastilla de agua: el mismo azul al 8 %. Es lo que convierte
+         una gota de 18 dp en un área táctil de 40 × 44 que se ve tocable. -->
+    <color name="nm_widget_water_fill">#143C6EA8</color>
+
     <string name="nm_widget_calories_label">Calorías restantes</string>
     <string name="nm_widget_calories_description">Cuántas calorías te quedan hoy.</string>
 </resources>

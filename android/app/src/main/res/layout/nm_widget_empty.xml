@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Los dos estados vacíos del widget, compartidos por los cuatro tamaños
+     (§6 del rediseño). Se incluye con `<include>`: es el mismo bloque en todos y
+     duplicarlo cuatro veces sería cuatro lugares donde arreglar la próxima
+     corrección de copia.
+
+     Van juntos porque son el mismo layout con otro texto, pero **son dos casos
+     distintos a propósito**: "todavía no hay nada" es una app recién instalada y
+     "hay algo pero es de otro día" es un número que ya no vale. Confundirlos
+     manda a buscar el problema al lugar equivocado.
+
+     El ícono de la app es lo que separa "este widget está esperando algo" de
+     "esta app se rompió", y es el único lugar donde aparece la marca: en el
+     estado normal no va, porque el nombre sobra en una pantalla de inicio donde
+     la persona puso el widget a propósito. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nm_widget_empty"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:visibility="gone">
+
+    <ImageView
+        android:id="@+id/nm_widget_empty_icon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="10dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="@null"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/nm_widget_empty_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:fontFamily="@font/inter_medium"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="@color/nm_widget_text"/>
+
+        <TextView
+            android:id="@+id/nm_widget_empty_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="11sp"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="@color/nm_widget_text_muted"/>
+    </LinearLayout>
+</LinearLayout>

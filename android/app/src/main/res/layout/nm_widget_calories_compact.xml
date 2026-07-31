@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget de calorías, **2×1 · 160 × 72 dp**. Implementa §3.1 del rediseño
+     (`docs/handoff/23-widget-redesign-implementacion.md`).
+
+     Caen los macros y el rail de agua, enteros: la regla es que nada se muestra
+     cortado, y en 160 dp tres etiquetas de macro terminan en "P 5…". Queda el
+     número, su palabra, la cuenta de agua en texto y la barra del día — que
+     sobrevive porque 6 dp de alto no le compiten a nada.
+
+     **Es el único tamaño donde el agua pierde el toque**: no hay 48 dp para un
+     área táctil, y una gota de 20 dp sin área es peor que ninguna. Acá el widget
+     solo abre la app.
+
+     Los cuatro layouts declaran **el mismo juego de ids**. Los que este no usa
+     están al final, en 0 dp: el código que llena el widget es uno solo y no sabe
+     cuál está dibujando, así que un id que exista en uno y no en otro sería una
+     acción de `RemoteViews` perdida en silencio. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nm_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/nm_widget_bg"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:id="@+id/nm_widget_day"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:baselineAligned="true">
+
+            <TextView
+                android:id="@+id/nm_widget_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textSize="22sp"
+                android:fontFamily="@font/inter_medium"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/nm_widget_accent"/>
+
+            <TextView
+                android:id="@+id/nm_widget_water_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:textSize="10sp"
+                android:fontFamily="@font/inter_regular"
+                android:gravity="end"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/nm_widget_text_muted"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/nm_widget_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/nm_widget_calories_label"
+            android:textSize="10sp"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="@color/nm_widget_text"/>
+
+        <!-- El sobrante empuja la barra del día al piso de la tarjeta. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <ProgressBar
+            android:id="@+id/nm_widget_calories_bar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:minHeight="6dp"
+            android:maxHeight="6dp"
+            android:max="100"
+            android:progressDrawable="@drawable/nm_widget_bar_calories"/>
+
+        <!-- Declarados para que el juego de ids sea el mismo en los cuatro
+             layouts. Acá no entran y el código los deja escondidos. -->
+        <LinearLayout
+            android:id="@+id/nm_widget_water_pill"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal">
+            <ImageView android:id="@+id/nm_widget_drop_1" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_2" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_3" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_4" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_5" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_6" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_7" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            <ImageView android:id="@+id/nm_widget_drop_8" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/nm_widget_macros"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal">
+            <TextView android:id="@+id/nm_widget_protein_label" android:layout_width="0dp" android:layout_height="0dp"/>
+            <ProgressBar android:id="@+id/nm_widget_protein_bar" style="@android:style/Widget.ProgressBar.Horizontal" android:layout_width="0dp" android:layout_height="0dp" android:max="100"/>
+            <TextView android:id="@+id/nm_widget_carbs_label" android:layout_width="0dp" android:layout_height="0dp"/>
+            <ProgressBar android:id="@+id/nm_widget_carbs_bar" style="@android:style/Widget.ProgressBar.Horizontal" android:layout_width="0dp" android:layout_height="0dp" android:max="100"/>
+            <TextView android:id="@+id/nm_widget_fat_label" android:layout_width="0dp" android:layout_height="0dp"/>
+            <ProgressBar android:id="@+id/nm_widget_fat_bar" style="@android:style/Widget.ProgressBar.Horizontal" android:layout_width="0dp" android:layout_height="0dp" android:max="100"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/nm_widget_extras"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal">
+            <TextView android:id="@+id/nm_widget_extra_activity" android:layout_width="0dp" android:layout_height="0dp"/>
+            <TextView android:id="@+id/nm_widget_extra_sleep" android:layout_width="0dp" android:layout_height="0dp"/>
+            <TextView android:id="@+id/nm_widget_extra_streak" android:layout_width="0dp" android:layout_height="0dp"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/nm_widget_intake" android:layout_width="0dp" android:layout_height="0dp"/>
+    </LinearLayout>
+
+    <include layout="@layout/nm_widget_empty"/>
+</FrameLayout>

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget de calorías, **4×1 · 340 × 72 dp · el default**. §3.2 del rediseño.
+
+     Anatomía de columnas: la etiqueta de cada macro va **arriba** de su barra. Es
+     la única forma de que entren tres macros, el agua y la barra del día sin
+     cortar nada en 72 dp de alto. En One UI, donde hay 110, va al lado
+     (`nm_widget_calories_oneui`).
+
+     **La cuenta del ancho, que es la que define si esto entra:**
+
+         340 − 24 (padding)                        = 316 dp
+         316 − 84 (número) − 40 (rail) − 20 (gaps) = 172 dp para los tres macros
+         172 − 14 (2 gaps de 7)                    =  52 dp por columna
+         "P 51/196" en Inter Regular 10 sp tnum    ≈  42,5 dp → 9,5 dp de sobra
+
+     La columna del número es **84 dp y no 100** por eso: con 100 el sobrante
+     quedaba en 5 dp y cualquier retoque mandaba la etiqueta a `ellipsize`, que es
+     el "P 5…" que ya falló una vez. Si en algún teléfono igual ellipsiza, el
+     ajuste es bajar el gap interno de macros a 4 dp, **nunca** subir `maxLines`.
+
+     Y nunca `wrap_content` en la columna del número: el número cambia de ancho
+     entre un update y el otro, y los macros bailarían con él. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nm_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/nm_widget_bg"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:id="@+id/nm_widget_day"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- ── El número ────────────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="84dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/nm_widget_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textSize="26sp"
+                    android:fontFamily="@font/inter_medium"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textColor="@color/nm_widget_accent"/>
+
+                <TextView
+                    android:id="@+id/nm_widget_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/nm_widget_calories_label"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/inter_regular"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/nm_widget_text"/>
+            </LinearLayout>
+
+            <!-- ── Los macros ───────────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/nm_widget_macros"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_protein_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_protein_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="6dp"
+                        android:layout_marginTop="3dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_protein"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_carbs_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_carbs_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="6dp"
+                        android:layout_marginTop="3dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_carbs"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_fat_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_fat_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="6dp"
+                        android:layout_marginTop="3dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_fat"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── El agua ──────────────────────────────────────────────── -->
+            <!-- 40 × 44 dp de área táctil, un solo `PendingIntent`. Las gotas de
+                 10 dp de antes eran un cuarto del mínimo recomendado. -->
+            <LinearLayout
+                android:id="@+id/nm_widget_water_pill"
+                android:layout_width="40dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/nm_widget_water_pill">
+
+                <ImageView
+                    android:id="@+id/nm_widget_drop_1"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/nm_widget_drop_full"
+                    android:contentDescription="@null"/>
+
+                <TextView
+                    android:id="@+id/nm_widget_water_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/inter_regular"
+                    android:fontFeatureSettings="tnum"
+                    android:maxLines="1"
+                    android:textColor="@color/nm_widget_text_muted"/>
+
+                <!-- Las otras siete gotas viven acá en 0 dp: este tamaño las
+                     resume en una sola, pero el juego de ids no cambia. -->
+                <ImageView android:id="@+id/nm_widget_drop_2" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_3" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_4" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_5" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_6" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_7" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_8" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/nm_widget_calories_bar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="6dp"
+            android:minHeight="6dp"
+            android:maxHeight="6dp"
+            android:max="100"
+            android:progressDrawable="@drawable/nm_widget_bar_calories"/>
+
+        <!-- Sin lugar en 72 dp; declarados para no romper el juego de ids. -->
+        <LinearLayout
+            android:id="@+id/nm_widget_extras"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal">
+            <TextView android:id="@+id/nm_widget_extra_activity" android:layout_width="0dp" android:layout_height="0dp"/>
+            <TextView android:id="@+id/nm_widget_extra_sleep" android:layout_width="0dp" android:layout_height="0dp"/>
+            <TextView android:id="@+id/nm_widget_extra_streak" android:layout_width="0dp" android:layout_height="0dp"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/nm_widget_intake" android:layout_width="0dp" android:layout_height="0dp"/>
+    </LinearLayout>
+
+    <include layout="@layout/nm_widget_empty"/>
+</FrameLayout>

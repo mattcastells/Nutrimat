@@ -35,11 +35,19 @@ class HomeWidgetPublisher {
     DailySummary summary, {
     required int glasses,
     required int waterGoal,
+    int? sleepMinutes,
+    Set<String> daysWithRecords = const <String>{},
   }) async {
     try {
       await _channel.invokeMethod<void>(
         'publish',
-        _payload(summary, glasses: glasses, waterGoal: waterGoal),
+        _payload(
+          summary,
+          glasses: glasses,
+          waterGoal: waterGoal,
+          sleepMinutes: sleepMinutes,
+          daysWithRecords: daysWithRecords,
+        ),
       );
     } on MissingPluginException {
       // Sin lado nativo: no hay widget que actualizar.
@@ -85,16 +93,49 @@ class HomeWidgetPublisher {
     DailySummary summary, {
     required int glasses,
     required int waterGoal,
-  }) => _payload(summary, glasses: glasses, waterGoal: waterGoal);
+    int? sleepMinutes,
+    Set<String> daysWithRecords = const <String>{},
+  }) => _payload(
+    summary,
+    glasses: glasses,
+    waterGoal: waterGoal,
+    sleepMinutes: sleepMinutes,
+    daysWithRecords: daysWithRecords,
+  );
+
+  /// Días seguidos con al menos un registro, contando desde [from] hacia atrás.
+  ///
+  /// **Si hoy todavía no tiene nada, la racha no se corta**: se cuenta desde
+  /// ayer. Cortarla a las 00:01 sería castigar a alguien por no haber
+  /// desayunado todavía, y una racha que se pierde durmiendo deja de ser algo
+  /// que se quiera mirar.
+  ///
+  /// Una racha de un solo día no es una racha: quien llama decide si la muestra.
+  static int streakDays(Set<String> daysWithRecords, DateTime from) {
+    var day = dateOnly(from);
+    if (!daysWithRecords.contains(isoDate(day))) {
+      day = day.subtract(const Duration(days: 1));
+    }
+    var streak = 0;
+    while (daysWithRecords.contains(isoDate(day))) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
 
   static Map<String, Object> _payload(
     DailySummary summary, {
     required int glasses,
     required int waterGoal,
+    int? sleepMinutes,
+    Set<String> daysWithRecords = const <String>{},
   }) {
     final balance = summary.balance;
     final remaining = balance.remainingKcal;
     final hasTarget = summary.baseTarget > 0;
+    final target = balance.adjustedTarget;
+    final streak = streakDays(daysWithRecords, summary.date);
 
     return <String, Object>{
       'date': isoDate(summary.date),
@@ -108,6 +149,19 @@ class HomeWidgetPublisher {
       'label': hasTarget
           ? (balance.isOverBudget ? 'kcal de más' : 'kcal restantes')
           : 'Sin objetivo configurado',
+
+      // La barra del día. **−1 y no 0 cuando no hay objetivo**: el widget la
+      // esconde entera en vez de dibujarla vacía, porque una barra al 0 % es un
+      // número inventado con forma de cuenta.
+      'caloriesPercent': hasTarget && target > 0
+          ? ((summary.consumedKcal / target) * 100).round().clamp(0, 100)
+          : -1,
+
+      // El consumido contra el objetivo, para el 4×2, que es el único tamaño
+      // donde entra sin quitarle la línea a nadie.
+      'intakeLabel': hasTarget
+          ? '${Fmt.integer(summary.consumedKcal)} de ${Fmt.integer(target)}'
+          : '',
 
       // ── Agua ──────────────────────────────────────────────────────────
       // Cuentas, no texto: el widget dibuja una gota por vaso, y las gotas se
@@ -123,6 +177,24 @@ class HomeWidgetPublisher {
       ..._macro('protein', 'P', summary.macros.protein),
       ..._macro('carbs', 'C', summary.macros.carbs),
       ..._macro('fat', 'G', summary.macros.fat),
+
+      // ── Los extras del tamaño grande ──────────────────────────────────
+      // Cada uno llega vacío cuando no hay nada que decir, y el widget esconde
+      // esa línea. Un "Actividad 0 min" ocupa el mismo lugar que un dato y no
+      // es uno: es la ausencia de uno.
+      'activityLabel': summary.activityTotals.minutes > 0
+          ? 'Actividad ${Fmt.duration(summary.activityTotals.minutes)}'
+          : '',
+      'sleepLabel': sleepMinutes == null || sleepMinutes <= 0
+          ? ''
+          : 'Sueño ${Fmt.duration(sleepMinutes)}',
+      // Un día suelto no es una racha.
+      'streakLabel': streak >= 2 ? 'Racha $streak días' : '',
+
+      // ── Para cuando este dato deje de ser el de hoy ───────────────────
+      // Se manda ya escrito y con fecha absoluta, no "ayer": el widget lo va a
+      // mostrar en un día que todavía no sabemos cuál es, y "ayer" envejece mal.
+      'staleLabel': 'Lo último guardado es del ${longDay(summary.date)}',
     };
   }
 

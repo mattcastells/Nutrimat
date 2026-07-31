@@ -133,6 +133,9 @@ class MainActivity : FlutterActivity() {
                                     date = date,
                                     value = call.argument<String>("value") ?: "—",
                                     label = call.argument<String>("label") ?: "",
+                                    // −1 y no 0: sin objetivo la barra del día no
+                                    // se dibuja, en vez de dibujarse vacía.
+                                    caloriesPercent = call.argument<Int>("caloriesPercent") ?: -1,
                                     waterGlasses = call.argument<Int>("waterGlasses") ?: 0,
                                     waterGoal = call.argument<Int>("waterGoal") ?: 0,
                                     waterMax = call.argument<Int>("waterMax") ?: 40,
@@ -142,6 +145,11 @@ class MainActivity : FlutterActivity() {
                                     carbsPercent = call.argument<Int>("carbsPercent") ?: 0,
                                     fatLabel = call.argument<String>("fatLabel") ?: "",
                                     fatPercent = call.argument<Int>("fatPercent") ?: 0,
+                                    intakeLabel = call.argument<String>("intakeLabel") ?: "",
+                                    activityLabel = call.argument<String>("activityLabel") ?: "",
+                                    sleepLabel = call.argument<String>("sleepLabel") ?: "",
+                                    streakLabel = call.argument<String>("streakLabel") ?: "",
+                                    staleLabel = call.argument<String>("staleLabel") ?: "",
                                 ),
                             )
                             CaloriesWidget.refresh(this)

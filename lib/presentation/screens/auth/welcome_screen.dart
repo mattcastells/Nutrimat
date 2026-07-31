@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
@@ -128,9 +129,9 @@ class WelcomeScreen extends ConsumerWidget {
                     onPressed: () async {
                       final repo = ref.read(repositoryProvider);
 
-                      // El modo demo siembra datos de ejemplo, y para eso
-                      // vacía la base local. Si hay algo cargado, eso es
-                      // borrar los datos de alguien con un solo toque desde
+                      // Sembrada o no, la sesión de prueba arranca de cero y
+                      // para eso vacía la base local. Si hay algo cargado, eso
+                      // es borrar los datos de alguien con un solo toque desde
                       // una pantalla a la que se puede llegar sin querer —por
                       // ejemplo si la sesión no se pudo restaurar al arrancar.
                       if (repo.hasUserData) {
@@ -139,10 +140,10 @@ class WelcomeScreen extends ConsumerWidget {
                           builder: (context) => NmDialog(
                             title: 'Esto borra lo que tenés en el teléfono',
                             body:
-                                'El modo de prueba arranca con datos de '
-                                'ejemplo, así que reemplaza tus registros. Si '
-                                'tenés cuenta, entrá en vez de probar: tus '
-                                'datos vuelven desde el respaldo.',
+                                'El modo de prueba arranca de cero, así que '
+                                'reemplaza tus registros. Si tenés cuenta, '
+                                'entrá en vez de probar: tus datos vuelven '
+                                'desde el respaldo.',
                             actions: <Widget>[
                               NmButton.ghost(
                                 label: 'Mejor entro',
@@ -162,7 +163,14 @@ class WelcomeScreen extends ConsumerWidget {
                       }
 
                       // Modo demo: usuario local anónimo, sin respaldo (D-15).
-                      await repo.startDemoSession(seeded: true);
+                      //
+                      // **Vacío**, salvo mientras se desarrolla sin servidor.
+                      // Los datos de ejemplo son una herramienta para ver la
+                      // app llena mientras se la hace, no algo que alguien
+                      // tenga que encontrarse y después distinguir de lo suyo.
+                      await repo.startDemoSession(
+                        seeded: FeatureFlags.seededDemoData,
+                      );
                       if (context.mounted) context.go(Routes.home);
                     },
                   ),

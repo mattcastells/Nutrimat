@@ -15,10 +15,13 @@ import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
+import '../../../data/local/photo_normalizer.dart';
+import '../../../data/remote/photo_storage_client.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/ai_analysis.dart';
 import '../../../domain/models/analysis_stage.dart';
 import '../../../domain/models/meal.dart';
+import '../../../domain/services/photo_sync_service.dart';
 import '../../components/activity/badges.dart';
 import '../../components/feedback/analysis_progress.dart';
 import '../../components/feedback/feedback.dart';
@@ -30,6 +33,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../meal/meal_draft.dart';
 
 const _uuid = Uuid();
@@ -81,10 +85,14 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
         maxHeight: 1024,
         imageQuality: 80,
       );
+      // Salvo cuando la imagen traía alfa: ahí `imageQuality` se ignoró y lo que
+      // hay es un PNG sin comprimir de varios MB (`PhotoNormalizer`). Además de
+      // pesar, esa foto se sube a Gemini y viaja entera.
+      final path = file == null ? null : await PhotoNormalizer.toJpeg(file.path);
       if (!mounted) return;
       setState(() => _busy = false);
-      if (file == null) return;
-      ref.read(photoPathProvider.notifier).state = file.path;
+      if (path == null) return;
+      ref.read(photoPathProvider.notifier).state = path;
       if (!mounted) return;
       context.pushReplacement(Routes.photoAnalyzing);
     } on Object {
@@ -336,6 +344,17 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
       if (!mounted || _cancelled) return;
 
       ref.read(analysisProvider.notifier).state = analysis;
+
+      // La foto ya está en el bucket: analizarla la subió. Se pasa a apuntar a
+      // esa copia y no al archivo del teléfono, así al guardar la comida no se
+      // sube una segunda vez —era el doble de espacio por cada foto analizada,
+      // con la primera copia sin que la referenciara nadie—. `MealPhoto` sabe
+      // mostrar las dos, así que la revisión se ve igual.
+      final remote = analysis.photoPath;
+      if (remote != null) {
+        ref.read(photoPathProvider.notifier).state = remote;
+      }
+
       context.pushReplacement(Routes.photoReview);
     } on AppError catch (error) {
       if (!mounted || _cancelled) return;
@@ -628,6 +647,28 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     ref.read(mealDraftProvider.notifier).restore(_previousDraft);
     ref.read(analysisProvider.notifier).state = null;
     ref.read(photoTargetProvider.notifier).state = null;
+
+    // Y la foto que subió el análisis se borra del bucket.
+    //
+    // Analizar la sube sí o sí —la Edge Function la lee de ahí—, así que
+    // descartar la estimación, que es de lo más común cuando el número no
+    // convence, dejaba en el servidor una foto que ya no pertenece a ningún
+    // registro: no se muestra, no se borra y no hay forma de encontrarla.
+    //
+    // Sin `await` y sin avisar: la persona ya se fue de la pantalla y esto no
+    // cambia nada de lo que ve. Si el borrado falla queda una foto, que es
+    // molesto y no grave; lo que importaba era que dejaran de acumularse una
+    // por cada análisis descartado.
+    final path = ref.read(photoPathProvider);
+    ref.read(photoPathProvider.notifier).state = null;
+    final photos = ref.read(photoSyncProvider);
+    if (path != null && photos != null && PhotoSyncService.isRemotePath(path)) {
+      unawaited(
+        photos
+            .delete(bucket: PhotoBucket.meal, path: path)
+            .catchError((Object _) {}),
+      );
+    }
   }
 
   Future<void> _save() async {

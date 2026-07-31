@@ -125,9 +125,10 @@ class AiAnalysis {
     AiAnalysisStatus? status,
     List<AiAnalysisItem>? items,
     AiCorrections? corrections,
+    String? photoPath,
   }) => AiAnalysis(
     id: id,
-    photoPath: photoPath,
+    photoPath: photoPath ?? this.photoPath,
     status: status ?? this.status,
     model: model,
     promptVersion: promptVersion,

@@ -155,6 +155,8 @@ Future<void> bootstrap() async {
       repository.daily(today()),
       glasses: repository.glassesOn(today()),
       waterGoal: repository.profile.waterGoalGlasses,
+      sleepMinutes: repository.sleepOn(today())?.minutes,
+      daysWithRecords: repository.daysWithRecords,
     ),
   );
 

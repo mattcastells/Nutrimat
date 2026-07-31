@@ -132,4 +132,92 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  // El bug: alguien cargó sus comidas y del otro lado no aparecían hasta
+  // reiniciar la app. Las comidas estaban en el servidor desde el momento en
+  // que se cargaron; lo que no se rehacía era la consulta, porque el provider
+  // no era `autoDispose` y el resultado quedaba en caché para toda la sesión.
+  testWidgets('salir y volver a entrar le pregunta de nuevo a la base', (
+    tester,
+  ) async {
+    var consultas = 0;
+    // Lo que devuelve cambia entre una consulta y la siguiente, como cambia lo
+    // que esa persona tiene cargado.
+    final container = ProviderContainer(
+      overrides: <Override>[
+        palDayProvider((userId: _userId, date: today())).overrideWith(
+          (ref) async {
+            consultas++;
+            return consultas == 1 ? _day() : _day(waterGlasses: 6);
+          },
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    Widget app({required bool showDay}) => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: NmAppTheme.dark(),
+        locale: const Locale('es', 'AR'),
+        home: showDay
+            ? const PalDayScreen(userId: _userId, name: 'Gordito #1')
+            : const Scaffold(body: Text('LISTA')),
+      ),
+    );
+
+    await tester.pumpWidget(app(showDay: true));
+    await _settle(tester);
+    expect(consultas, 1);
+    expect(find.text('AGUA'), findsNothing);
+
+    // Volver a la lista: sin listeners, `autoDispose` tira lo que trajo.
+    await tester.pumpWidget(app(showDay: false));
+    await _settle(tester);
+
+    await tester.pumpWidget(app(showDay: true));
+    await _settle(tester);
+
+    expect(consultas, 2, reason: 'entrar de nuevo vuelve a consultar');
+    expect(find.text('AGUA'), findsOneWidget, reason: 'y muestra lo nuevo');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('el botón de actualizar vuelve a consultar sin salir', (
+    tester,
+  ) async {
+    var consultas = 0;
+    final container = ProviderContainer(
+      overrides: <Override>[
+        palDayProvider((userId: _userId, date: today())).overrideWith(
+          (ref) async {
+            consultas++;
+            return consultas == 1 ? _day() : _day(sleepMinutes: 450);
+          },
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: NmAppTheme.dark(),
+          locale: const Locale('es', 'AR'),
+          home: const PalDayScreen(userId: _userId, name: 'Gordito #1'),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(consultas, 1);
+    expect(find.text('SUEÑO'), findsNothing);
+
+    await tester.tap(find.byTooltip('Actualizar'));
+    await _settle(tester);
+
+    expect(consultas, 2);
+    expect(find.text('SUEÑO'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

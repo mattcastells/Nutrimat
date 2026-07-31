@@ -44,6 +44,7 @@ class _FakeAuth implements AuthGateway {
 
 class _FakeClient implements RelationalSyncClient {
   int pushes = 0;
+  int pulls = 0;
   Map<String, dynamic>? paraTraer;
   AppError? fallaCon;
 
@@ -62,12 +63,10 @@ class _FakeClient implements RelationalSyncClient {
     required String userId,
     required LocalStore store,
   }) async {
+    pulls++;
     if (fallaCon != null) throw fallaCon!;
     return paraTraer;
   }
-
-  @override
-  Future<Map<String, int>> counts(String userId) async => <String, int>{};
 }
 
 void main() {
@@ -311,5 +310,90 @@ void main() {
     // El dato sigue en el teléfono: la persistencia local no depende de esto.
     expect(store.meals, hasLength(1));
     service.dispose();
+  });
+
+  // Traer al volver a la app, no solo al arrancarla.
+  //
+  // Antes esto pasaba una sola vez, en el arranque en frío. En el navegador da
+  // igual —recargar es arrancar— pero en el teléfono significaba que un cambio
+  // hecho desde otro dispositivo aparecía recién cuando Android mataba el
+  // proceso y la app volvía a abrir de cero, que puede tardar días.
+  group('releer al volver a primer plano', () {
+    test('sin haber abierto la puerta todavía, no se adelanta', () async {
+      final service = build();
+
+      final traido = await service.refresh(apply: (_) async {});
+
+      expect(traido, isFalse);
+      expect(client.pulls, 0, reason: 'del primer arranque se ocupa openAfterPull');
+      service.dispose();
+    });
+
+    test('con la app abierta vuelve a consultar', () async {
+      final service = build();
+      await service.openAfterPull(apply: repo.importDocument);
+      expect(client.pulls, 1);
+
+      client.paraTraer = <String, dynamic>{
+        'profile': <String, dynamic>{},
+        'meals': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'cargada-en-otro-lado',
+            'slot': 'dinner',
+            'loggedAt': '2026-07-31T21:00:00.000Z',
+            'localDate': '2026-07-31T00:00:00.000Z',
+            'items': <Map<String, dynamic>>[],
+            'source': 'manual',
+            'syncStatus': 'synced',
+            'createdAt': '2026-07-31T21:00:00.000Z',
+            'updatedAt': '2026-07-31T21:00:00.000Z',
+          },
+        ],
+      };
+
+      final traido = await service.refresh(
+        apply: repo.importDocument,
+        minInterval: Duration.zero,
+      );
+
+      expect(traido, isTrue);
+      expect(client.pulls, 2);
+      expect(store.meals, hasLength(1), reason: 'entró lo del otro dispositivo');
+      service.dispose();
+    });
+
+    test('no sale a la red en cada vuelta corta', () async {
+      final service = build();
+      await service.openAfterPull(apply: (_) async {});
+
+      // Abrir la cámara y volver son dos `resumed` seguidos.
+      await service.refresh(apply: (_) async {});
+      await service.refresh(apply: (_) async {});
+      await service.refresh(apply: (_) async {});
+
+      expect(client.pulls, 1, reason: 'solo el del arranque');
+      service.dispose();
+    });
+
+    test('una consulta fallida también cuenta para el freno', () async {
+      final service = build();
+      await service.openAfterPull(apply: (_) async {});
+      client.fallaCon = const AppError(
+        code: ApiErrorCode.offline,
+        message: 'sin conexión',
+      );
+
+      final primero = await service.refresh(
+        apply: (_) async {},
+        minInterval: Duration.zero,
+      );
+      final segundo = await service.refresh(apply: (_) async {});
+
+      expect(primero, isFalse);
+      expect(segundo, isFalse);
+      // Sin conexión no se reintenta a los tirones cada vez que se vuelve.
+      expect(client.pulls, 2);
+      service.dispose();
+    });
   });
 }

@@ -610,28 +610,7 @@ class RelationalSyncClient {
     }
   }
 
-  /// Cuántas filas hay en la base para este usuario, por tabla.
-  ///
-  /// Es lo que permite comparar contra el teléfono y decir si están al día sin
-  /// bajar todo el contenido.
-  Future<Map<String, int>> counts(String userId) async {
-    const tablas = <String>[
-      'goals', 'meals', 'activities', 'weight_logs', 'body_measurements',
-      'water_logs', 'sleep_logs', 'activity_goals', 'foods',
-    ];
-    final out = <String, int>{};
-    for (final tabla in tablas) {
-      try {
-        final rows = await _db
-            .from(tabla)
-            .select('id')
-            .eq('user_id', userId)
-            .timeout(timeout);
-        out[tabla] = rows.length;
-      } on Object {
-        out[tabla] = -1; // no se pudo consultar
-      }
-    }
-    return out;
-  }
+  // `counts` se fue junto con el botón de Comparar que lo usaba: nueve
+  // consultas contra el servidor cuyo único destino era una pantalla que le
+  // pedía a quien usa la app que interpretara dos columnas de números.
 }

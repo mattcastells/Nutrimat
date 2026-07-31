@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La barra del día: lo consumido sobre el objetivo, del ancho de la tarjeta.
+
+     A diferencia de las tres de macro, el color va **por recurso** y no
+     hardcodeado: es el acento del sistema de diseño y cambia entre el tema claro
+     y el oscuro. Las de macro tienen su color fijo porque cada macro tiene
+     siempre el suyo, en los dos temas.
+
+     Se esconde entera cuando no hay objetivo cargado. Una barra al 0 % sería un
+     número inventado con forma de cuenta, que es justo lo que el producto no
+     hace (RN-03). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/nm_widget_track"/>
+            <corners android:radius="3dp"/>
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip android:clipOrientation="horizontal" android:gravity="left">
+            <shape android:shape="rectangle">
+                <solid android:color="@color/nm_widget_accent"/>
+                <corners android:radius="3dp"/>
+            </shape>
+        </clip>
+    </item>
+</layer-list>

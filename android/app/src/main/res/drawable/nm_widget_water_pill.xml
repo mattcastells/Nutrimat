@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El fondo del rail de agua.
+
+     Existe por una razón táctil, no decorativa: las gotas de hoy miden 10 dp y
+     el mínimo recomendado para algo que se toca es 48. Envolver la gota y su
+     cuenta en una pastilla de 40 × 44 dp da un área de verdad y, de paso, dice
+     que ahí se toca — una gota suelta sobre el fondo de la tarjeta no lo dice.
+
+     Un solo `PendingIntent` para toda la pastilla, en vez de los ocho de las
+     gotas una por una. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/nm_widget_water_fill"/>
+    <corners android:radius="7dp"/>
+</shape>

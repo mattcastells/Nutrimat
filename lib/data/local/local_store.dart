@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/utils/dates.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
@@ -233,6 +234,21 @@ class LocalStore {
 
     lastRestore = _restore(decoded);
 
+    // Un teléfono que ya tiene los datos sembrados de una versión anterior.
+    //
+    // Que la siembra esté apagada no alcanza: los 30 días de "Camila" ya están
+    // escritos en el documento de este teléfono, y en cuanto se abra sesión se
+    // reconcilian contra las tablas y suben a una cuenta de verdad. Se
+    // reconocen por el id del perfil —es lo único que la siembra deja marcado— y
+    // se van enteros, porque no hay nada ahí que sea de nadie.
+    if (profile?.id == demoProfileId && !FeatureFlags.seededDemoData) {
+      reset(newProfile: UserProfile.empty(profile!.id));
+      profile = null;
+      await _prefs!.remove(_prefsKey);
+      lastRestore = const RestoreOutcome.clean();
+      return;
+    }
+
     // Se guardó algo que no entendimos entero: la copia original queda
     // apartada antes de que la primera escritura la pise.
     if (!lastRestore.isClean) {
@@ -247,7 +263,14 @@ class LocalStore {
   Future<void> clearQuarantine() async => _prefs?.remove(_quarantineKey);
 
   /// Siembra los datos simulados (modo demo, D-15).
+  ///
+  /// **No hace nada salvo mientras se desarrolla sin servidor**
+  /// ([FeatureFlags.seededDemoData]). El guardia está acá y no solo en quien
+  /// llama porque el daño no lo hace la pantalla que siembra: lo hace la sesión
+  /// que se abre después, que se lleva estos 30 días inventados a las tablas de
+  /// una cuenta real y ahí ya no se distinguen de los verdaderos.
   void seed() {
+    if (!FeatureFlags.seededDemoData) return;
     final data = buildSeed(types: activityTypes, catalog: catalogFoods);
     profile = data.profile;
     goals = <Goal>[data.goal];

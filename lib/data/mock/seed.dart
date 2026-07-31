@@ -50,6 +50,14 @@ class SeedData {
 
 const _uuid = Uuid();
 
+/// El id del perfil sembrado.
+///
+/// Es la marca que deja la siembra en el documento guardado, y por eso es una
+/// constante y no un literal suelto: un teléfono que ya tiene estos datos de
+/// otra versión se reconoce por acá y se limpia al arrancar
+/// (`LocalStore._loadOrSeed`).
+const String demoProfileId = 'demo-user';
+
 /// Peso de referencia del perfil sembrado: 100 kg, el del ejemplo canónico de
 /// MET del brief (caminata moderada 30 min → 184 kcal).
 const double _seedWeightKg = 100.0;
@@ -65,7 +73,7 @@ SeedData buildSeed({
   final birthDate = DateTime(now.year - 36, 4, 12);
 
   final profile = UserProfile(
-    id: 'demo-user',
+    id: demoProfileId,
     displayName: 'Camila',
     biologicalSex: BiologicalSex.male,
     birthDate: birthDate,
@@ -365,7 +373,7 @@ SeedData buildSeed({
   final userFoods = <Food>[
     const Food(
       id: 'user-tarta-verdura',
-      userId: 'demo-user',
+      userId: demoProfileId,
       name: 'Tarta de verdura casera',
       source: FoodSource.user,
       servingSize: 1,
@@ -378,7 +386,7 @@ SeedData buildSeed({
     ),
     const Food(
       id: 'user-licuado',
-      userId: 'demo-user',
+      userId: demoProfileId,
       name: 'Licuado de banana y avena',
       source: FoodSource.user,
       servingSize: 350,

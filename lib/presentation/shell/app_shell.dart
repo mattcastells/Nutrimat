@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,7 @@ import '../components/system/buttons.dart';
 import '../providers/app_providers.dart';
 import '../providers/auth_providers.dart';
 import '../screens/home/add_sheet.dart';
+import '../screens/settings/update_prompt.dart';
 
 /// Shell autenticado: `BottomTabBar` de 4 destinos + FAB central elevado
 /// (02-information-architecture.md §4).
@@ -28,6 +31,24 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   bool _sheetOpen = false;
+
+  /// Que el aviso de versión nueva se pregunte una vez por sesión de app y no
+  /// una por cada vez que el shell se reconstruye.
+  static bool _updateAsked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // El aviso de versión nueva va acá y no en el arranque: el shell es lo
+    // primero que se ve **estando adentro**, así que hay un `Navigator` sobre el
+    // que mostrar el diálogo y no se le pisa la pantalla a quien está creando la
+    // cuenta o completando sus datos.
+    if (_updateAsked) return;
+    _updateAsked = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(maybePromptForUpdate(context, ref));
+    });
+  }
 
   static const List<({IconData icon, String label})> _tabs =
       <({IconData icon, String label})>[

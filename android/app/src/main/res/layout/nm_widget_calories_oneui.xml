@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget de calorías, **4×1 en One UI · 340 × 110 dp**. §3.3 del rediseño.
+
+     Una celda de One UI ronda los 110 dp, no los 72 de un Pixel. Esos 38 dp de
+     diferencia son lo que rompió el diseño anterior: lo pensado para una tira
+     quedó con un agujero en el medio en el Samsung. Acá **compran dos cosas y no
+     aire**: la anatomía de filas —etiqueta al lado de la barra, que se lee como
+     una unidad— y una fila de extras.
+
+     Se descartaron las otras dos respuestas al alto de más. **Repartir** (el
+     `wide` con tipos más grandes) paga los 38 dp en un número de 32 sp, que con
+     la preferencia de letra del sistema al 200 % es el primer texto que se corta.
+     **Centrar** es el agujero del medio, prolijo.
+
+     Alto: 110 − 19 de padding = 91 dp. Fila de contenido 52 (tres filas de macro
+     de 14 + 2 gaps de 5) + 9 + barra 6 + 9 + extras 13 = 89, con 2 dp de sobra.
+
+     **Los números de la especificación se ajustaron contra el teléfono.** El
+     documento calculaba la fila de macros en 45 dp tomando 11 dp por fila, que
+     es el tamaño del texto y no el alto que ocupa: con Inter a 11 sp cada fila
+     mide unos 14. Con los gaps de 12 que pedía, la pila daba 108 en un widget de
+     96 y se cortaban "kcal restantes" y la tercera barra. Los gaps bajaron a 9 y
+     el número a 26 sp; el umbral que elige esta forma subió a 110
+     (`CaloriesWidget.ONEUI_DP`), que es donde de verdad entra. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nm_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/nm_widget_bg"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:id="@+id/nm_widget_day"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- ── El número ────────────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="118dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/nm_widget_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textSize="26sp"
+                    android:fontFamily="@font/inter_medium"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textColor="@color/nm_widget_accent"/>
+
+                <TextView
+                    android:id="@+id/nm_widget_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/nm_widget_calories_label"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/inter_regular"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/nm_widget_text"/>
+            </LinearLayout>
+
+            <!-- ── Los macros, en filas ─────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/nm_widget_macros"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_protein_label"
+                        android:layout_width="65dp"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_protein_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="6dp"
+                        android:layout_marginStart="6dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_protein"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_carbs_label"
+                        android:layout_width="65dp"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_carbs_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="6dp"
+                        android:layout_marginStart="6dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_carbs"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/nm_widget_fat_label"
+                        android:layout_width="65dp"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/inter_regular"
+                        android:fontFeatureSettings="tnum"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:textColor="@color/nm_widget_text_muted"/>
+                    <ProgressBar
+                        android:id="@+id/nm_widget_fat_bar"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="6dp"
+                        android:layout_marginStart="6dp"
+                        android:minHeight="6dp"
+                        android:maxHeight="6dp"
+                        android:max="100"
+                        android:progressDrawable="@drawable/nm_widget_bar_fat"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── El agua ──────────────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/nm_widget_water_pill"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/nm_widget_water_pill">
+
+                <ImageView
+                    android:id="@+id/nm_widget_drop_1"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/nm_widget_drop_full"
+                    android:contentDescription="@null"/>
+
+                <TextView
+                    android:id="@+id/nm_widget_water_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/inter_regular"
+                    android:fontFeatureSettings="tnum"
+                    android:maxLines="1"
+                    android:textColor="@color/nm_widget_text_muted"/>
+
+                <ImageView android:id="@+id/nm_widget_drop_2" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_3" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_4" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_5" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_6" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_7" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+                <ImageView android:id="@+id/nm_widget_drop_8" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@null"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/nm_widget_calories_bar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="9dp"
+            android:minHeight="6dp"
+            android:maxHeight="6dp"
+            android:max="100"
+            android:progressDrawable="@drawable/nm_widget_bar_calories"/>
+
+        <!-- ── Los extras ───────────────────────────────────────────────── -->
+        <!-- No repiten el agua —su cuenta ya está en el rail—, así que con tres
+             campos cada uno tiene ~100 dp y ninguno se corta. Cada campo que
+             llega vacío se esconde solo; con los tres vacíos se esconde la fila
+             entera y el resto se centra. -->
+        <LinearLayout
+            android:id="@+id/nm_widget_extras"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/nm_widget_extra_activity"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:fontFamily="@font/inter_regular"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/nm_widget_text_muted"/>
+
+            <TextView
+                android:id="@+id/nm_widget_extra_sleep"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:fontFamily="@font/inter_regular"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/nm_widget_text_muted"/>
+
+            <TextView
+                android:id="@+id/nm_widget_extra_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:fontFamily="@font/inter_regular"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/nm_widget_text_muted"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/nm_widget_intake" android:layout_width="0dp" android:layout_height="0dp"/>
+    </LinearLayout>
+
+    <include layout="@layout/nm_widget_empty"/>
+</FrameLayout>

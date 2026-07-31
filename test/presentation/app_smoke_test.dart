@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:nutrimat/app.dart';
+import 'package:nutrimat/core/config/feature_flags.dart';
 import 'package:nutrimat/core/utils/dates.dart';
 import 'package:nutrimat/data/local/local_auth_gateway.dart';
 import 'package:nutrimat/data/local/local_store.dart';
@@ -58,6 +59,7 @@ void main() {
   });
 
   tearDown(() {
+    FeatureFlags.seededDemoDataOverride = null;
     final view = TestWidgetsFlutterBinding.instance.platformDispatcher
         .implicitView!;
     view.resetPhysicalSize();
@@ -191,5 +193,66 @@ void main() {
     // El objetivo se muestra desglosado: qué se busca y con cuántas calorías.
     expect(find.text('Calorías por día'), findsOneWidget);
     expect(find.text('Proteína por día'), findsOneWidget);
+  });
+
+  // Una cuenta nueva entraba directo a Inicio, con un objetivo de 2.000 kcal
+  // que no salía de ningún cálculo porque no había con qué calcularlo. El
+  // guardia está en el `redirect` del router y no en la pantalla de alta, así
+  // que también agarra al que cierra la app a mitad de camino y la vuelve a
+  // abrir: este test entra por el splash, que es justamente ese caso.
+  testWidgets('una cuenta sin datos no llega a Inicio: va al alta guiada', (
+    tester,
+  ) async {
+    FeatureFlags.seededDemoDataOverride = false;
+    late ProviderContainer container;
+    await tester.runAsync(() async {
+      container = await _boot(seeded: false);
+      await container.read(repositoryProvider).signIn('elias@nutrimat.test');
+    });
+    addTearDown(() => container.dispose());
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const NutrimatApp(),
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Empecemos por vos'), findsOneWidget);
+    expect(find.text('Paso 1 de 4'), findsOneWidget);
+    expect(find.byType(CalorieRing), findsNothing);
+    // Y no hay forma de saltearlo: el único camino que no es completarlo es
+    // salir de la cuenta.
+    expect(find.text('Ahora no'), findsNothing);
+    expect(find.text('Salir'), findsOneWidget);
+  });
+
+  testWidgets('con los datos cargados, la misma cuenta entra a Inicio', (
+    tester,
+  ) async {
+    FeatureFlags.seededDemoDataOverride = false;
+    late ProviderContainer container;
+    await tester.runAsync(() async {
+      container = await _boot(seeded: false);
+      final repo = container.read(repositoryProvider);
+      await repo.signIn('elias@nutrimat.test');
+      await repo.updateProfile(
+        repo.profile.copyWith(birthDate: DateTime(1990, 4, 12), heightCm: 178),
+      );
+      await repo.logWeight(weightKg: 82, date: today());
+    });
+    addTearDown(() => container.dispose());
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const NutrimatApp(),
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.byType(CalorieRing), findsOneWidget);
+    expect(find.text('Empecemos por vos'), findsNothing);
   });
 }

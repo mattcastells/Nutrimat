@@ -19,15 +19,15 @@ import '../../providers/app_providers.dart';
 
 /// Elegir el objetivo: bajar, mantener, subir o ganar músculo.
 ///
-/// Se muestra al crear la cuenta y queda disponible desde Perfil. Guardar deja
-/// configurado el objetivo calórico, los macros y la actividad semanal de una;
-/// después todo eso se puede tocar por separado en Objetivo y macros.
+/// Se llega desde Perfil. Guardar deja configurado el objetivo calórico, los
+/// macros y la actividad semanal de una; después todo eso se puede tocar por
+/// separado en Objetivo y macros.
+///
+/// Al crear la cuenta la elección es el último paso del alta guiada
+/// (`onboarding_screen.dart`), no esta pantalla: ahí no hay a dónde volver y el
+/// paso forma parte de una secuencia.
 class GoalPickerScreen extends ConsumerStatefulWidget {
-  const GoalPickerScreen({this.isFirstTime = false, super.key});
-
-  /// Al crear la cuenta no hay a dónde volver: en vez de "Atrás" se ofrece
-  /// "Ahora no", y guardar lleva a Inicio.
-  final bool isFirstTime;
+  const GoalPickerScreen({super.key});
 
   @override
   ConsumerState<GoalPickerScreen> createState() => _GoalPickerScreenState();
@@ -58,11 +58,7 @@ class _GoalPickerScreenState extends ConsumerState<GoalPickerScreen> {
 
     if (!mounted) return;
     setState(() => _saving = false);
-    if (widget.isFirstTime) {
-      context.go(Routes.home);
-    } else {
-      context.pop();
-    }
+    context.pop();
     NmSnackbar.show(context, 'Objetivo actualizado desde hoy');
   }
 
@@ -75,17 +71,14 @@ class _GoalPickerScreenState extends ConsumerState<GoalPickerScreen> {
     final selected = _selected ?? current?.goalType;
 
     return NmScreen(
-      title: widget.isFirstTime ? '¿Qué buscás?' : 'Tu objetivo',
+      title: 'Tu objetivo',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SizedBox(height: NmSpace.s4),
           Text(
-            widget.isFirstTime
-                ? 'Elegí uno para arrancar. Se puede cambiar cuando quieras y '
-                      'los días ya registrados no se tocan.'
-                : 'Cambiarlo recalcula tus calorías, tus macros y tu objetivo '
-                      'de actividad. Rige desde hoy.',
+            'Cambiarlo recalcula tus calorías, tus macros y tu objetivo de '
+            'actividad. Rige desde hoy.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
           const SizedBox(height: NmSpace.s6),
@@ -93,7 +86,7 @@ class _GoalPickerScreenState extends ConsumerState<GoalPickerScreen> {
           for (final preset in GoalPreset.all)
             Padding(
               padding: const EdgeInsets.only(bottom: NmSpace.s3),
-              child: _PresetCard(
+              child: GoalPresetCard(
                 preset: preset,
                 selected: preset.goalType == selected,
                 weightKg: weightKg,
@@ -127,26 +120,24 @@ class _GoalPickerScreenState extends ConsumerState<GoalPickerScreen> {
                 ? null
                 : () => _save(GoalPreset.of(selected)),
           ),
-          if (widget.isFirstTime) ...<Widget>[
-            const SizedBox(height: NmSpace.s2),
-            NmButton.ghost(
-              label: 'Ahora no',
-              block: true,
-              onPressed: () => context.go(Routes.home),
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
-class _PresetCard extends StatelessWidget {
-  const _PresetCard({
+/// Una de las cuatro tarjetas de objetivo.
+///
+/// Pública porque el último paso del alta guiada muestra exactamente estas
+/// mismas cuatro (`onboarding_screen.dart`): dos listas de objetivos que se
+/// vean distinto según por dónde se entró serían dos productos.
+class GoalPresetCard extends StatelessWidget {
+  const GoalPresetCard({
     required this.preset,
     required this.selected,
     required this.weightKg,
     required this.onTap,
+    super.key,
   });
 
   final GoalPreset preset;

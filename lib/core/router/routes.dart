@@ -10,6 +10,12 @@ abstract final class Routes {
   static const String forgotPassword = '/auth/forgot-password';
   static const String checkEmail = '/auth/check-email';
 
+  /// Los datos con los que la app calcula, antes de entrar por primera vez.
+  ///
+  /// No se llega tocando nada: manda el `redirect` del router mientras
+  /// `needsOnboarding` sea `true`, y de ahí solo se sale completándolo o
+  /// cerrando sesión.
+  static const String onboarding = '/welcome/setup';
 
   static const String home = '/home';
   static const String progress = '/progress';
@@ -35,9 +41,9 @@ abstract final class Routes {
   static const String profileGoal = '/profile/goal';
   static const String profileTarget = '/profile/target';
 
-  /// La misma elección de objetivo, pero recién creada la cuenta: sin "Atrás"
-  /// y saliendo a Inicio.
-  static const String welcomeGoal = '/welcome/goal';
+  // `welcomeGoal` se sacó: era la elección de objetivo suelta después del alta,
+  // y ahora es el último paso de [onboarding]. Dos caminos a la misma decisión
+  // significan uno que en algún momento queda sin arreglar.
   static const String profileFoods = '/profile/foods';
   static const String profileTemplates = '/profile/templates';
   static const String profileFavorites = '/profile/favorites';

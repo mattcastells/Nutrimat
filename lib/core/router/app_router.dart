@@ -7,6 +7,7 @@ import '../../presentation/providers/app_providers.dart';
 import '../../presentation/screens/activity/activity_form_screen.dart';
 import '../../presentation/screens/activity/activity_screens.dart';
 import '../../presentation/screens/auth/auth_screens.dart';
+import '../../presentation/screens/auth/onboarding_screen.dart';
 import '../../presentation/screens/auth/splash_screen.dart';
 import '../../presentation/screens/auth/welcome_screen.dart';
 import '../../presentation/screens/food/food_screens.dart';
@@ -55,6 +56,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Cualquier ruta protegida sin sesión vuelve a la bienvenida.
       if (!repo.hasSession && !isPublic) return Routes.welcome;
 
+      // Con sesión pero sin los datos con los que la app calcula, no se entra.
+      //
+      // El guardia va acá y no en la pantalla de alta porque a Inicio se llega
+      // por más de un camino: el alta, el inicio de sesión y el splash de
+      // cualquier arranque posterior. Ponerlo en uno solo dejaría los otros dos
+      // abiertos, que es como quedó la vez anterior — el alta mandaba a elegir
+      // objetivo y volver a abrir la app se salteaba el paso entero.
+      if (repo.hasSession &&
+          repo.needsOnboarding &&
+          !isPublic &&
+          location != Routes.onboarding) {
+        return Routes.onboarding;
+      }
+
+      // Y al revés: con los datos ya cargados esta pantalla no tiene por qué
+      // volver a abrirse, ni siquiera con el enlace escrito a mano.
+      if (location == Routes.onboarding && !repo.needsOnboarding) {
+        return repo.hasSession ? Routes.home : Routes.welcome;
+      }
+
       return null;
     },
     routes: <RouteBase>[
@@ -78,6 +99,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.forgotPassword,
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboarding,
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: Routes.checkEmail,
@@ -180,10 +205,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.profileGoal,
         builder: (context, state) => const GoalPickerScreen(),
-      ),
-      GoRoute(
-        path: Routes.welcomeGoal,
-        builder: (context, state) => const GoalPickerScreen(isFirstTime: true),
       ),
       GoRoute(
         path: Routes.profileTarget,

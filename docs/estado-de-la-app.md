@@ -18,7 +18,9 @@ dart run flutter_launcher_icons    # regenera el ícono adaptativo
 La app arranca en **modo `mock`**: no necesita ninguna variable de entorno ni
 conexión. Todo corre contra la base local (`data/local/local_store.dart`). En
 una instalación nueva la base arranca vacía y va a la bienvenida; "Probar sin
-cuenta" siembra un día cargado y 30 días de historial (modo demo, D-15).
+cuenta" siembra un día cargado y 30 días de historial (modo demo, D-15) **solo
+en esta situación**: depurando y sin servidor configurado. Ver "Datos de
+ejemplo" más abajo.
 
 ### Entorno de esta máquina
 
@@ -188,8 +190,30 @@ flutter run --dart-define=NM_AI_PHOTO=true
 
 ### Datos de ejemplo
 
-"Crear cuenta" arranca la app **vacía**. Los 3 comidas, 2 actividades y 30 días
-de historial solo entran por "Probar sin cuenta" (modo demo, D-15).
+**No existen fuera del desarrollo.** Las 3 comidas, 2 actividades y 30 días de
+historial de `data/mock/seed.dart` dependen de `FeatureFlags.seededDemoData`,
+que pide las tres cosas a la vez: modo depuración (`kDebugMode`), compilación
+**sin** servidor (`!SupabaseConfig.isConfigured`) y `NM_DEMO_SEED` sin apagar.
+Un APK de release no siembra nunca, ni siquiera compilado sin credenciales:
+publicar no es depurar.
+
+Con las tres dadas, entran por "Probar sin cuenta" (modo demo, D-15); "Crear
+cuenta" arranca vacío siempre.
+
+El motivo es un caso real: alguien creó su cuenta y se encontró adentro con el
+historial de "Camila", que no era de nadie. Con la sesión abierta eso se
+reconcilia contra las tablas y sube, así que a partir de ahí lo inventado y lo
+real conviven en la misma cuenta sin forma de distinguirlos. Hay tres cerrojos,
+uno por camino (`test/data/demo_seed_test.dart`):
+
+1. `LocalStore.seed` no hace nada si no está permitido — el guardia está adentro
+   y no solo en quien llama, así que una llamada nueva desde cualquier lado
+   tampoco puede sembrar.
+2. Al abrir, un documento sembrado que quedó guardado de una versión anterior se
+   reconoce por el id del perfil (`demoProfileId`) y se borra entero.
+3. `signIn` no adopta lo que hubiera en una sesión de prueba: entrar a una cuenta
+   arranca limpio y lo que había en el servidor lo trae `openAfterPull`, que es
+   de donde tiene que venir.
 
 ## 5. Verificación
 

@@ -8,7 +8,7 @@ publish_to: 'none'
 # APK por arquitectura con el corrimiento de Flutter, y el más alto que quedó
 # instalado fue 4011 (x86_64). Cualquier número por debajo de eso deja a esa
 # gente sin poder actualizar nunca más desde la app.
-version: 1.10.0+5013
+version: 1.11.0+5014
 
 environment:
   sdk: ^3.9.0
@@ -31,6 +31,9 @@ dependencies:
   # Utilidades
   intl: ^0.20.2
   uuid: ^4.5.1
+  # Para volver a codificar a JPEG la foto que `image_picker` devolvió en PNG.
+  # Ver `data/local/photo_normalizer.dart`: es un caso raro y caro.
+  image: ^4.5.4
   collection: ^1.19.0
   shared_preferences: ^2.3.3
   image_picker: ^1.2.2

@@ -46,27 +46,22 @@ visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
 borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
 nombre.
 
-**Comparar las filas contra este dispositivo, y hacerlo pronto.** Las tablas ya
-son la fuente de verdad de la cuenta: al entrar se traen y se reconcilian con lo
-local. Antes solo se consultaban si el teléfono estaba vacío, así que las filas
-eran una copia de solo escritura — eso alcanzaba para un dispositivo y no
-alcanza para dos.
-
-Está el botón que faltaba para comprobarlo: **Configuración → Respaldo en la
-nube → Comparar** muestra, tabla por tabla, cuántos registros hay acá y cuántos
-en el servidor. Que no coincidan no es necesariamente un problema —lo cargado
-sin conexión todavía no subió, y sube con el próximo cambio—, pero una
-diferencia grande y persistente sí lo es.
+**Las tablas son la fuente de verdad de la cuenta**: al entrar se traen y se
+reconcilian con lo local, y desde ahora **también al volver a la app** desde
+segundo plano (`RelationalSyncService.refresh`, como mucho una consulta cada 30
+segundos). Antes era solo al arrancar en frío, así que en el teléfono un cambio
+hecho desde la web aparecía recién cuando Android mataba el proceso.
 
 La reconciliación **no puede dejar menos registros de los que había**: es unión
 por id, gana el más reciente, y ante empate o falta de fecha gana lo local
 (`domain/services/document_merge.dart`, 15 tests). Lo único que hace desaparecer
 algo es un borrado que alguien pidió y que llega con fecha más nueva.
 
-Lo que todavía no hace: reconciliar **al volver a la app**, solo al arrancarla.
-En el navegador da igual —recargar es arrancar— pero en el teléfono significa
-que un cambio hecho en la web aparece recién al reabrir la app, no al traerla de
-segundo plano.
+El botón **Comparar** de Configuración → Respaldo en la nube se sacó. Existió
+para comprobar que las tablas fueran de verdad la fuente de verdad mientras se
+estaba dando vuelta; ya está comprobado, y lo que quedaba era una herramienta de
+desarrollo con la ropa de una opción de configuración: dos columnas de números
+para que quien usa la app decidiera si la diferencia estaba bien.
 
 Para compilar con servidor hay que pasarle la config:
 
@@ -89,7 +84,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **294 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **342 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -131,9 +126,35 @@ perímetros en cm, pliegues cutáneos en mm y bioimpedancia. Se cargan todos
 juntos por fecha, no de a uno. El peso y la altura quedan afuera a propósito:
 tienen su propio registro y alimentan el cálculo de BMR.
 
-No hay asistente inicial: al crear la cuenta se pide el nombre y el objetivo, y
-de ahí se entra directo a Inicio. El resto de los datos del perfil se cargan
-desde Perfil cuando se quiera.
+**Alta guiada, obligatoria.** Crear la cuenta lleva a cuatro pasos: sexo y fecha
+de nacimiento, altura y peso, nivel de actividad, y objetivo. Recién después se
+entra a Inicio.
+
+Antes se entraba directo y el resto se cargaba desde Perfil cuando se quisiera,
+y así el primer número que veía alguien —"te quedan 1.096 kcal"— salía de un
+objetivo de 2.000 puesto por defecto, no de ningún cálculo: sin nacimiento,
+altura y peso no hay Mifflin-St Jeor. Un valor de referencia disfrazado de
+cuenta es justo lo que el producto no hace (RN-03), y menos el primero.
+
+Los tres que se exigen son los que **no tienen un valor por omisión honesto**;
+el sexo biológico admite "Otro" y el nivel de actividad y el objetivo arrancan en
+algo razonable, así que ahí un valor por defecto es una respuesta válida. Lo hace
+cumplir el `redirect` del router (`needsOnboarding`), no la pantalla de alta: a
+Inicio se llega por el alta, por iniciar sesión y por el splash de cualquier
+arranque posterior, y ponerlo en uno solo dejaba los otros dos abiertos. Cada
+paso se guarda al pasar al siguiente, así que cerrar la app a mitad de camino no
+obliga a empezar de nuevo.
+
+**No hay datos de ejemplo en ninguna compilación de verdad.** La siembra de
+`data/mock/seed.dart` —los treinta días de "Camila"— quedó atada a
+`FeatureFlags.seededDemoData`: solo en modo depuración y sin servidor
+configurado. Un usuario nuevo entró y se encontró con ese historial, que además
+sube a las tablas en cuanto se abre sesión, y ahí lo inventado y lo real quedan
+en la misma cuenta sin forma de distinguirlos. Hay tres cerrojos, uno por camino
+(`test/data/demo_seed_test.dart`): `LocalStore.seed` no hace nada si no está
+permitido; al arrancar, un documento sembrado que quedó de una versión anterior
+se borra; y entrar a una cuenta desde el modo de prueba arranca limpio en vez de
+adoptar lo que hubiera.
 
 Detalle completo: [`docs/estado-de-la-app.md`](docs/estado-de-la-app.md)
 
@@ -152,6 +173,53 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
 
+#### Cuánto ocupa, y el único número que va a crecer
+
+Al 31 de julio de 2026, en plan **Free**: la base usa **0,03 GB de 2 GB** y
+Storage **~9 MB de 1 GB**. De la base, casi todo son extensiones y esquemas del
+sistema —un proyecto Supabase recién creado arranca en 40-60 MB—; la tabla más
+grande del proyecto es `public.activities`, con 128 kB. A razón de unas veinte
+filas por persona por día, la base no es un problema que vayamos a tener.
+
+**Storage sí.** Una foto son ~200 kB contra los ~200 bytes de la fila que la
+nombra: mil veces más por registro. Se arreglaron tres cosas que la hacían
+crecer más rápido de lo que le corresponde (`test/domain/photo_storage_test.dart`):
+
+1. **Cada foto analizada con IA se guardaba dos veces.** Analizar sube la foto
+   con un id al azar —la Edge Function la lee del bucket—, y después `saveMeal`
+   la volvía a subir con el id de la comida, porque lo que llegaba ahí seguía
+   siendo la ruta del archivo del teléfono. La primera copia no la referenciaba
+   nadie: no se mostraba, no se borraba y no había forma de encontrarla. Ahora la
+   ruta del bucket viaja de vuelta con el análisis y la comida apunta a esa copia.
+2. **Descartar un análisis dejaba su foto en el servidor.** Es de lo más común
+   cuando el número no convence. Ahora se borra al salir sin guardar.
+3. **Borrar una comida no borraba su foto, nunca.** El borrado es suave y la
+   lápida se queda —la reconciliación la necesita—, pero la foto no tiene por
+   qué. `purgeDeletedPhotos` la saca del bucket un día después del borrado, con
+   margen de sobra sobre la ventana de deshacer, y solo limpia la ruta cuando el
+   borrado salió bien: al revés dejaría la foto en el bucket sin nada que la
+   nombre.
+
+Y una cuarta que era de tamaño, no de cantidad: **`image_picker` ignora
+`imageQuality` cuando la imagen tiene canal alfa** y devuelve un PNG sin
+comprimir. Desde la cámara no pasa; desde la galería sí, porque una captura de
+pantalla suele traer alfa. Eran 1-3 MB en vez de 200 kB —entre 5 y 15 fotos
+normales— y encima se subía con nombre `.jpg` y `content-type: image/jpeg`, así
+que los bytes no eran lo que decían ser. `PhotoNormalizer` lo compone sobre
+blanco y lo recodifica a JPEG; sobre blanco y no descartando el alfa, porque
+descartarlo deja manchones negros donde había transparencia.
+
+**No se bajó la calidad, y a propósito.** Es lo primero que uno piensa, y las
+fotos no tienen margen: la miniatura ocupa el ancho entero de la pantalla —en un
+teléfono de 1080 px se dibuja prácticamente 1:1—, el visor permite zoom hasta 5×
+y desde ahí se guarda en la galería y se comparte. Bajar la resolución empeora la
+vista de todos los días, no solo el zoom, y no se puede deshacer. Los cuatro
+arreglos de arriba no cuestan un solo píxel.
+
+Si al ritmo real el giga igual se acerca, el paso siguiente es **Pro, US$ 25 por
+mes**: 100 GB de Storage, 8 GB de disco, 250 GB de egress y 100.000 usuarios
+activos. Con 100 GB, al ritmo de hoy, el límite deja de existir.
+
 ### Distribución
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
@@ -159,8 +227,22 @@ público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
 contra un Postgres limpio. Última publicada: **v1.10.0**.
 
 Publicar una versión es empujar un tag `v1.10.1`: el workflow compila el APK
-firmado y crea el release. La app se actualiza sola desde **Configuración →
+firmado y crea el release. La app se actualiza desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
+
+**Y ahora avisa sola.** Al abrir la app se consulta si hay una versión nueva y,
+si la hay, se ofrece; el que acepta va a la pantalla de siempre, con su permiso
+de instalación y su barra de progreso. Nadie le avisa a nadie que salió una
+versión cuando se distribuye por fuera de Play Store, y con la comprobación solo
+manual el resultado fue gente corriendo versiones de meses atrás —incluida la
+que tenía rota justamente la actualización.
+
+Lo que se hace sin permiso es **preguntar**, no bajar: la consulta es un JSON de
+unos kilobytes contra la API de releases; los 25 MB del APK siguen necesitando
+que alguien los pida. Con tres frenos para que no se vuelva ruido: como mucho una
+consulta cada 6 horas, "Ahora no" calla **esa** versión y no las que vengan, y si
+la consulta falla no se dice nada porque no la pidió nadie
+(`presentation/screens/settings/update_prompt.dart`).
 
 Procedimiento completo: [`docs/releases.md`](docs/releases.md), condensado con
 sus trampas en la skill [`.claude/skills/publicar`](.claude/skills/publicar/SKILL.md).
@@ -439,6 +521,64 @@ las dos cosas.
 También se fue el "Comió X de Y" —es la misma cuenta que el número grande,
 contada al revés— y con eso el widget pasó de 4×2 celdas a 4×1.
 
+**Rediseñado de cero**, según
+[`docs/handoff/23-widget-redesign-implementacion.md`](docs/handoff/23-widget-redesign-implementacion.md).
+El pedido que lo desencadenó: *"está enorme, no tiene que ocupar más de una fila,
+hay que distribuir mejor la data y que se adapte si el usuario lo agranda"*.
+
+Se agrega como **una tira de 4×1** y de ahí adapta. Cuatro formas, elegidas por
+tamaño (`CaloriesWidget.adaptive`): desde API 31 se mandan las cuatro y el
+launcher usa la que entra —también mientras se redimensiona—; antes de eso se
+decide con las opciones y se rehace en `onAppWidgetOptionsChanged`.
+
+| Forma | Cuándo | Qué muestra |
+| --- | --- | --- |
+| `..._compact` | < 200 dp de ancho | número, palabra y el agua en texto |
+| `..._wide` | ≥ 200 dp (**el default**) | número a la izquierda; tres macros y el rail de agua a la derecha |
+| `..._oneui` | ≥ 110 dp de alto | macros en filas (etiqueta al lado de la barra) y una fila de extras |
+| `..._tall` | ≥ 150 dp de alto | las ocho gotas tocables una por una, más consumido y racha |
+
+Lo nuevo, además del reparto:
+
+- **La barra del día**, calorías consumidas sobre el objetivo, del ancho de la
+  tarjeta. Es la respuesta barata al anillo de Inicio, que RemoteViews no puede
+  dibujar (no hay canvas). Sin objetivo cargado **se esconde entera**: una barra
+  al 0 % es un número inventado con forma de cuenta.
+- **El agua pasa a ser tocable de verdad.** Las ocho gotas de 10 dp eran un
+  cuarto del mínimo recomendado; en los tamaños de una fila ahora hay un rail de
+  40 × 44 dp con un solo `PendingIntent` (un toque suma, y al llegar a la meta
+  vuelve a cero). Las gotas una por una siguen en el 4×2, donde el área entra.
+- **Tipografía Inter**, la misma de la app, con cifras tabulares en el número
+  para que no baile entre updates.
+- **Los dos estados vacíos con el ícono de la app**, y con texto distinto:
+  "todavía no hay nada" es una app recién instalada y "hay algo pero es de otro
+  día" es un número que ya no vale.
+- **Extras** —actividad, sueño, racha— donde hay alto. Cada uno se esconde solo
+  si llega vacío; "Actividad 0 min" ocupa lo mismo que un dato y no es uno.
+
+Las cuatro formas tienen **exactamente los mismos ids**, uno por uno: el código
+que las llena es uno solo y no sabe cuál está dibujando, así que un id que exista
+en una y no en otra sería una acción de `RemoteViews` perdida en silencio. Los que
+una forma no usa quedan declarados en 0 dp.
+
+**Dos números de la especificación se corrigieron contra el teléfono**, y las dos
+correcciones dicen lo mismo: el diseño calculaba altos de fila usando el tamaño
+del texto (11 sp) en vez del alto que ocupa (unos 14 dp).
+
+1. El umbral de la forma de One UI se proponía en 90 dp para que un Samsung no
+   cayera en `wide`. Puesto en el emulador, el widget mide 96 y esa forma
+   necesita 108: se cortaban "kcal restantes" y la tercera barra de macro. El
+   umbral subió a 110, que es donde entra. Elegir una forma antes de que entre es
+   peor que el aire que se quería evitar.
+2. La fila de gotas del 4×2 se especificaba en 48 dp fijos con una regla aparte
+   para bajarla a 40 con metas grandes. Va con `weight`: `LinearLayout` saltea a
+   los hijos en `gone`, así que seis gotas se llevan 53 dp cada una y ocho se
+   llevan 40 — lo mismo, sin código y en todas las versiones de Android.
+
+Verificado en el emulador en las cuatro formas y en el estado de dato viejo:
+capturas en [`docs/handoff/widget-actual/`](docs/handoff/widget-actual/)
+(`nm-widget-v2-*.png`).
+
 ---
 
 ## Comandos para retomar
@@ -447,7 +587,7 @@ contada al revés— y con eso el widget pasó de 4×2 celdas a 4×1.
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 294 tests
+flutter test                              # 342 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend
@@ -462,12 +602,10 @@ supabase stop
 
 1. **Notificación de pal** ("X cargó su desayuno"): necesita push (FCM) y un
    disparador del lado del servidor. Los recordatorios locales ya están.
-2. ~~**Dar vuelta la fuente de verdad.**~~ Hecho. Las tablas mandan: al entrar
-   se traen siempre y se reconcilian con lo local (`document_merge.dart`), y el
-   documento pasó a ser la copia con la que trabaja cada dispositivo. Lo que
-   queda de este hilo es más chico y está arriba, en "lo próximo": comparar
-   contra uso real, y reconciliar también al volver a la app y no solo al
-   arrancarla.
+2. ~~**Dar vuelta la fuente de verdad.**~~ Hecho, y completo: las tablas mandan,
+   se traen al entrar **y al volver a la app**, y se reconcilian con lo local
+   (`document_merge.dart`). El documento pasó a ser la copia con la que trabaja
+   cada dispositivo.
 
    Esto es además lo que **habilita la versión web** para quien tiene iPhone: un
    navegador arranca sin nada y se hidrata de las tablas, y desde la segunda

@@ -33,6 +33,8 @@ producto. Todo lo ambiguo fue decidido, documentado y justificado en
 | 19 | [`19-project-structure.md`](./19-project-structure.md) | Estructura de carpetas Flutter y React Native |
 | 20 | [`20-environment-variables.md`](./20-environment-variables.md) | Variables de entorno y dónde vive cada una |
 | 21 | [`21-motion-and-loading.md`](./21-motion-and-loading.md) | **Movimiento, spinners, skeletons y entrada de gráficos** — qué se anima, cuánto dura y qué se muestra mientras se espera |
+| 22 | [`22-widget-redesign-brief.md`](./22-widget-redesign-brief.md) | **Brief para rediseñar el widget de la pantalla de inicio** — va en la dirección contraria a los demás: es un pedido *hacia* diseño, con los datos disponibles y los límites duros de RemoteViews |
+| 23 | [`23-widget-redesign-implementacion.md`](./23-widget-redesign-implementacion.md) | **La respuesta al 22**: las cuatro formas del widget con sus cajas en dp, el orden de prioridad de la información y por qué no hay anillo. Implementado en la 1.11.0, con dos números corregidos contra el teléfono (§ del propio documento y `CaloriesWidget.ONEUI_DP`) |
 
 Anexos:
 

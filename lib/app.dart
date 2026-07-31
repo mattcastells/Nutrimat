@@ -31,7 +31,19 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Arranque en frío: el widget puede tener el número de ayer.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _publishToWidget());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _publishToWidget();
+      // Las fotos huérfanas también se barren al arrancar, no solo al volver:
+      // quien deja la app abierta días no pasaría nunca por el otro camino.
+      unawaited(_purgePhotos());
+    });
+  }
+
+  Future<void> _purgePhotos() async {
+    if (!mounted) return;
+    final repo = ref.read(repositoryProvider);
+    if (!repo.hasSession) return;
+    await repo.purgeDeletedPhotos();
   }
 
   /// Refresca el widget de la pantalla de inicio del teléfono.
@@ -61,6 +73,8 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
       repo.daily(today()),
       glasses: repo.glassesOn(today()),
       waterGoal: repo.profile.waterGoalGlasses,
+      sleepMinutes: repo.sleepOn(today())?.minutes,
+      daysWithRecords: repo.daysWithRecords,
     );
   }
 
@@ -83,7 +97,36 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
         state == AppLifecycleState.detached) {
       unawaited(ref.read(cloudBackupProvider)?.flush() ?? Future<void>.value());
     }
-    if (state == AppLifecycleState.resumed) _publishToWidget();
+    if (state == AppLifecycleState.resumed) {
+      _publishToWidget();
+      unawaited(_pullFromTables());
+    }
+  }
+
+  /// Reconciliar contra las tablas al volver a la app.
+  ///
+  /// Hasta acá esto pasaba solo al arrancar en frío, así que un registro
+  /// cargado desde otro dispositivo aparecía recién al cerrar y reabrir la app
+  /// —y "cerrar" en Android no es volver al inicio, es que el sistema mate el
+  /// proceso, que puede tardar horas—. Las tablas son la fuente de verdad de la
+  /// cuenta; el documento de este teléfono es la copia con la que trabaja.
+  ///
+  /// El servicio se encarga de no salir a la red en cada vuelta corta y la
+  /// reconciliación no puede dejar menos registros de los que había, así que
+  /// esto no puede hacer desaparecer nada.
+  Future<void> _pullFromTables() async {
+    if (!mounted) return;
+    final repo = ref.read(repositoryProvider);
+    if (!repo.hasSession) return;
+    await ref
+        .read(relationalSyncProvider)
+        ?.refresh(apply: repo.importDocument);
+
+    // De paso, las fotos de comidas borradas hace más de un día. Es una
+    // recorrida local que solo sale a la red cuando encuentra algo, y lo que
+    // encuentra desaparece: casi siempre no hace nada. Va después de traer,
+    // porque lo que trae puede incluir una comida borrada en otro dispositivo.
+    await _purgePhotos();
   }
 
   @override

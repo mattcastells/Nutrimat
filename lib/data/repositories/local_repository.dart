@@ -106,6 +106,16 @@ class LocalRepository
   bool get hasSession => store.profile != null;
 
   @override
+  bool get needsOnboarding {
+    final current = store.profile;
+    // Sin sesión no hay nada que completar: de eso se ocupa la bienvenida.
+    if (current == null) return false;
+    return current.birthDate == null ||
+        current.heightCm == null ||
+        store.currentWeightKg == null;
+  }
+
+  @override
   Future<void> updateProfile(UserProfile updated) async {
     store.profile = updated;
     await _commit();
@@ -200,7 +210,22 @@ class LocalRepository
   @override
   Future<void> signIn(String email) async {
     final base = store.profile ?? UserProfile.empty(_uuid.v4());
-    await _ensureUsableProfile(base.copyWith(email: email, isDemo: false));
+
+    // Entrar a una cuenta no es seguir la sesión de prueba con otro nombre.
+    //
+    // Antes el documento del modo demo se adoptaba tal cual: lo que hubiera
+    // ahí quedaba adentro de la cuenta y, con la reconciliación, subía a las
+    // tablas. Alcanzaba con tocar "Probar sin cuenta" una vez —por curiosidad o
+    // sin querer— para que el historial de una persona que no existe pasara a
+    // ser el historial de una que sí. Se arranca limpio y lo que había en el
+    // servidor lo trae `openAfterPull`, que es de donde tiene que venir.
+    if (base.isDemo) {
+      store.reset(newProfile: UserProfile.empty(_uuid.v4()));
+    }
+
+    await _ensureUsableProfile(
+      (store.profile ?? base).copyWith(email: email, isDemo: false),
+    );
   }
 
   @override
@@ -290,6 +315,54 @@ class LocalRepository
     }
     await _commit();
     return withStatus;
+  }
+
+  /// Cuánto se espera antes de borrar del bucket la foto de una comida
+  /// borrada. Un día es holgado contra la ventana de deshacer de 8 s: cubre
+  /// también al que se arrepiente esa misma tarde.
+  static const Duration photoPurgeGrace = Duration(hours: 24);
+
+  @override
+  Future<int> purgeDeletedPhotos() async {
+    final service = photos;
+    if (service == null) return 0;
+
+    final limit = DateTime.now().subtract(photoPurgeGrace);
+    final next = <Meal>[];
+    var borradas = 0;
+
+    for (final meal in store.meals) {
+      final deletedAt = meal.deletedAt;
+      final path = meal.photoPath;
+      if (deletedAt == null ||
+          path == null ||
+          !PhotoSyncService.isRemotePath(path) ||
+          deletedAt.isAfter(limit)) {
+        next.add(meal);
+        continue;
+      }
+
+      try {
+        await service.delete(bucket: PhotoBucket.meal, path: path);
+      } on AppError {
+        // Sin conexión o con el servidor caído: se deja como está y se
+        // reintenta la próxima vez. Nunca se limpia la ruta sin haber borrado,
+        // porque ahí la foto quedaría en el bucket sin nada que la nombre.
+        next.add(meal);
+        continue;
+      }
+
+      // Recién ahora se saca la ruta. La lápida sigue siendo una lápida; lo que
+      // deja de estar es el megabyte.
+      next.add(meal.copyWith(clearPhotoPath: true));
+      borradas++;
+    }
+
+    if (borradas > 0) {
+      store.meals = next;
+      await _commit();
+    }
+    return borradas;
   }
 
   /// Borrado suave con ventana de deshacer de 8 s (RN-16).
@@ -1567,7 +1640,17 @@ class LocalRepository
       onStage?.call(AnalysisStage.analyzing);
       final analysis = await client.analyze(photoPath: remotePath);
       _quotaUsed++;
-      return analysis;
+
+      // La ruta del bucket viaja de vuelta con el análisis, y de ahí la toma la
+      // pantalla de revisión para que la comida se guarde apuntando a **esta**
+      // copia.
+      //
+      // Sin esto se subía dos veces: acá con un id al azar, y otra vez en
+      // `saveMeal` con el id de la comida, porque lo que llegaba ahí seguía
+      // siendo la ruta del archivo del teléfono. Cada foto analizada ocupaba el
+      // doble en el bucket y la primera copia no la referenciaba nadie: no se
+      // mostraba, no se borraba y no había forma de encontrarla.
+      return analysis.copyWith(photoPath: remotePath);
     }
 
     // Sin servidor: resultado fijo. Solo se llega acá con `NM_AI_PHOTO`

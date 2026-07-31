@@ -34,66 +34,18 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
   bool _restoring = false;
   AppError? _error;
 
-  /// Cuántas filas hay de cada tabla del lado del servidor. Se pide a mano: son
-  /// nueve consultas y no hacen falta para usar la pantalla.
-  Map<String, int>? _remoteRows;
-  bool _comparing = false;
+  // Acá vivía "Este dispositivo y el servidor": un botón de Comparar que traía
+  // la cuenta de filas de cada tabla y la ponía al lado de la local. Existió
+  // para comprobar que las tablas fueran de verdad la fuente de verdad, cuando
+  // recién se estaba pasando a eso. Ya está comprobado, y lo que quedaba era
+  // una pantalla que le pedía a quien usa la app que interpretara dos columnas
+  // de números y decidiera si la diferencia estaba bien — una herramienta de
+  // desarrollo con la ropa de una opción de configuración.
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  /// Compara lo que hay en este dispositivo contra lo que hay en las tablas.
-  ///
-  /// Desde que las tablas son la fuente de verdad, esta es la pantalla donde se
-  /// comprueba que lo sean de verdad. Que los números no coincidan **no es
-  /// necesariamente un problema** —lo cargado sin conexión todavía no subió— y
-  /// por eso se muestran los dos lados en vez de un cartelito de "todo bien":
-  /// el que sabe si la diferencia tiene sentido es quien la mira.
-  Future<void> _compare() async {
-    final service = ref.read(relationalSyncProvider);
-    if (service == null) return;
-    setState(() => _comparing = true);
-    final rows = await service.remoteCounts();
-    if (!mounted) return;
-    setState(() {
-      _remoteRows = rows;
-      _comparing = false;
-    });
-  }
-
-  static String _tableLabel(String table) => switch (table) {
-    'meals' => 'Comidas',
-    'activities' => 'Actividades',
-    'weight_logs' => 'Pesos',
-    'body_measurements' => 'Medidas',
-    'water_logs' => 'Agua',
-    'sleep_logs' => 'Sueño',
-    final other => other,
-  };
-
-  /// `remoteCounts` devuelve −1 cuando una tabla no se pudo consultar. Eso no
-  /// es cero: decir "0" sería afirmar que el servidor no tiene nada, que es
-  /// justo la conclusión peligrosa.
-  String _remoteLabel(String table) {
-    final value = _remoteRows?[table];
-    if (value == null) return '—';
-    return value < 0 ? 'no se pudo leer' : '$value';
-  }
-
-  /// Lo mismo que cuenta `remoteCounts`, pero de este lado.
-  Map<String, int> _localRows() {
-    final repo = ref.read(repositoryProvider);
-    return <String, int>{
-      'meals': repo.allMeals.length,
-      'activities': repo.allActivities.length,
-      'weight_logs': repo.weightLogs.length,
-      'body_measurements': repo.allMeasurements.length,
-      'water_logs': repo.waterLogs.length,
-      'sleep_logs': repo.sleepLogs.length,
-    };
   }
 
   Future<void> _load() async {
@@ -336,54 +288,6 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
               text: 'No estamos subiendo nada porque este teléfono no tiene '
                   'registros. Si tu copia de la nube sí los tiene, traela con '
                   '"Restaurar desde la nube": subir esto la borraría.',
-            ),
-          ],
-
-          // ── Este dispositivo contra las tablas ──────────────────────────
-          if (ref.read(relationalSyncProvider) != null) ...<Widget>[
-            const SizedBox(height: NmSpace.s8),
-            const NmSectionHeader(title: 'Este dispositivo y el servidor'),
-            NmCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (_remoteRows == null)
-                    Text(
-                      'Tus datos viven en el servidor y este dispositivo tiene '
-                      'una copia con la que trabaja. Acá podés ver si los dos '
-                      'lados dicen lo mismo.',
-                      style: NmTextStyles.from(
-                        NmType.bodySm,
-                        color: nm.textMuted,
-                      ),
-                    )
-                  else ...<Widget>[
-                    for (final entry in _localRows().entries)
-                      ValueRow(
-                        label: _tableLabel(entry.key),
-                        value: '${entry.value} · ${_remoteLabel(entry.key)}',
-                        muted: _remoteRows![entry.key] == entry.value,
-                      ),
-                    const SizedBox(height: NmSpace.s3),
-                    Text(
-                      'Acá · servidor. Que no coincidan no es necesariamente un '
-                      'problema: lo que cargaste sin conexión todavía no subió, '
-                      'y sube solo con el próximo cambio.',
-                      style: NmTextStyles.from(
-                        NmType.caption,
-                        color: nm.textMuted,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: NmSpace.s4),
-                  NmButton.secondary(
-                    label: _remoteRows == null ? 'Comparar' : 'Volver a comparar',
-                    block: true,
-                    loading: _comparing,
-                    onPressed: _compare,
-                  ),
-                ],
-              ),
             ),
           ],
 

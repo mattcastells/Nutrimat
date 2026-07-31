@@ -72,6 +72,10 @@ class RelationalSyncService {
   bool _running = false;
   bool _dirty = false;
   DateTime? _lastPush;
+
+  /// Cuándo se consultaron las filas por última vez, con éxito o sin él. Es lo
+  /// que le pone freno a [refresh].
+  DateTime? _lastPull;
   Map<String, int> _lastRows = const <String, int>{};
 
   /// Misma puerta que el respaldo: hasta no haber decidido qué hacer con lo
@@ -113,27 +117,11 @@ class RelationalSyncService {
   Future<bool> openAfterPull({
     required Future<void> Function(Map<String, dynamic> document) apply,
   }) async {
-    final account = _auth.currentAccount;
-    if (account == null) return false;
+    final traido = await _pullAndMerge(apply);
 
-    var traido = false;
-    try {
-      final remote = await _client.pull(userId: account.id, store: _store);
-      if (remote != null) {
-        final merged = mergeDocuments(
-          local: _store.toDocument(),
-          remote: remote,
-        );
-        await apply(merged);
-        traido = true;
-      }
-    } on AppError {
-      // Sin conexión no se trae, pero tampoco se bloquea la escritura ni se
-      // toca lo local: un fallo de lectura no puede parecerse a "no había
-      // nada".
-    } finally {
-      _canPush = true;
-    }
+    // Pase lo que pase: dejar la puerta cerrada por un fallo de red sería no
+    // volver a escribir nunca.
+    _canPush = true;
 
     // Después de abrir la puerta, no antes: `markDirty` sale temprano mientras
     // `_canPush` sea false, así que llamarlo adentro del `try` no habría hecho
@@ -144,6 +132,61 @@ class RelationalSyncService {
     // próxima vez volvería a estar solo de este lado.
     if (traido) markDirty();
     return traido;
+  }
+
+  /// Vuelve a traer las filas **con la app ya abierta**.
+  ///
+  /// Es [openAfterPull] sin la parte de abrir la escritura, para llamarla al
+  /// volver a primer plano. Hasta acá la reconciliación pasaba solo al arrancar:
+  /// en el navegador daba igual —recargar es arrancar— pero en el teléfono
+  /// significaba que algo cargado desde otro dispositivo aparecía recién al
+  /// cerrar y reabrir la app. Traer es barato comparado con mostrar datos
+  /// viejos: la base es la fuente de verdad y el documento local es la copia con
+  /// la que este teléfono trabaja, no al revés.
+  ///
+  /// [minInterval] evita salir a la red en cada vuelta corta —abrir la cámara y
+  /// volver son dos `resumed` seguidos—; el reloj se toca también cuando la
+  /// consulta falla, así que sin conexión no se reintenta a los tirones.
+  Future<bool> refresh({
+    required Future<void> Function(Map<String, dynamic> document) apply,
+    Duration minInterval = const Duration(seconds: 30),
+  }) async {
+    // Sin haber abierto la puerta todavía no hubo primer arranque: de eso se
+    // ocupa `openAfterPull`, y adelantarse acá sería traer dos veces.
+    if (!_canPush) return false;
+
+    final last = _lastPull;
+    if (last != null && DateTime.now().difference(last) < minInterval) {
+      return false;
+    }
+
+    final traido = await _pullAndMerge(apply);
+    if (traido) markDirty();
+    return traido;
+  }
+
+  /// Trae las filas y las reconcilia con lo local. `false` si no había nada que
+  /// traer o si no se pudo leer.
+  Future<bool> _pullAndMerge(
+    Future<void> Function(Map<String, dynamic> document) apply,
+  ) async {
+    final account = _auth.currentAccount;
+    if (account == null) return false;
+
+    try {
+      final remote = await _client.pull(userId: account.id, store: _store);
+      if (remote == null) return false;
+      await apply(
+        mergeDocuments(local: _store.toDocument(), remote: remote),
+      );
+      return true;
+    } on AppError {
+      // Sin conexión no se trae, pero tampoco se toca lo local: un fallo de
+      // lectura no puede parecerse a "no había nada".
+      return false;
+    } finally {
+      _lastPull = DateTime.now();
+    }
   }
 
   /// Avisa que algo cambió. Barato: no escribe nada por sí solo.
@@ -187,12 +230,11 @@ class RelationalSyncService {
     if (_dirty) await push();
   }
 
-  /// Cuántas filas hay del lado del servidor, por tabla.
-  Future<Map<String, int>> remoteCounts() async {
-    final account = _auth.currentAccount;
-    if (account == null) return const <String, int>{};
-    return _client.counts(account.id);
-  }
+  // `remoteCounts` se fue con el botón de Comparar de Configuración → Respaldo
+  // en la nube. Era la cuenta de filas por tabla del lado del servidor, para
+  // ponerla al lado de la local; sirvió mientras se comprobaba que las tablas
+  // fueran de verdad la fuente de verdad, y una vez comprobado quedaba una
+  // herramienta de desarrollo puesta en una pantalla de ajustes.
 
   void dispose() {
     _timer?.cancel();

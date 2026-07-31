@@ -296,9 +296,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     setState(() => _submitting = false);
 
     // Si el alta ya devolvió sesión, el proyecto no pide confirmar el correo:
-    // se puede seguir de largo a elegir el objetivo.
+    // se puede seguir de largo a completar los datos.
     if (account != null) {
-      context.go(Routes.welcomeGoal);
+      context.go(Routes.onboarding);
       return;
     }
     context.go('${Routes.checkEmail}?email=${Uri.encodeComponent(email)}');

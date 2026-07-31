@@ -25,14 +25,21 @@ const int palDayHistoryDays = 7;
 /// Lo que aparece depende de lo que esa persona decidió compartir (Perfil →
 /// Pals → Qué ven mis pals): comida y el agregado de actividad siempre están;
 /// fotos, agua, sueño y el detalle de cada actividad, solo si los prendió.
-final palDayProvider = FutureProvider.family<PalDay?, ({String userId, DateTime date})>((
-  ref,
-  args,
-) async {
-  final client = ref.watch(palsClientProvider);
-  if (client == null) return null;
-  return client.dayOf(args.userId, args.date);
-});
+///
+/// `autoDispose` a propósito, igual que [palsProvider]. Sin eso la consulta se
+/// hacía **una sola vez por sesión de app** y por par (persona, fecha): quien
+/// abría el día de alguien antes de que esa persona cargara sus comidas no las
+/// veía aparecer nunca —ni saliendo de la pantalla y volviendo— hasta cerrar y
+/// reabrir la app. Las comidas estaban en el servidor desde el momento en que se
+/// cargaron; lo que no se rehacía era la consulta.
+final palDayProvider =
+    FutureProvider.autoDispose.family<PalDay?, ({String userId, DateTime date})>(
+  (ref, args) async {
+    final client = ref.watch(palsClientProvider);
+    if (client == null) return null;
+    return client.dayOf(args.userId, args.date);
+  },
+);
 
 class PalDayScreen extends ConsumerStatefulWidget {
   const PalDayScreen({required this.userId, this.name, super.key});
@@ -47,6 +54,17 @@ class PalDayScreen extends ConsumerStatefulWidget {
 class _PalDayScreenState extends ConsumerState<PalDayScreen> {
   late DateTime _date = today();
 
+  /// Vuelve a preguntarle a la base.
+  ///
+  /// Entrar a la pantalla ya consulta —el provider es `autoDispose`, así que
+  /// salir tira lo que trajo y volver lo pide de nuevo—; esto es para mirar otra
+  /// vez sin salir, que es lo que uno hace cuando sabe que la otra persona está
+  /// cargando algo en ese momento.
+  void _refresh() {
+    if (!mounted) return;
+    ref.invalidate(palDayProvider((userId: widget.userId, date: _date)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final day = ref.watch(
@@ -56,6 +74,13 @@ class _PalDayScreenState extends ConsumerState<PalDayScreen> {
 
     return NmScreen(
       title: widget.name ?? 'Su día',
+      actions: <Widget>[
+        NmIconButton(
+          icon: PhosphorIcons.arrowsClockwise(),
+          tooltip: 'Actualizar',
+          onPressed: _refresh,
+        ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -69,9 +94,7 @@ class _PalDayScreenState extends ConsumerState<PalDayScreen> {
               message: error is AppError
                   ? error.message
                   : 'No pudimos cargar su día.',
-              onRetry: () => ref.invalidate(
-                palDayProvider((userId: widget.userId, date: _date)),
-              ),
+              onRetry: _refresh,
             ),
             data: (value) => value == null || value.isEmpty
                 ? EmptyState(

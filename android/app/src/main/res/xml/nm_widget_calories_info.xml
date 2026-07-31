@@ -7,18 +7,28 @@
      medianoche, el número guardado es de ayer y tiene que dejar de mostrarse
      como si fuera de hoy.
 
-     `minResizeWidth` es el piso al que se puede encoger. Sin él el launcher lo
-     deja achicar hasta que las ocho gotas de agua no entran y la fila se corta,
-     que es exactamente lo que pasaba cuando esta fila además tenía el nombre de
-     la app: se leía "NUT". -->
+     **Se agrega como una tira de una fila** (`targetCell` 4×1) y de ahí adapta:
+     `CaloriesWidget.adaptive` elige entre cuatro formas según el tamaño que le
+     dio el launcher — angosta, ancha, One UI y alta. Que la forma la decida el
+     tamaño y no el `resizeMode` es lo que arregla el bug de origen: antes, dos
+     celdas de alto daban un bloque con el número perdido en el medio, porque
+     había una sola forma y se estiraba.
+
+     El alto vuelve a ser redimensionable, pero acotado: `maxResizeHeight` de
+     200 dp deja llegar al 4×2 —que tiene su propia forma, con las gotas de agua
+     tocables una por una— y no más allá.
+
+     `minResizeWidth` es el piso al que se puede encoger: por debajo no entra ni
+     el número. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:initialLayout="@layout/nm_widget_calories"
-    android:previewLayout="@layout/nm_widget_calories"
+    android:initialLayout="@layout/nm_widget_calories_wide"
+    android:previewLayout="@layout/nm_widget_calories_wide"
     android:description="@string/nm_widget_calories_description"
     android:minWidth="250dp"
-    android:minHeight="80dp"
-    android:minResizeWidth="180dp"
-    android:minResizeHeight="80dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeHeight="200dp"
     android:targetCellWidth="4"
     android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"

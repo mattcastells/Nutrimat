@@ -32,9 +32,18 @@ abstract interface class ApkInstaller {
 
 /// Decide si hay que actualizar y, si la persona acepta, baja e instala.
 ///
-/// La comprobación es **siempre manual**: no hay chequeo automático al abrir la
-/// app. Una app de salud que sale a internet sola, sin que nadie se lo pida, es
-/// exactamente lo que el handoff evita en el resto del producto.
+/// **La descarga es siempre manual; la comprobación ya no.** Acá decía que no
+/// había chequeo automático al abrir la app, por no salir a internet sin que
+/// nadie lo pida. La distribución por fuera de Play Store le puso precio a esa
+/// postura: nadie avisa que salió una versión, así que había que acordarse de
+/// entrar a Configuración → Actualizaciones, y el resultado fue gente corriendo
+/// versiones de meses atrás —incluida la que tenía rota justamente la
+/// actualización— sin enterarse.
+///
+/// La distinción que importa es entre preguntar y bajar. [check] es un JSON de
+/// unos kilobytes y ahora se hace sola al abrir (`update_prompt.dart`, con su
+/// intervalo y su "ahora no"); [downloadAndInstall] son 25 MB y sigue
+/// necesitando que alguien lo pida.
 class UpdateService {
   const UpdateService({
     required GithubReleasesClient client,

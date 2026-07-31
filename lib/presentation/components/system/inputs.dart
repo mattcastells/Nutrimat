@@ -544,6 +544,7 @@ class NmDateField extends StatelessWidget {
     required this.onChanged,
     this.firstDate,
     this.lastDate,
+    this.initialDate,
     this.error,
     this.helper,
     super.key,
@@ -554,6 +555,12 @@ class NmDateField extends StatelessWidget {
   final ValueChanged<DateTime> onChanged;
   final DateTime? firstDate;
   final DateTime? lastDate;
+
+  /// Dónde abrir el calendario cuando todavía no hay nada elegido.
+  ///
+  /// Sin esto abre en hoy, que para una fecha de nacimiento son treinta años de
+  /// navegación hacia atrás en el primer paso de un alta obligatoria.
+  final DateTime? initialDate;
   final String? error;
   final String? helper;
 
@@ -573,7 +580,7 @@ class NmDateField extends StatelessWidget {
           onTap: () async {
             final picked = await showDatePicker(
               context: context,
-              initialDate: value ?? DateTime.now(),
+              initialDate: value ?? initialDate ?? DateTime.now(),
               firstDate: firstDate ?? DateTime(1920),
               lastDate: lastDate ?? DateTime.now(),
               locale: const Locale('es', 'AR'),

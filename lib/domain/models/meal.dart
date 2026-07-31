@@ -167,6 +167,7 @@ class Meal {
     DateTime? updatedAt,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
+    bool clearPhotoPath = false,
   }) => Meal(
     id: id,
     slot: slot ?? this.slot,
@@ -176,7 +177,7 @@ class Meal {
     items: items ?? this.items,
     source: source ?? this.source,
     aiAnalysisId: aiAnalysisId ?? this.aiAnalysisId,
-    photoPath: photoPath ?? this.photoPath,
+    photoPath: clearPhotoPath ? null : (photoPath ?? this.photoPath),
     notes: notes ?? this.notes,
     isFavorite: isFavorite ?? this.isFavorite,
     syncStatus: syncStatus ?? this.syncStatus,

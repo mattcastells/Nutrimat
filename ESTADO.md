@@ -1,6 +1,6 @@
 # Estado — 30 de julio de 2026
 
-Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.8.0` en
+Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.9.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
 
 ---
@@ -26,6 +26,18 @@ está a salvo mientras tanto; en versiones anteriores no lo estaba.
 circuito que nunca se ejecutó: el emulador no tiene cámara, así que la subida al
 bucket y la Edge Function de Gemini están escritas y verificadas contra el
 servidor, pero sin una foto real de por medio.
+
+**Probar Health Connect en un Samsung.** Configuración → Integraciones de salud
+→ Conectar tiene que abrir Health Connect pidiendo los tres permisos (peso,
+grasa corporal, sueño) y volver. La lógica de importación está probada con ocho
+tests —incluido que sincronizar diez veces deje lo mismo que una— y el APK
+declara los permisos, pero **el paso del permiso nunca se ejecutó**: en el
+emulador `screencap` devuelve negro sobre la superficie Impeller, así que no hubo
+forma de ver ni tocar la pantalla. Y el caso que importa es datos reales de
+Samsung Health, que solo existe en un teléfono de verdad.
+
+Del lado de Samsung Health hay que habilitar la sincronización a Health Connect;
+del lado de Zepp, Perfil → vinculación de cuentas de terceros → Health Connect.
 
 **Cambiar el nombre de la cuenta de prueba.** La migración
 `20260801002100_display_name_no_email` ya está aplicada, así que ninguna cuenta
@@ -66,7 +78,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **271 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **279 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -133,9 +145,9 @@ Detalle completo: [`supabase/README.md`](supabase/README.md)
 
 Repositorio en [github.com/mattcastells/Nutrimat](https://github.com/mattcastells/Nutrimat),
 público. CI en cada push y pull request: `analyze`, tests y la suite de RLS
-contra un Postgres limpio. Última publicada: **v1.8.0**.
+contra un Postgres limpio. Última publicada: **v1.9.0**.
 
-Publicar una versión es empujar un tag `v1.8.1`: el workflow compila el APK
+Publicar una versión es empujar un tag `v1.9.1`: el workflow compila el APK
 firmado y crea el release. La app se actualiza sola desde **Configuración →
 Actualizaciones**, sin pasar por Play Store.
 
@@ -403,6 +415,19 @@ número". Los dos se fueron.
 Queda anotado que el widget **no se puede probar de verdad sin ponerlo**: se
 agrega con un toque largo en la pantalla de inicio → Widgets → Nutrimat.
 
+Desde la 1.9.0 los vasos de agua **se tocan**: la gota N deja el día en N vasos y
+tocar la que ya está última baja a N−1, así el último toque se desanda sin abrir
+la app. El toque **no escribe en la base**: anota fecha y delta de un lado y la
+app lo aplica cuando corre. No es cautela de más — los datos viven en un único
+documento JSON y un proceso de fondo que lo lea y lo reescriba puede pisar
+comidas cargadas mientras tanto, que es exactamente cómo se perdieron los datos
+de alguien una vez (§9). Se guarda el delta y no el total porque entre el toque y
+la app puede haberse registrado agua desde la propia app: sumar deltas conserva
+las dos cosas.
+
+También se fue el "Comió X de Y" —es la misma cuenta que el número grande,
+contada al revés— y con eso el widget pasó de 4×2 celdas a 4×1.
+
 ---
 
 ## Comandos para retomar
@@ -434,9 +459,39 @@ supabase stop
    invertir la prioridad es cambiar el orden en `splash_screen.dart`, no una
    reescritura.
 
-**Health Connect queda descartado**: con la app usada por una sola persona que
-carga sus actividades a mano, importar desde Samsung Health aporta poco y trae
-riesgo de doble conteo. El flag y las pantallas quedan por si cambia.
+**Health Connect ya no está descartado, pero solo entró la mitad segura.**
+Estuvo afuera mientras la app la usaba una sola persona que cargaba todo a mano:
+importar aportaba poco y traía riesgo de doble conteo. Con varios usuarios en
+Samsung eso cambió, así que desde la 1.9.0 entran **peso, grasa corporal y
+sueño** — las tres cosas que un aparato mide mejor que la memoria y que son una
+por día o por noche, así que reimportar actualiza y no puede duplicar (D-16).
+
+Lo que sigue afuera y por qué:
+
+- **Sesiones de ejercicio.** Es lo único que puede duplicar de verdad. La
+  maquinaria para resolverlo ya existe —`duplicate_score.dart`, el diálogo y el
+  banner de "necesitan tu confirmación", todo construido para esta importación y
+  nunca encendido—, así que es un paso concreto y no una incógnita. Pero es su
+  propio paso.
+- **Calorías activas.** El reloj las estima con su modelo y Nutrimat con MET;
+  traer el número ajeno y mostrarlo como propio rompe RN-03.
+- **Pasos.** En Nutrimat solo existen colgados de una actividad, así que
+  importarlos obligaría a inventar actividades — y esas sí suman calorías.
+
+**Zepp / Amazfit entra por el mismo camino, sin código nuestro.** No hay API
+pública para leerle datos: Zepp no manda el historial a ningún servidor que se
+pueda consultar. Pero el Zepp app **escribe a Health Connect** (Perfil →
+vinculación de cuentas de terceros → Health Connect), así que alcanza con que la
+persona habilite ese vínculo una vez. Lo mismo vale para Fitbit y Garmin.
+
+**FatSecret se evaluó y no entró.** Su tier gratis (Basic, 5.000 llamadas/día)
+trae **solo el dataset de Estados Unidos**, que es casi exactamente lo que ya da
+la Edge Function de USDA. Los datos de fuera de EE.UU. —o sea, los argentinos—
+están solo en Premier, que es pago. Y en cualquier tier el token OAuth 2.0 exige
+pedirse desde una **IP en lista blanca** (hasta 15; rangos CIDR solo en
+Premier), cosa que las Edge Functions no pueden dar porque su IP de salida es
+dinámica: haría falta un host propio siempre encendido solo para eso. Costo y
+una pieza más de infraestructura para duplicar una fuente que ya está.
 
 ---
 

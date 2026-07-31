@@ -90,9 +90,29 @@ eliminar cuenta y acerca de.
 | D-22 · duración sin tope | presets + deslizador 5–240 + campo libre `hh:mm` hasta 24:00 |
 | RN-03 · estimaciones | todo gasto lleva "≈" y su método visible |
 
-**Widget de la pantalla de inicio del teléfono.** El día completo sin abrir la
-app: los vasos de agua, las calorías restantes, lo consumido contra el objetivo
-y las tres barras de macros. Vive en
+**Health Connect.** Trae del almacén de salud del teléfono el **peso, la grasa
+corporal y el sueño** de los últimos 30 días. Con esa sola integración entran los
+datos de Samsung Health, de Zepp/Amazfit, de Fitbit y de Garmin: todas escriben
+ahí. Zepp no tiene API pública para que un tercero le lea nada, así que este es
+el único camino que existe para un Amazfit.
+
+Los tres tipos no se eligieron por facilidad sino por **doble conteo**: son una
+por día o por noche en Nutrimat, y volver a registrarlas actualiza el registro
+que ya estaba (D-16), así que sincronizar diez veces deja lo mismo que una — hay
+un test que lo verifica. Las sesiones de ejercicio son lo único que puede
+duplicar de verdad y quedan para su propio paso, con la revisión de duplicados
+que ya existe. Las calorías activas del reloj no se importan nunca: son la
+estimación de otro modelo y presentarlas como propias rompería RN-03.
+
+De la calidad del sueño se conserva la que puso la persona: Health Connect no la
+mide de una forma que se pueda traducir sin inventar, así que lo importado es la
+duración, que es lo que el reloj sí sabe. Y la reducción a un valor por día se
+hace en Kotlin, porque depende de la zona horaria del teléfono — un pesaje a las
+23:50 y otro a las 00:10 son de días distintos.
+
+**Widget de la pantalla de inicio del teléfono.** El día sin abrir la app: los
+vasos de agua —que **se tocan** para sumar—, las calorías restantes y las tres
+barras de macros. Vive en
 `android/app/src/main/kotlin/.../CaloriesWidget.kt` y lo dibuja el launcher, en
 su proceso, así que no puede preguntarle nada a Dart: la app le deja el dato
 escrito (`HomeWidgetPublisher`, canal `io.nutrimat.app/widget`) cada vez que se
@@ -120,6 +140,14 @@ Cuatro decisiones que no son de comodidad:
 - **Las gotas de más allá de la meta se esconden.** Ocho gotas fijas con una
   meta de cinco dirían que faltan tres que nadie se propuso. Al lado va la
   cuenta exacta, que sí puede pasar de ocho.
+- **El toque no escribe en la base.** Tocar la gota N deja el día en N vasos —y
+  tocar la que ya está última baja a N−1, que es la única forma de restar que
+  tiene el widget—, pero lo único que se guarda de ese lado es la **intención**:
+  fecha y delta. La app la aplica cuando corre. Podría escribir directo, y sería
+  grave: los datos viven en un único documento JSON y un proceso de fondo que lo
+  lea y lo reescriba puede pisar comidas cargadas mientras tanto. Se guarda el
+  delta y no el total porque entre el toque y la app puede haberse registrado
+  agua desde la propia app: sumar deltas conserva las dos cosas.
 
 Los colores de las barras son los de `MacroBar` en Inicio (`NmChartColors`), y
 van hardcodeados uno por drawable en vez de por `progressTint`: cada macro tiene
@@ -223,8 +251,11 @@ R8 está activo (`isMinifyEnabled`), con las reglas de `proguard-rules.pro`.
    después, prender `NM_AI_PHOTO`.
 3. **USDA**: Edge Function `food-search` para los genéricos — su clave no puede
    vivir en el cliente. Open Food Facts ya está conectado sin clave.
-4. **Health Connect de verdad**: adaptador en `data/native/`, permisos y
-   `minSdk 29`; después, prender `NM_HEALTH_SYNC`.
+4. ~~**Health Connect de verdad**~~: hecho en la 1.9.0 —`HealthConnectBridge` en
+   Kotlin, los tres permisos de lectura y `minSdk 26`—, con el peso, la grasa
+   corporal y el sueño. Lo que queda es la segunda tanda: las **sesiones de
+   ejercicio**, que son lo único que puede duplicar y necesitan la revisión de
+   duplicados de por medio.
 5. **Publicación en GitHub** y CI (análisis, tests, goldens).
 6. **Goldens** de las 48 pantallas y tests de integración con Patrol.
 7. **Lint de capas** (`import_lint`) para que el build falle si se viola la

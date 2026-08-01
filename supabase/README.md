@@ -87,21 +87,31 @@ aparte:
 ```bash
 supabase functions deploy analyze-meal-photo --project-ref ifincvqdsotorvmwzpos
 supabase functions deploy analyze-meal-text  --project-ref ifincvqdsotorvmwzpos
+supabase functions deploy suggest-meals      --project-ref ifincvqdsotorvmwzpos
 supabase functions deploy food-search        --project-ref ifincvqdsotorvmwzpos
 ```
 
-Las tres funciones:
+Las cuatro funciones:
 
 | Función | Qué hace | Secreto que necesita |
 | --- | --- | --- |
 | `analyze-meal-photo` | Estima los ítems de una foto | `GEMINI_API_KEY` |
 | `analyze-meal-text` | Lo mismo desde una descripción escrita | `GEMINI_API_KEY` |
+| `suggest-meals` | Tres platos que entran en las calorías que quedan | `GEMINI_API_KEY` |
 | `food-search` | Alimentos genéricos de USDA | `USDA_API_KEY` |
 
-`analyze-meal-photo` y `analyze-meal-text` comparten el contrato de salida, la
-validación y la cuota en `_shared/estimation.ts`. Si tocás una, **desplegá las
-dos**: el bundler copia el módulo compartido dentro de cada función, así que
-una queda con la versión vieja hasta que la subas.
+Las **tres** de Gemini comparten `_shared/estimation.ts`: la llamada al modelo,
+el manejo de errores y la cuota diaria de 20, que es una sola para las tres — las
+tres gastan lo mismo del proveedor y darle cupo propio a cada una sería
+triplicarlo por la ventana. Si tocás el módulo compartido, **desplegá las tres**:
+el bundler copia el módulo dentro de cada función, así que las que no subas
+quedan con la versión vieja.
+
+`suggest-meals` no comparte la validación, porque su contrato de salida es otro
+—tres opciones, cada una con ingredientes y receta— y porque tiene una regla
+propia: **ninguna opción puede pasarse del presupuesto**. Eso se comprueba
+sumando de este lado, no se le cree al modelo. Tampoco escribe en `ai_analyses`:
+esa tabla registra estimaciones de lo que alguien *comió*.
 
 La clave de USDA se saca gratis en <https://api.data.gov/signup> (el dato es de
 dominio público, CC0). El límite es de 1.000 consultas por hora por IP.

@@ -133,7 +133,7 @@ Functions.
 ### La app (Flutter, Android)
 
 40 pantallas, el sistema de diseño Nocturne completo, animaciones y
-accesibilidad según el handoff. **366 tests en verde**, `flutter analyze`
+accesibilidad según el handoff. **376 tests en verde**, `flutter analyze`
 limpio, APK de release firmado y verificado en el emulador contra el proyecto
 real.
 
@@ -169,6 +169,44 @@ número en el historial de alguien es peor que no tener el alimento.
 del "+" de cada slot para cargarlo de una. Y se puede escribir "dos empanadas
 de carne y una coca": lo estima la Edge Function `analyze-meal-text`, que
 comparte validación y cuota con la de foto.
+
+**"¿Qué como?" — sugerencias para lo que queda del día.** ⚠️ *Prototipo: el ida y
+vuelta contra el modelo real nunca se ejecutó. Ver abajo.*
+
+Menú Agregar → "¿Qué como?" pide tres platos que entren en las calorías que
+quedan, cada uno con sus ingredientes, sus macros y su receta. Elegir uno abre el
+formulario de comida con todo puesto, para revisarlo antes de guardar: lo que el
+modelo propuso es un punto de partida, y guardarlo sin mirar sería meter números
+estimados sin que nadie los haya aceptado. Queda como `aiText`, que es lo que es.
+
+Va antes de la foto y de la descripción en el menú a propósito: esas dos parten
+de que ya sabés qué comiste, y esta parte de la pregunta anterior.
+
+**La regla es una sola y no se le delega al modelo: ninguna opción puede pasarse
+del presupuesto.** Se le pide en el prompt y después se suma de nuevo, en la
+Edge Function `suggest-meals` y otra vez en el cliente. Una opción se descarta
+**entera** si se pasa, si el total no es la suma de sus ingredientes, o si un
+ingrediente no cierra por Atwater. Nada se corrige a mano: un plato al que le
+arreglamos un ingrediente ya no es el que propuso el modelo, y la receta dejaría
+de corresponderse con los números. Un plato de 800 kcal ofrecido a quien tiene
+600 no es una sugerencia imprecisa — es la app diciéndole a alguien que puede
+comer algo que no puede, con un número al lado que lo respalda.
+
+Comparte la cuota diaria con las dos estimaciones. **No escribe en
+`ai_analyses`**: esa tabla registra estimaciones de lo que alguien *comió*, y una
+sugerencia no es eso. Con menos de 150 kcal ni se pregunta, y se dice por qué.
+
+Lo verificado: la función responde y rechaza sin sesión con su código correcto,
+la validación tiene 10 tests, y la app compila con servidor e instala. **Lo que
+falta es lo que importa**: que el modelo devuelva opciones que pasen la
+validación. No se pudo probar porque los toques sintéticos no llegan a la
+superficie Flutter del emulador —la misma pared que Health Connect (§ arriba)— y
+la única forma es un teléfono de verdad con el APK de servidor.
+
+Ojo con un riesgo conocido si eso no anda: la validación de acá es **más dura**
+que la de las dos estimaciones, que no chequea Atwater por ítem. Ya se aflojó una
+vez por eso (Atwater al 25 %, piso de uso al 30 %). Si la pantalla dice siempre
+"esta vez no salió nada", el sospechoso es ese, no el modelo.
 
 **Medidas corporales.** Tres grupos, como los entrega una nutricionista:
 perímetros en cm, pliegues cutáneos en mm y bioimpedancia. Se cargan todos
@@ -636,7 +674,7 @@ capturas en [`docs/handoff/widget-actual/`](docs/handoff/widget-actual/)
 # La app  (sin --dart-define-from-file arranca en modo local, sin servidor)
 flutter emulators --launch nutrimat
 flutter run  --dart-define-from-file=env/local.json
-flutter test                              # 366 tests
+flutter test                              # 376 tests
 flutter build apk --release --dart-define-from-file=env/local.json
 
 # El backend

@@ -19,6 +19,7 @@ import '../../domain/models/body.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
+import '../../domain/models/meal_suggestion.dart';
 import '../../domain/models/reminder.dart';
 import '../../domain/models/restore_outcome.dart';
 import '../../domain/models/sleep.dart';
@@ -31,6 +32,7 @@ import '../../domain/services/summary_builder.dart';
 import '../local/health_connect_gateway.dart';
 import '../local/local_store.dart';
 import '../remote/gemini_analysis_client.dart';
+import '../remote/meal_suggestions_client.dart';
 import '../remote/open_food_facts_client.dart';
 import '../remote/photo_storage_client.dart';
 import '../remote/usda_food_client.dart';
@@ -65,6 +67,7 @@ class LocalRepository
     OpenFoodFactsClient? foodCatalog,
     this.photos,
     this.aiAnalysis,
+    this.suggestions,
     this.usdaFoods,
     this.health,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
@@ -78,6 +81,10 @@ class LocalRepository
 
   /// Análisis de foto por la Edge Function. Null sin servidor.
   final GeminiAnalysisClient? aiAnalysis;
+
+  /// Sugerencias de comida para lo que queda del día. Null sin servidor: la
+  /// función es la que habla con el modelo.
+  final MealSuggestionsClient? suggestions;
 
   /// Health Connect, el almacén de salud del teléfono: de ahí salen el peso, la
   /// grasa corporal y el sueño que miden la balanza y el reloj. Null en los
@@ -1613,6 +1620,40 @@ class LocalRepository
     final analysis = await client.analyzeText(description: description);
     _quotaUsed++;
     return analysis;
+  }
+
+  @override
+  Future<List<MealSuggestion>> suggestMeals({
+    required int remainingKcal,
+    MealSlot? slot,
+    int? remainingProteinG,
+  }) async {
+    final client = suggestions;
+    if (client == null) {
+      throw const AppError(
+        code: ApiErrorCode.providerUnavailable,
+        message: 'Esta compilación no tiene servidor: las sugerencias '
+            'necesitan cuenta.',
+      );
+    }
+
+    // El mismo piso que aplica el servidor, comprobado acá para no gastar un
+    // viaje ni una unidad de cuota en que nos digan que no.
+    if (remainingKcal < MealSuggestionsClient.minBudgetKcal) {
+      throw const AppError(
+        code: ApiErrorCode.budgetTooLow,
+        message: 'Con menos de 150 kcal no hay un plato que sugerir sin '
+            'inventarlo. Para completar el día alcanza una fruta o un yogur.',
+      );
+    }
+
+    final options = await client.suggest(
+      remainingKcal: remainingKcal,
+      slot: slot,
+      remainingProteinG: remainingProteinG,
+    );
+    _quotaUsed++;
+    return options;
   }
 
   @override

@@ -11,6 +11,15 @@ enum ApiErrorCode {
   upstreamFailed('ERR_UPSTREAM_FAILED'),
   aiInvalidResponse('ERR_AI_INVALID_RESPONSE'),
   aiNoFood('ERR_AI_NO_FOOD'),
+
+  /// Ninguna de las opciones que devolvió el modelo cerró con el presupuesto.
+  /// No es un fallo del servidor: es que esta tirada no dio, y volver a
+  /// intentar sí puede dar — por eso tiene su propio código y no `server`.
+  aiNoSuggestions('ERR_AI_NO_SUGGESTIONS'),
+
+  /// Quedan tan pocas calorías que no hay plato que sugerir sin inventarlo.
+  budgetTooLow('ERR_BUDGET_TOO_LOW'),
+
   permissionDenied('ERR_PERMISSION_DENIED'),
   providerUnavailable('ERR_PROVIDER_UNAVAILABLE'),
   syncFailed('ERR_SYNC_FAILED'),
@@ -32,6 +41,10 @@ enum ApiErrorCode {
     ApiErrorCode.upstreamTimeout ||
     ApiErrorCode.upstreamFailed ||
     ApiErrorCode.syncFailed ||
+    // Volver a pedir sugerencias sí puede dar otro resultado: el modelo no es
+    // determinista y lo que falló fue que ninguna opción cerrara, no el
+    // servidor.
+    ApiErrorCode.aiNoSuggestions ||
     ApiErrorCode.rateLimited => true,
     _ => false,
   };

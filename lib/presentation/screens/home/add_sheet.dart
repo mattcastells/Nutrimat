@@ -123,6 +123,18 @@ class _MainPane extends ConsumerWidget {
               onGo(Routes.mealDescribe);
             },
           ),
+          // Va antes de la foto y de la descripción a propósito: las dos
+          // parten de que ya sabés qué comiste. Esta parte de la pregunta
+          // anterior, que es la que uno se hace parado en la heladera.
+          ActionRow(
+            icon: PhosphorIcons.cookingPot(),
+            label: '¿Qué como?',
+            subtitle: 'Tres platos que entran en lo que te queda del día',
+            enabled:
+                FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
+            disabledNote: 'Las sugerencias necesitan servidor configurado',
+            onTap: () => onGo(Routes.mealSuggestions),
+          ),
           ActionRow(
             icon: PhosphorIcons.camera(),
             label: 'Sacar foto de una comida',

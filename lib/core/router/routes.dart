@@ -69,6 +69,9 @@ abstract final class Routes {
 
   /// Estimar una comida a partir de una descripción escrita.
   static const String mealDescribe = '/meal/describe';
+
+  /// Tres platos que entran en las calorías que quedan del día.
+  static const String mealSuggestions = '/meal/suggestions';
   static String meal(String id) => '/meal/$id';
   static String mealEdit(String id) => '/meal/$id/edit';
   static const String photoCapture = '/meal/photo/capture';

@@ -175,6 +175,10 @@ export interface GeminiOutcome {
 export async function callGemini(
   apiKey: string,
   parts: unknown[],
+  // Por omisión el contrato de estimación, que es el que usan las dos
+  // funciones que estiman una comida. `suggest-meals` devuelve otra forma
+  // —tres opciones, cada una con sus ingredientes y su receta— y pasa la suya.
+  schema: unknown = RESPONSE_SCHEMA,
 ): Promise<GeminiOutcome> {
   const startedAt = Date.now();
   let parsed: unknown = null;
@@ -200,7 +204,7 @@ export async function callGemini(
             generationConfig: {
               temperature,
               responseMimeType: 'application/json',
-              responseSchema: RESPONSE_SCHEMA,
+              responseSchema: schema,
             },
           }),
         },

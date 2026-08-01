@@ -16,6 +16,7 @@ import '../../presentation/screens/history/history_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/meal/meal_describe_screen.dart';
 import '../../presentation/screens/meal/meal_form_screen.dart';
+import '../../presentation/screens/meal/suggestions_screen.dart';
 import '../../presentation/screens/pals/pal_day_screen.dart';
 import '../../presentation/screens/pals/pal_sharing_screen.dart';
 import '../../presentation/screens/pals/pals_screen.dart';
@@ -290,6 +291,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.mealDescribe,
         builder: (context, state) => const MealDescribeScreen(),
+      ),
+      GoRoute(
+        path: Routes.mealSuggestions,
+        builder: (context, state) => SuggestionsScreen(
+          slot: state.uri.queryParameters['slot'] == null
+              ? null
+              : MealSlot.fromWire(state.uri.queryParameters['slot']!),
+        ),
       ),
       GoRoute(
         path: '/meal/:mealId',

@@ -18,6 +18,7 @@ import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
 import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/gemini_analysis_client.dart';
+import 'data/remote/meal_suggestions_client.dart';
 import 'data/remote/pals_client.dart';
 import 'data/remote/photo_storage_client.dart';
 import 'data/remote/relational_sync_client.dart';
@@ -122,6 +123,11 @@ Future<void> bootstrap() async {
     photos: photos,
     aiAnalysis: SupabaseConfig.isConfigured
         ? GeminiAnalysisClient.fromInstance()
+        : null,
+    // Sugerencias de comida para lo que queda del día. Misma Edge Function
+    // detrás, misma cuota diaria: la clave del modelo no baja al teléfono.
+    suggestions: SupabaseConfig.isConfigured
+        ? MealSuggestionsClient.fromInstance()
         : null,
     // Alimentos genéricos por Edge Function: la clave de USDA no baja al
     // teléfono. Sin servidor, la búsqueda sigue con Open Food Facts y con la

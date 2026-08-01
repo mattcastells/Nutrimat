@@ -9,6 +9,7 @@ import '../models/body.dart';
 import '../models/food.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
+import '../models/meal_suggestion.dart';
 import '../models/reminder.dart';
 import '../models/restore_outcome.dart';
 import '../models/sleep.dart';
@@ -378,6 +379,21 @@ abstract interface class AiPhotoRepository {
   /// Estima una comida a partir de una descripción escrita. Comparte la cuota
   /// diaria con el análisis por foto: las dos gastan lo mismo del proveedor.
   Future<AiAnalysis> analyzeText({required String description});
+
+  /// Tres comidas que entran en las calorías que quedan del día.
+  ///
+  /// Al revés que las otras dos: acá el modelo **propone** en vez de reconocer.
+  /// Lo que no cambia es la regla — ninguna opción puede pasarse del
+  /// presupuesto, y eso se comprueba sumando de este lado además del servidor.
+  /// Comparte la misma cuota diaria que las estimaciones.
+  ///
+  /// Devuelve la lista vacía solo si ninguna opción cerró; los fallos de verdad
+  /// llegan como [AppError].
+  Future<List<MealSuggestion>> suggestMeals({
+    required int remainingKcal,
+    MealSlot? slot,
+    int? remainingProteinG,
+  });
 }
 
 /// Qué trajo un archivo de respaldo, para poder contarlo antes y después.

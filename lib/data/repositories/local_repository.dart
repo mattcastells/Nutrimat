@@ -214,8 +214,31 @@ class LocalRepository
     await _ensureUsableProfile(store.profile!);
   }
 
+  /// Id estable para las colecciones que admiten **una fila por día**.
+  ///
+  /// Peso, agua, sueño y medidas tienen del lado de la base un índice único
+  /// sobre `(user_id, local_date)` —más la métrica, en el caso de las medidas—.
+  /// Con ids al azar, dos dispositivos que registran el mismo día crean dos
+  /// filas distintas para la misma clave: la segunda choca contra ese índice y
+  /// el push de esa tabla falla. Y no se auto-repara, porque la reconciliación
+  /// une por id y conserva las dos: vuelve a fallar en cada intento.
+  ///
+  /// Derivando el id de la clave natural, los dos dispositivos generan **el
+  /// mismo**, así que el upsert los hace converger en vez de chocar. Es lo que
+  /// hace falta para la versión web, donde la misma cuenta va a estar abierta
+  /// en dos lados de verdad.
+  ///
+  /// Las filas que ya existen con id al azar no se tocan: esto solo aplica al
+  /// crear una nueva, y el id que ya está siempre se reutiliza.
+  String _dailyId(String coleccion, DateTime date, [String extra = '']) =>
+      _uuid.v5(
+        Namespace.url.value,
+        'nutrimat:$coleccion:${store.accountId ?? 'local'}'
+        ':${isoDate(date)}:$extra',
+      );
+
   @override
-  Future<void> signIn(String email) async {
+  Future<void> signIn(String email, {String? accountId}) async {
     final base = store.profile ?? UserProfile.empty(_uuid.v4());
 
     // Entrar a una cuenta no es seguir la sesión de prueba con otro nombre.
@@ -226,10 +249,24 @@ class LocalRepository
     // sin querer— para que el historial de una persona que no existe pasara a
     // ser el historial de una que sí. Se arranca limpio y lo que había en el
     // servidor lo trae `openAfterPull`, que es de donde tiene que venir.
-    if (base.isDemo) {
+    //
+    // Lo mismo vale para **otra persona**, y ese caso faltaba. Si la sesión
+    // vence sin pasar por "cerrar sesión" —contraseña cambiada en otro lado,
+    // refresh token invalidado—, la app vuelve a la bienvenida con el documento
+    // intacto. Quien entrara después en ese teléfono se quedaba con las
+    // comidas, los pesos y las medidas de la persona anterior, y el push las
+    // escribía en **su** cuenta. El alta ya estaba protegida; iniciar sesión,
+    // no.
+    final otraCuenta =
+        accountId != null &&
+        store.accountId != null &&
+        store.accountId != accountId;
+
+    if (base.isDemo || otraCuenta) {
       store.reset(newProfile: UserProfile.empty(_uuid.v4()));
     }
 
+    store.accountId = accountId;
     await _ensureUsableProfile(
       (store.profile ?? base).copyWith(email: email, isDemo: false),
     );
@@ -239,6 +276,15 @@ class LocalRepository
   Future<void> signOut() async {
     store.reset(newProfile: UserProfile.empty(_uuid.v4()));
     store.profile = null;
+    // La cuarentena se va con la sesión.
+    //
+    // Es un documento entero apartado porque no se pudo leer, y vive en su
+    // propia clave de preferencias: `reset` no la tocaba, así que sobrevivía al
+    // cierre de sesión y **la siguiente persona que entrara en ese teléfono
+    // podía verla y exportarla** desde la pantalla de recuperación. Quien
+    // quiera recuperarla tiene que hacerlo antes de cerrar la sesión, que es
+    // cuando la pantalla se la ofrece.
+    await store.clearQuarantine();
     await _commit();
   }
 
@@ -913,6 +959,12 @@ class LocalRepository
   ///
   /// Si una fuente falla, la otra igual contesta. Que se caiga USDA no puede
   /// dejar sin buscar a alguien que quería un producto de góndola.
+  ///
+  /// Pero si fallan **las dos**, lanza. Antes cada fuente tenía su
+  /// `catchError` que devolvía la lista vacía, así que estar sin conexión era
+  /// indistinguible de que el alimento no existiera: la pantalla decía "No
+  /// encontramos ese alimento" y su botón "Reintentar" —que existe justamente
+  /// para el otro caso— era inalcanzable.
   @override
   Future<List<Food>> searchOnline(String query) async {
     if (!FeatureFlags.onlineFoodCatalog || store.offline) {
@@ -920,13 +972,34 @@ class LocalRepository
     }
     if (query.trim().length < 2) return const <Food>[];
 
+    var fallaron = 0;
+    var fuentes = 0;
+    AppError? ultimoError;
+
+    Future<List<Food>> intentar(Future<List<Food>> consulta) {
+      fuentes++;
+      return consulta.catchError((Object error) {
+        fallaron++;
+        if (error is AppError) ultimoError = error;
+        return const <Food>[];
+      });
+    }
+
     final responses = await Future.wait<List<Food>>(<Future<List<Food>>>[
-      _foodCatalog.search(query).catchError((_) => const <Food>[]),
+      intentar(_foodCatalog.search(query)),
       if (usdaFoods != null)
-        usdaFoods!.search(query).catchError((_) => const <Food>[])
+        intentar(usdaFoods!.search(query))
       else
         Future<List<Food>>.value(const <Food>[]),
     ]);
+
+    if (fuentes > 0 && fallaron == fuentes) {
+      throw ultimoError ??
+          const AppError(
+            code: ApiErrorCode.offline,
+            message: 'No pudimos consultar el catálogo. Revisá tu conexión.',
+          );
+    }
 
     // Sin ids repetidos: el mismo alimento puede venir de las dos.
     final byId = <String, Food>{};
@@ -1063,13 +1136,15 @@ class LocalRepository
     required double weightKg,
     required DateTime date,
     String? notes,
+    String source = 'manual',
   }) async {
     final existing = weightOn(date);
     final log = WeightLog(
-      id: existing?.id ?? _uuid.v4(),
+      id: existing?.id ?? _dailyId('weight', date),
       weightKg: weightKg,
       localDate: dateOnly(date),
       loggedAt: DateTime.now(),
+      source: source,
       notes: notes,
       syncStatus: store.writeStatus,
     );
@@ -1100,17 +1175,19 @@ class LocalRepository
   // ── Sueño ──────────────────────────────────────────────────────────────
 
   @override
-  List<SleepLog> get sleepLogs => <SleepLog>[...store.sleepLogs]
-    ..sort((a, b) => a.localDate.compareTo(b.localDate));
+  List<SleepLog> get sleepLogs =>
+      <SleepLog>[...store.sleepLogs.where((s) => !s.isDeleted)]
+        ..sort((a, b) => a.localDate.compareTo(b.localDate));
 
   @override
   SleepLog? sleepOn(DateTime date) {
     final day = dateOnly(date);
     for (final log in store.sleepLogs) {
-      if (isSameDay(log.localDate, day)) return log;
+      if (!log.isDeleted && isSameDay(log.localDate, day)) return log;
     }
     return null;
   }
+
 
   @override
   Future<void> logSleep({
@@ -1124,13 +1201,14 @@ class LocalRepository
       (s) => isSameDay(s.localDate, day),
     );
     final entry = SleepLog(
-      id: index >= 0 ? store.sleepLogs[index].id : _uuid.v4(),
+      id: index >= 0 ? store.sleepLogs[index].id : _dailyId('sleep', day),
       localDate: day,
       minutes: SleepLog.clampMinutes(minutes),
       quality: quality,
       loggedAt: DateTime.now(),
       notes: notes,
       syncStatus: store.writeStatus,
+      // Cargar de nuevo una noche borrada la revive en su misma fila.
     );
     if (index >= 0) {
       store.sleepLogs[index] = entry;
@@ -1140,9 +1218,14 @@ class LocalRepository
     await _commit();
   }
 
+  /// Borrado suave, por lo mismo que el resto: con `removeWhere` la noche se
+  /// iba del teléfono y seguía viva en la tabla, así que la reconciliación la
+  /// devolvía en menos de treinta segundos.
   @override
   Future<void> deleteSleep(String id) async {
-    store.sleepLogs.removeWhere((s) => s.id == id);
+    store.sleepLogs = store.sleepLogs
+        .map((s) => s.id == id ? s.copyWith(deletedAt: DateTime.now()) : s)
+        .toList();
     await _commit();
   }
 
@@ -1202,7 +1285,7 @@ class LocalRepository
       if (delta <= 0) return;
       store.waterLogs.add(
         WaterLog(
-          id: _uuid.v4(),
+          id: _dailyId('water', day),
           localDate: day,
           glasses: delta.clamp(0, WaterLog.maxGlasses),
           updatedAt: DateTime.now(),
@@ -1225,43 +1308,82 @@ class LocalRepository
 
   @override
   List<BodyMeasurement> measurements(MeasurementMetric metric) =>
-      store.measurements.where((m) => m.metric == metric).toList()
+      store.measurements
+          .where((m) => m.metric == metric && !m.isDeleted)
+          .toList()
         ..sort((a, b) => a.localDate.compareTo(b.localDate));
 
   @override
-  List<BodyMeasurement> get allMeasurements =>
-      List<BodyMeasurement>.unmodifiable(store.measurements);
+  List<BodyMeasurement> get allMeasurements => List<BodyMeasurement>.unmodifiable(
+    store.measurements.where((m) => !m.isDeleted),
+  );
 
   @override
   Map<MeasurementMetric, BodyMeasurement> measurementsOn(DateTime date) =>
       <MeasurementMetric, BodyMeasurement>{
         for (final m in store.measurements)
-          if (isSameDay(m.localDate, date)) m.metric: m,
+          if (!m.isDeleted && isSameDay(m.localDate, date)) m.metric: m,
       };
 
+  /// La medida de esa métrica y ese día, borrada o no.
+  ///
+  /// Se mira también entre las borradas a propósito: volver a cargar una medida
+  /// que se había borrado tiene que **revivir la misma fila** y no crear otra,
+  /// porque del lado del servidor las dos ocuparían la misma clave única.
+  BodyMeasurement? _measurementSlot(MeasurementMetric metric, DateTime date) {
+    for (final m in store.measurements) {
+      if (m.metric == metric && isSameDay(m.localDate, date)) return m;
+    }
+    return null;
+  }
+
+  /// Una medida por métrica y por día: volver a cargarla **actualiza la misma
+  /// fila**, con su id.
+  ///
+  /// Antes generaba un id nuevo cada vez. Del lado de la base hay un índice
+  /// único sobre `(user_id, metric, local_date)`, así que la fila vieja seguía
+  /// viva en la tabla y la nueva chocaba contra ella: el `upsert` de medidas
+  /// —que sube todas juntas en una sola sentencia— fallaba entero, y como nada
+  /// borraba la fila vieja, **volvía a fallar en cada push siguiente**. Encima
+  /// la reconciliación traía la fila vieja de vuelta y la pantalla mostraba el
+  /// número que la persona acababa de corregir.
   @override
   Future<void> logMeasurement({
     required MeasurementMetric metric,
     required double value,
     required DateTime date,
   }) async {
+    final slot = _measurementSlot(metric, date);
+    final entry = BodyMeasurement(
+      id: slot?.id ?? _dailyId('measurement', date, metric.wire),
+      metric: metric,
+      value: value,
+      localDate: dateOnly(date),
+      notes: slot?.notes,
+      updatedAt: DateTime.now(),
+    );
     store.measurements = <BodyMeasurement>[
-      ...store.measurements.where(
-        (m) => !(m.metric == metric && isSameDay(m.localDate, date)),
-      ),
-      BodyMeasurement(
-        id: _uuid.v4(),
-        metric: metric,
-        value: value,
-        localDate: dateOnly(date),
-      ),
+      ...store.measurements.where((m) => m.id != entry.id),
+      entry,
     ];
     await _commit();
   }
 
+  /// Borrado suave: la lápida es lo que hace que el borrado llegue al servidor.
+  ///
+  /// Con `removeWhere` la fila desaparecía del teléfono y seguía viva en la
+  /// tabla, así que la reconciliación siguiente —como mucho 30 segundos
+  /// después— la traía de vuelta.
   @override
   Future<void> deleteMeasurement(String id) async {
-    store.measurements.removeWhere((m) => m.id == id);
+    final now = DateTime.now();
+    store.measurements = store.measurements
+        .map(
+          (m) => m.id == id
+              ? m.copyWith(deletedAt: now, updatedAt: now)
+              : m,
+        )
+        .toList();
     await _commit();
   }
 
@@ -1446,7 +1568,11 @@ class LocalRepository
     // por separado.
     for (final entry in snapshot.weightKg.entries) {
       final existing = weightOn(entry.key) != null;
-      await logWeight(weightKg: entry.value, date: entry.key);
+      await logWeight(
+        weightKg: entry.value,
+        date: entry.key,
+        source: 'imported',
+      );
       if (existing) {
         updated++;
       } else {
@@ -1660,6 +1786,7 @@ class LocalRepository
   Future<AiAnalysis> analyze({
     required String photoPath,
     void Function(AnalysisStage stage)? onStage,
+    void Function(String remotePath)? onUploaded,
   }) async {
     final client = aiAnalysis;
     if (client != null) {
@@ -1677,6 +1804,10 @@ class LocalRepository
             rethrowOnFailure: true,
           ) ??
           photoPath;
+
+      // Se avisa apenas subió, no al final: si el modelo falla o alguien
+      // cancela, quien llama necesita esta ruta para borrar la copia.
+      if (remotePath != photoPath) onUploaded?.call(remotePath);
 
       onStage?.call(AnalysisStage.analyzing);
       final analysis = await client.analyze(photoPath: remotePath);

@@ -18,8 +18,14 @@ import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
 
-/// Filtros del Historial (S-21 · `sheet.filters`). Se persisten en
-/// preferencias y se muestran como chips removibles.
+/// Filtros del Historial (S-21 · `sheet.filters`), como chips removibles.
+///
+/// **Viven en memoria**: se pierden al cerrar la app. El comentario anterior
+/// decía que se persistían en preferencias, y la plomería está —`LocalStore`
+/// tiene un `historyFilters` en el documento— pero nadie la escribe:
+/// `historyFiltersProvider` es un `StateProvider` y nada más. Queda así a
+/// propósito hasta que alguien lo pida; lo que no puede quedar es el comentario
+/// prometiendo lo contrario.
 class HistoryFilters {
   const HistoryFilters({
     this.show = HistoryShow.all,

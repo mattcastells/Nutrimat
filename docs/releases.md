@@ -151,8 +151,15 @@ abrirlo con el instalador de Android.
 
 Tres decisiones detrás de eso:
 
-- **El chequeo es manual.** No hay consulta al abrir la app ni descarga
-  automática: bajar 26 MB con datos móviles no es algo que decida el software.
+- **La descarga es manual; el chequeo, no.** Al abrir la app se consulta si hay
+  una versión nueva y, si la hay, se ofrece — nadie avisa de un release cuando
+  se distribuye fuera de Play Store, y con la comprobación solo manual el
+  resultado fue gente corriendo versiones de meses atrás. Lo que se hace sin
+  permiso es **preguntar**: la consulta es un JSON de unos kilobytes, y los
+  25 MB del APK siguen necesitando que alguien los pida. Con tres frenos para
+  que no sea ruido: como mucho una consulta cada 6 horas, "Ahora no" calla esa
+  versión y no las que vengan, y si la consulta falla no se dice nada porque no
+  la pidió nadie (`presentation/screens/settings/update_prompt.dart`).
 - **No hay token en el APK.** El repositorio es público y la API se consulta sin
   credenciales. Un token embebido en un APK es un token filtrado.
 - **La app no instala nada.** Escribe el archivo y se lo pasa al instalador de
@@ -191,5 +198,5 @@ limitarse a avisar que hay versión nueva y abrir la ficha de Play.
 
 [`ci.yml`](../.github/workflows/ci.yml) corre en cada push a `main` y en cada
 pull request: `flutter analyze --fatal-infos`, `flutter test`, y las suites
-pgTAP de RLS y Storage contra un Postgres limpio con las 22 migraciones
+pgTAP de RLS y Storage contra un Postgres limpio con las 32 migraciones
 aplicadas desde cero.

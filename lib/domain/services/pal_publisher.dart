@@ -39,17 +39,29 @@ class PalPublisher {
   Timer? _timer;
   bool _publishing = false;
 
+  /// Si algo cambió **mientras** se publicaba. Sin esto, la cena registrada
+  /// durante la subida del almuerzo no se publicaba nunca: `publish` salía por
+  /// `_publishing` sin dejar rastro, y el día del pal quedaba viejo hasta el
+  /// próximo cambio, que podía ser al día siguiente.
+  bool _dirty = false;
+
   /// Un fallo no se reintenta solo: el próximo cambio vuelve a intentar. Que
   /// un pal vea el almuerzo diez minutos más tarde no es un problema.
   void markDirty() {
     if (_auth.currentAccount == null) return;
+    _dirty = true;
     _timer?.cancel();
     _timer = Timer(debounce, () => unawaited(publish()));
   }
 
   Future<void> publish() async {
-    if (_auth.currentAccount == null || _publishing) return;
+    if (_auth.currentAccount == null) return;
+    if (_publishing) {
+      _dirty = true;
+      return;
+    }
     _publishing = true;
+    _dirty = false;
     _timer?.cancel();
     try {
       // Se piden las preferencias en cada publicación, no se cachean: así un
@@ -63,6 +75,8 @@ class PalPublisher {
     } finally {
       _publishing = false;
     }
+
+    if (_dirty) await publish();
   }
 
   void dispose() => _timer?.cancel();

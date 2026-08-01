@@ -81,6 +81,19 @@ class _FakeGateway implements AuthGateway {
 
   @override
   Future<void> sendPasswordReset(String email) async {}
+
+  /// Cuántas veces se pidió borrar la cuenta del servidor, y si toca fallar.
+  int deleteCalls = 0;
+  AppError? deleteError;
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteCalls++;
+    final error = deleteError;
+    if (error != null) throw error;
+    _account = null;
+    _changes.add(null);
+  }
 }
 
 Future<(ProviderContainer, LocalRepository, _FakeGateway)> _boot() async {

@@ -40,6 +40,9 @@ class _FakeAuth implements AuthGateway {
   Future<void> signOut() async => account = null;
   @override
   Future<void> sendPasswordReset(String email) async {}
+
+  @override
+  Future<void> deleteAccount() async {}
 }
 
 class _FakeClient implements RelationalSyncClient {

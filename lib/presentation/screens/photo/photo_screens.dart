@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -70,6 +71,11 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
   bool _permissionDenied = false;
   bool _busy = false;
 
+  /// Un fallo que **no** es de permiso ni de cámara: una imagen ilegible, un
+  /// archivo que se movió. Antes todo caía en `_permissionDenied` y la pantalla
+  /// mandaba a revisar un permiso que estaba bien.
+  String? _error;
+
   Future<void> _capture(ImageSource source) async {
     if (source == ImageSource.camera) {
       final proceed = await _showRationale();
@@ -95,11 +101,25 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       ref.read(photoPathProvider.notifier).state = path;
       if (!mounted) return;
       context.pushReplacement(Routes.photoAnalyzing);
+    } on PlatformException catch (error) {
+      // Solo esto es un problema de permiso o de cámara. Antes el `on Object`
+      // marcaba `_permissionDenied` para **cualquier** fallo, así que una
+      // imagen que `PhotoNormalizer` no podía leer terminaba diciendo "No
+      // pudimos abrir la cámara" y mandando a revisar un permiso que estaba
+      // bien.
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _permissionDenied = error.code != 'invalid_image';
+        _error = error.code == 'invalid_image'
+            ? 'No pudimos leer esa imagen. Probá con otra.'
+            : null;
+      });
     } on Object {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _permissionDenied = true;
+        _error = 'No pudimos usar esa foto. Probá de nuevo o elegí otra.';
       });
     }
   }
@@ -152,12 +172,16 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
                     borderRadius: NmRadius.brLg,
                     border: Border.all(color: nm.divider),
                   ),
-                  child: _permissionDenied
+                  child: _permissionDenied || _error != null
                       ? EmptyState(
                           icon: PhosphorIcons.camera(),
-                          title: 'No pudimos abrir la cámara',
-                          body: 'Podés darle permiso desde la configuración '
-                              'del sistema o elegir una foto de la galería.',
+                          title: _error != null
+                              ? 'No pudimos usar esa foto'
+                              : 'No pudimos abrir la cámara',
+                          body:
+                              _error ??
+                              'Podés darle permiso desde la configuración '
+                                  'del sistema o elegir una foto de la galería.',
                           primaryLabel: 'Elegir de la galería',
                           onPrimary: () => _capture(ImageSource.gallery),
                         )
@@ -285,10 +309,35 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   /// esté por terminar.
   AppError? _error;
 
+  /// La copia que analizar dejó en el bucket, mientras nadie la reclame.
+  ///
+  /// Analizar sube la foto con un id al azar —la Edge Function la lee de ahí—.
+  /// Si el análisis sale bien, la comida termina apuntando a esa copia y deja
+  /// de estar suelta. Si falla o se cancela, no la nombra nadie: invisible,
+  /// imborrable desde la app y ocupando espacio para siempre. Se guarda acá
+  /// para poder borrarla al salir.
+  String? _subida;
+
   @override
   void initState() {
     super.initState();
     _start();
+  }
+
+  /// Borra la copia suelta, si quedó una. Fire-and-forget a propósito: nadie
+  /// espera por una limpieza, y si falla la purga del arranque la vuelve a
+  /// intentar.
+  void _descartarSubida() {
+    final ruta = _subida;
+    if (ruta == null) return;
+    _subida = null;
+    unawaited(
+      ref
+          .read(photoSyncProvider)
+          ?.delete(bucket: PhotoBucket.meal, path: ruta)
+          .catchError((_) {}) ??
+          Future<void>.value(),
+    );
   }
 
   void _start() {
@@ -340,9 +389,16 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
     try {
       final analysis = await ref
           .read(repositoryProvider)
-          .analyze(photoPath: path ?? '', onStage: _onStage);
+          .analyze(
+            photoPath: path ?? '',
+            onStage: _onStage,
+            onUploaded: (remote) => _subida = remote,
+          );
       if (!mounted || _cancelled) return;
 
+      // Llegó bien: la copia del bucket pasa a ser la de la comida, así que ya
+      // no hay nada suelto que limpiar.
+      _subida = null;
       ref.read(analysisProvider.notifier).state = analysis;
 
       // La foto ya está en el bucket: analizarla la subió. Se pasa a apuntar a
@@ -381,18 +437,40 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   }
 
   /// Salida sin IA: se arma la comida a mano con la foto ya sacada.
+  ///
+  /// Si ya había un borrador abierto —se entra acá desde el "+" de una comida
+  /// que se estaba cargando—, **no se empieza uno nuevo**: solo se le adjunta
+  /// la foto y se vuelve. `start` reemplaza el estado entero, así que los ítems
+  /// que la persona ya había cargado desaparecían en silencio; y como después
+  /// de guardar el `pop` volvía a la pantalla del borrador anterior, que ahora
+  /// tenía `draft == null`, quedaba un `Scaffold` con un spinner y sin AppBar
+  /// del que solo se salía con el botón atrás del sistema.
+  ///
+  /// Es la misma regla que ya cumple la pantalla de revisión, que distingue
+  /// entre empezar y agregar.
   void _manual() {
+    // La comida a mano se arma con la foto del teléfono, no con la del bucket:
+    // `photoPathProvider` sigue apuntando al archivo local porque el análisis
+    // no llegó a devolver la ruta remota. Así que la copia que subió el intento
+    // fallido no la va a nombrar nadie y se borra acá.
+    _descartarSubida();
     final target = ref.read(photoTargetProvider);
+    final notifier = ref.read(mealDraftProvider.notifier);
+
+    if (ref.read(mealDraftProvider) != null) {
+      notifier.setPhoto(ref.read(photoPathProvider));
+      context.pop();
+      return;
+    }
+
     final DateTime date = target?.date ?? ref.read(selectedDateProvider);
     final MealSlot slot =
         target?.slot ?? MealSlot.forHour(DateTime.now().hour);
-    ref
-        .read(mealDraftProvider.notifier)
-        .start(
-          slot: slot,
-          date: date,
-          photoPath: ref.read(photoPathProvider),
-        );
+    notifier.start(
+      slot: slot,
+      date: date,
+      photoPath: ref.read(photoPathProvider),
+    );
     context.pushReplacement(
       '${Routes.mealNew}?slot=${slot.wire}&date=${isoDate(date)}',
     );
@@ -478,6 +556,7 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                   block: true,
                   onPressed: () {
                     _cancelled = true;
+                    _descartarSubida();
                     context.pop();
                   },
                 ),
@@ -519,6 +598,7 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                   block: true,
                   onPressed: () {
                     _cancelled = true;
+                    _descartarSubida();
                     context.pop();
                   },
                 ),

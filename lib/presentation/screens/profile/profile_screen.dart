@@ -244,9 +244,23 @@ class ProfileScreen extends ConsumerWidget {
             block: true,
             icon: PhosphorIcons.signOut(),
             onPressed: () async {
-              // Primero el servidor y después lo local: si se hiciera al
-              // revés y el cierre remoto fallara, quedaría una sesión abierta
-              // sin ninguna pantalla desde donde cerrarla.
+              // Lo pendiente **antes** de cerrar nada.
+              //
+              // El push tiene 8 s de espera y el respaldo 5, así que un
+              // registro hecho justo antes de tocar acá no llegó ni a las
+              // tablas ni a la copia. Y `repo.signOut()` resetea el documento:
+              // ese dato no quedaba en ningún lado. Los comentarios de
+              // `flush()` y `push()` decían desde siempre "se usa al cerrar
+              // sesión" y no los llamaba nadie.
+              //
+              // Cerrar sesión sin conexión no puede quedar bloqueado, así que
+              // los dos ya traen su propio plazo y un fallo no frena el cierre.
+              await ref.read(relationalSyncProvider)?.push();
+              await ref.read(cloudBackupProvider)?.flush();
+
+              // Y recién ahora el servidor y después lo local: al revés, si el
+              // cierre remoto fallara, quedaría una sesión abierta sin ninguna
+              // pantalla desde donde cerrarla.
               await ref.read(authGatewayProvider).signOut();
               await repo.signOut();
               if (!context.mounted) return;

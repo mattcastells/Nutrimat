@@ -73,5 +73,13 @@ class LocalAuthGateway implements AuthGateway {
     );
   }
 
+  @override
+  Future<void> deleteAccount() async {
+    // Sin servidor no hay cuenta que borrar: los datos nunca salieron del
+    // teléfono y de eso se ocupa el reset local. No lanza, porque acá "no hay
+    // nada que borrar" es éxito y no un fallo que la pantalla deba contar.
+    _set(null);
+  }
+
   void dispose() => _changes.close();
 }

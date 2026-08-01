@@ -49,4 +49,16 @@ abstract interface class AuthGateway {
   Future<void> signOut();
 
   Future<void> sendPasswordReset(String email);
+
+  /// Borra la cuenta del servidor: las fotos de los buckets, las filas de todas
+  /// las tablas y el usuario de Auth.
+  ///
+  /// Lanza [AppError] si algo no se pudo borrar. **Eso importa**: la pantalla
+  /// no puede limpiar el teléfono ni cerrar sesión hasta que esto termine bien,
+  /// porque si falla y ya se borró lo local, la persona se queda sin sus datos
+  /// **y** con la cuenta viva. Antes esta operación no existía y la pantalla
+  /// hacía solo `signOut`, así que "eliminar la cuenta" no eliminaba nada.
+  ///
+  /// Sin servidor configurado no hay cuenta que borrar y no hace nada.
+  Future<void> deleteAccount();
 }

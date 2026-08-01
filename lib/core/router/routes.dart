@@ -44,9 +44,11 @@ abstract final class Routes {
   // `welcomeGoal` se sacó: era la elección de objetivo suelta después del alta,
   // y ahora es el último paso de [onboarding]. Dos caminos a la misma decisión
   // significan uno que en algún momento queda sin arreglar.
+  // `profileTemplates` y `profileFavorites` se sacaron por lo mismo que
+  // `welcomeGoal`: eran atajos a la segunda y la tercera solapa de "Mis cosas"
+  // que **nadie navegaba** —ninguna pantalla los usaba— y que igual había que
+  // mantener andando. Se llega por `profileFoods` y se toca la solapa.
   static const String profileFoods = '/profile/foods';
-  static const String profileTemplates = '/profile/templates';
-  static const String profileFavorites = '/profile/favorites';
 
   static const String settings = '/settings';
   static const String exerciseCredit = '/settings/exercise-credit';

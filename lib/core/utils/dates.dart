@@ -73,7 +73,13 @@ String monthTitle(DateTime d) =>
     _capitalize(DateFormat('MMMM yyyy', appLocale).format(d));
 
 /// "14:30".
-String timeOfDay(DateTime d) => DateFormat('HH:mm', appLocale).format(d);
+///
+/// `toLocal()` no es de más: `DateFormat` formatea los campos del `DateTime`
+/// tal como vienen, así que uno en UTC se dibuja en UTC. Es cinturón contra el
+/// caso que ya mordió una vez —las fechas que volvían de las tablas en
+/// `+00:00`— por si alguna vez vuelve a entrar una por otro lado.
+String timeOfDay(DateTime d) =>
+    DateFormat('HH:mm', appLocale).format(d.toLocal());
 
 /// "25/07/2026".
 String numericDate(DateTime d) => DateFormat('dd/MM/yyyy', appLocale).format(d);

@@ -156,24 +156,39 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
     final service = ref.read(cloudBackupProvider);
     if (service == null) return;
 
-    // Restaurar pisa todo lo que hay en el teléfono. Si alguien cargó cosas
-    // acá desde la última copia, las pierde: eso se pregunta, no se asume.
+    // Qué hace restaurar, de verdad.
+    //
+    // El texto prometía que lo posterior a la copia "se pierde", y desde que
+    // las tablas son la fuente de verdad eso dejó de ser cierto: la copia
+    // reemplaza el documento de este teléfono, pero la reconciliación siguiente
+    // —como mucho 30 segundos después— lo une con lo que hay en la cuenta y
+    // devuelve todo lo que la copia no tenía.
+    //
+    // Se elige contar eso en vez de forzar el borrado remoto: "restaurar" no
+    // debería poder borrar de la cuenta lo que se cargó en otro dispositivo, y
+    // quien viene acá busca recuperar algo que perdió, no perder algo más.
+    final conServidor = ref.read(relationalSyncProvider) != null;
     final confirmed = await showNmDialog<bool>(
       context: context,
       builder: (context) => NmDialog(
         title: '¿Traer la copia del ${longDay(copia.updatedAt)}?',
-        body:
-            'Se reemplaza todo lo que tenés en este teléfono por esa copia '
-            '(${copia.sizeLabel}). Lo que hayas registrado acá después de esa '
-            'fecha se pierde.',
+        body: conServidor
+            ? 'Se trae esa copia (${copia.sizeLabel}) y se combina con lo que '
+                  'ya hay en tu cuenta: lo que falte acá se recupera y no se '
+                  'borra nada de lo que registraste después.'
+            : 'Se reemplaza todo lo que tenés en este teléfono por esa copia '
+                  '(${copia.sizeLabel}). Lo que hayas registrado acá después '
+                  'de esa fecha se pierde.',
         actions: <Widget>[
           NmButton.ghost(
             label: 'Cancelar',
             onPressed: () => Navigator.of(context).pop(false),
           ),
           NmButton(
-            label: 'Reemplazar',
-            variant: NmButtonVariant.danger,
+            label: conServidor ? 'Traer' : 'Reemplazar',
+            variant: conServidor
+                ? NmButtonVariant.primary
+                : NmButtonVariant.danger,
             onPressed: () => Navigator.of(context).pop(true),
           ),
         ],

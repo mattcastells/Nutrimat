@@ -138,4 +138,96 @@ void main() {
       expect(serie.map((m) => m.value).toList(), <double>[36, 37]);
     });
   });
+
+  // Del lado de la base hay un índice único sobre `(user_id, metric,
+  // local_date)`. Todo lo de este grupo existe para que el documento local no
+  // pueda contradecirlo: cuando lo contradecía, el push de medidas fallaba
+  // entero y volvía a fallar en cada intento posterior, para siempre.
+  group('una fila por métrica y día', () {
+    test('corregir una medida conserva el id', () async {
+      await repo.logMeasurement(
+        metric: MeasurementMetric.waist,
+        value: 84,
+        date: hoy,
+      );
+      final primera = repo.measurementsOn(hoy)[MeasurementMetric.waist]!;
+
+      await repo.logMeasurement(
+        metric: MeasurementMetric.waist,
+        value: 82,
+        date: hoy,
+      );
+      final corregida = repo.measurementsOn(hoy)[MeasurementMetric.waist]!;
+
+      expect(corregida.id, primera.id, reason: 'un id nuevo choca en la base');
+      expect(corregida.value, 82);
+      expect(repo.allMeasurements.where((m) => m.metric == MeasurementMetric.waist),
+          hasLength(1));
+    });
+
+    test('corregir deja una marca de tiempo más nueva', () async {
+      await repo.logMeasurement(
+        metric: MeasurementMetric.hip,
+        value: 95,
+        date: hoy,
+      );
+      final antes = repo.measurementsOn(hoy)[MeasurementMetric.hip]!.updatedAt;
+      expect(antes, isNotNull);
+
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      await repo.logMeasurement(
+        metric: MeasurementMetric.hip,
+        value: 94,
+        date: hoy,
+      );
+      final despues = repo.measurementsOn(hoy)[MeasurementMetric.hip]!.updatedAt;
+
+      // Sin esto, la reconciliación no puede saber cuál de las dos versiones
+      // es la buena y se queda con la del servidor: el número corregido se
+      // pierde.
+      expect(despues!.isAfter(antes!), isTrue);
+    });
+
+    test('borrar deja lápida en vez de sacar la fila', () async {
+      await repo.logMeasurement(
+        metric: MeasurementMetric.chest,
+        value: 100,
+        date: hoy,
+      );
+      final medida = repo.measurementsOn(hoy)[MeasurementMetric.chest]!;
+
+      await repo.deleteMeasurement(medida.id);
+
+      // No se ve por ningún lado...
+      expect(repo.measurementsOn(hoy), isEmpty);
+      expect(repo.measurements(MeasurementMetric.chest), isEmpty);
+      expect(repo.allMeasurements, isEmpty);
+      // ...pero la lápida sigue en el documento, que es lo que hace que el
+      // borrado llegue al servidor en vez de quedarse en este teléfono.
+      final crudas = repo.store.measurements;
+      expect(crudas, hasLength(1));
+      expect(crudas.single.isDeleted, isTrue);
+    });
+
+    test('volver a cargar una medida borrada revive la misma fila', () async {
+      await repo.logMeasurement(
+        metric: MeasurementMetric.thigh,
+        value: 55,
+        date: hoy,
+      );
+      final original = repo.measurementsOn(hoy)[MeasurementMetric.thigh]!;
+      await repo.deleteMeasurement(original.id);
+
+      await repo.logMeasurement(
+        metric: MeasurementMetric.thigh,
+        value: 54,
+        date: hoy,
+      );
+
+      final revivida = repo.measurementsOn(hoy)[MeasurementMetric.thigh]!;
+      expect(revivida.id, original.id);
+      expect(revivida.isDeleted, isFalse);
+      expect(repo.store.measurements, hasLength(1));
+    });
+  });
 }

@@ -19,6 +19,7 @@ Map<String, dynamic> doc({
   List<Map<String, dynamic>> weightLogs = const <Map<String, dynamic>>[],
   List<Map<String, dynamic>> waterLogs = const <Map<String, dynamic>>[],
   List<Map<String, dynamic>> goals = const <Map<String, dynamic>>[],
+  List<Map<String, dynamic>> measurements = const <Map<String, dynamic>>[],
   List<Object?> recentFoodIds = const <Object?>[],
   Map<String, dynamic>? profile,
 }) => <String, dynamic>{
@@ -28,7 +29,24 @@ Map<String, dynamic> doc({
   'weightLogs': weightLogs,
   'waterLogs': waterLogs,
   'goals': goals,
+  'measurements': measurements,
   'recentFoodIds': recentFoodIds,
+};
+
+Map<String, dynamic> medida(
+  String id,
+  String updatedAt,
+  double value, {
+  String metric = 'waist',
+  String localDate = '2026-07-31',
+  String? deletedAt,
+}) => <String, dynamic>{
+  'id': id,
+  'metric': metric,
+  'localDate': localDate,
+  'value': value,
+  'updatedAt': updatedAt,
+  'deletedAt': deletedAt,
 };
 
 Map<String, dynamic> meal(String id, String updatedAt, {int kcal = 100}) =>
@@ -315,6 +333,187 @@ void main() {
       final merged = mergeDocuments(local: local, remote: remote);
 
       expect((merged['meals']! as List).length, 1);
+    });
+  });
+
+  // Las medidas son la única colección con dos claves: el id, como todas, y la
+  // que la base hace cumplir con un índice único —métrica + día—. Cuando
+  // corregir una medida generaba un id nuevo, el documento terminaba con dos
+  // filas para el mismo día y el push fallaba contra ese índice en cada
+  // intento, para siempre. Esto es lo que lo repara solo.
+  group('medidas: una por métrica y día', () {
+    List<Map<String, dynamic>> medidasDe(Map<String, dynamic> merged) =>
+        (merged['measurements']! as List).cast<Map<String, dynamic>>();
+
+    test('dos filas del mismo día se colapsan en una', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('nuevo', '2026-07-31T12:00:00Z', 82),
+        ],
+      );
+      final remote = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('viejo', '2026-07-31T09:00:00Z', 84),
+        ],
+      );
+
+      final merged = mergeDocuments(local: local, remote: remote);
+
+      expect(medidasDe(merged), hasLength(1));
+    });
+
+    test('gana el valor más reciente, con el id que el servidor conoce', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('nuevo', '2026-07-31T12:00:00Z', 82),
+        ],
+      );
+      final remote = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('viejo', '2026-07-31T09:00:00Z', 84),
+        ],
+      );
+
+      final resultado = medidasDe(mergeDocuments(local: local, remote: remote))
+          .single;
+
+      // El valor es el que la persona corrigió...
+      expect(resultado['value'], 82);
+      // ...y el id es el de la fila que ya existe del otro lado, que es lo que
+      // permite que el push la actualice en su lugar en vez de chocar.
+      expect(resultado['id'], 'viejo');
+    });
+
+    test('sin fecha de un lado gana lo local, como en el resto del archivo', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'sin-fecha',
+            'metric': 'waist',
+            'localDate': '2026-07-31',
+            'value': 82,
+          },
+        ],
+      );
+      final remote = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('viejo', '2026-07-31T09:00:00Z', 84),
+        ],
+      );
+
+      final resultado = medidasDe(mergeDocuments(local: local, remote: remote))
+          .single;
+
+      expect(resultado['value'], 82);
+      expect(resultado['id'], 'viejo');
+    });
+
+    test('la lápida más nueva le gana a la fila viva del servidor', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          medida(
+            'x',
+            '2026-07-31T12:00:00Z',
+            82,
+            deletedAt: '2026-07-31T12:00:00Z',
+          ),
+        ],
+      );
+      final remote = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('x', '2026-07-31T09:00:00Z', 84),
+        ],
+      );
+
+      final resultado = medidasDe(mergeDocuments(local: local, remote: remote))
+          .single;
+
+      expect(resultado['deletedAt'], isNotNull);
+    });
+
+    test('métricas distintas del mismo día no se pisan', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('a', '2026-07-31T12:00:00Z', 82),
+          medida('b', '2026-07-31T12:00:00Z', 95, metric: 'hip'),
+        ],
+      );
+
+      final merged = mergeDocuments(local: local, remote: doc());
+
+      expect(medidasDe(merged), hasLength(2));
+    });
+
+    test('el mismo día de otra fecha tampoco se pisa', () {
+      final local = doc(
+        measurements: <Map<String, dynamic>>[
+          medida('a', '2026-07-31T12:00:00Z', 82),
+          medida('b', '2026-07-24T12:00:00Z', 84, localDate: '2026-07-24'),
+        ],
+      );
+
+      final merged = mergeDocuments(local: local, remote: doc());
+
+      expect(medidasDe(merged), hasLength(2));
+    });
+  });
+
+  group('objetivos', () {
+    test('cerrar uno le gana al dispositivo que lo tiene abierto', () {
+      // Los objetivos se unían por id **sin desempate**, así que ganaba siempre
+      // el local: el dispositivo que todavía tenía el objetivo viejo abierto le
+      // ganaba al que ya lo había cerrado, y su push lo des-cerraba en el
+      // servidor. Quedaban dos vigentes para hoy y `goalForDate` devuelve el
+      // primero de la lista, que puede ser el que ya no rige.
+      final local = doc(
+        goals: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'g1',
+            'endsOn': null,
+            'updatedAt': '2026-07-31T09:00:00Z',
+          },
+        ],
+      );
+      final remote = doc(
+        goals: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'g1',
+            'endsOn': '2026-07-31',
+            'updatedAt': '2026-07-31T12:00:00Z',
+          },
+        ],
+      );
+
+      final goal =
+          (mergeDocuments(local: local, remote: remote)['goals']! as List)
+                  .single
+              as Map<String, dynamic>;
+
+      expect(goal['endsOn'], '2026-07-31');
+    });
+
+    test('sin marca de tiempo sigue ganando lo local', () {
+      final local = doc(
+        goals: <Map<String, dynamic>>[
+          <String, dynamic>{'id': 'g1', 'endsOn': null},
+        ],
+      );
+      final remote = doc(
+        goals: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'g1',
+            'endsOn': '2026-07-31',
+            'updatedAt': '2026-07-31T12:00:00Z',
+          },
+        ],
+      );
+
+      final goal =
+          (mergeDocuments(local: local, remote: remote)['goals']! as List)
+                  .single
+              as Map<String, dynamic>;
+
+      expect(goal['endsOn'], isNull);
     });
   });
 }

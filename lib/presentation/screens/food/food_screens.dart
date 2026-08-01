@@ -549,6 +549,11 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
   final TextEditingController _fat = TextEditingController(text: '0');
   String? _error;
 
+  /// Dos toques rápidos creaban **dos** alimentos, cada uno con su uuid: el
+  /// botón no pasaba `loading`, así que nada lo deshabilitaba mientras la
+  /// escritura estaba en curso.
+  bool _saving = false;
+
   @override
   void dispose() {
     for (final c in <TextEditingController>[
@@ -671,7 +676,9 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
           NmButton(
             label: 'Guardar alimento',
             block: true,
+            loading: _saving,
             onPressed: () async {
+              if (_saving) return;
               if (_name.text.trim().isEmpty) {
                 setState(() => _error = 'Poné un nombre al alimento.');
                 return;
@@ -681,6 +688,7 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
                 setState(() => _error = 'La porción va de 0 a 10.000.');
                 return;
               }
+              setState(() => _saving = true);
               final food = Food(
                 id: _uuid.v4(),
                 userId: ref.read(profileProvider).id,
@@ -704,6 +712,10 @@ class _FoodNewScreenState extends ConsumerState<FoodNewScreen> {
                 nutrientWarning: inconsistent,
               );
               await ref.read(repositoryProvider).createOwnFood(food);
+              if (!mounted) return;
+              // El alimento ya está creado: si se vuelve con "Atrás" desde el
+              // detalle, el botón tiene que estar usable otra vez.
+              setState(() => _saving = false);
               if (!context.mounted) return;
               // `push` y no `pushReplacement`: reemplazarse deja sin dueño al
               // aviso de "lo agregué a la comida" que devuelve el detalle, y

@@ -325,8 +325,19 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
       target = int.tryParse(_manualValue.text) ?? goal.baseCalorieTarget;
     }
 
+    // El campo se lee mientras se escribe, así que pasa por estados que no son
+    // un objetivo: vacío, "0", "8". Con cero `macroTargets` **lanza** —su
+    // contrato pide un valor positivo— y la pantalla se caía sola al tipearlo;
+    // dividir por él para el porcentaje daría infinito. Se previsualiza con el
+    // extremo del rango más cercano hasta que lo escrito sirva; guardar valida
+    // aparte y no usa este valor.
+    final previewTarget = target.clamp(
+      CalorieTargetRules.absoluteMin,
+      CalorieTargetRules.absoluteMax,
+    );
+
     final macros = macroTargets(
-      targetKcal: target,
+      targetKcal: previewTarget,
       weightKg: weightKg,
       goalType: goalType,
     );
@@ -481,17 +492,17 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
               children: <Widget>[
                 ValueRow(
                   label: 'Proteínas',
-                  caption: '${(macros.proteinG * 4 * 100 / target).round()} %',
+                  caption: '${(macros.proteinG * 4 * 100 / previewTarget).round()} %',
                   value: Fmt.grams(macros.proteinG),
                 ),
                 ValueRow(
                   label: 'Carbohidratos',
-                  caption: '${(macros.carbsG * 4 * 100 / target).round()} %',
+                  caption: '${(macros.carbsG * 4 * 100 / previewTarget).round()} %',
                   value: Fmt.grams(macros.carbsG),
                 ),
                 ValueRow(
                   label: 'Grasas',
-                  caption: '${(macros.fatG * 9 * 100 / target).round()} %',
+                  caption: '${(macros.fatG * 9 * 100 / previewTarget).round()} %',
                   value: Fmt.grams(macros.fatG),
                 ),
               ],
@@ -523,7 +534,18 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
             onPressed: !dirty
                 ? null
                 : () async {
-                    if (target < 800 || target > 6000) return;
+                    // Y si está fuera de rango se dice. Antes era un `return`
+                    // mudo: se tocaba "Guardar objetivo" y no pasaba nada, sin
+                    // una sola pista de por qué.
+                    if (target < CalorieTargetRules.absoluteMin ||
+                        target > CalorieTargetRules.absoluteMax) {
+                      NmSnackbar.show(
+                        context,
+                        'El objetivo va de ${CalorieTargetRules.absoluteMin} a '
+                        '${CalorieTargetRules.absoluteMax} kcal.',
+                      );
+                      return;
+                    }
                     final minimum = CalorieTargetRules.minimumFor(
                       profile.biologicalSex,
                     );
@@ -588,17 +610,19 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
 }
 
 /// S-34 · Mis alimentos, actividades, plantillas y favoritos.
+///
+/// Siempre abre en la primera solapa. El parámetro `initialTab` existía para
+/// dos rutas —`/profile/templates` y `/profile/favorites`— que ninguna pantalla
+/// navegaba, así que se fue con ellas.
 class MyItemsScreen extends ConsumerStatefulWidget {
-  const MyItemsScreen({this.initialTab = 0, super.key});
-
-  final int initialTab;
+  const MyItemsScreen({super.key});
 
   @override
   ConsumerState<MyItemsScreen> createState() => _MyItemsScreenState();
 }
 
 class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
-  late int _tab = widget.initialTab;
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {

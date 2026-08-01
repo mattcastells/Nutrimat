@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/supabase_config.dart';
@@ -46,20 +44,21 @@ final isCloudEnabledProvider = Provider<bool>(
 final cloudBackupProvider = Provider<CloudBackupService?>((ref) => null);
 
 /// Estado del respaldo para la UI.
-final backupStateProvider = StreamProvider<BackupState>((ref) {
+final backupStateProvider = StreamProvider<BackupState>((ref) async* {
   final service = ref.watch(cloudBackupProvider);
   if (service == null) {
-    return Stream<BackupState>.value(
-      BackupUnavailable(
-        SupabaseConfig.unavailableReason ?? 'Sin servidor configurado.',
-      ),
+    yield BackupUnavailable(
+      SupabaseConfig.unavailableReason ?? 'Sin servidor configurado.',
     );
+    return;
   }
-  return service.states.transform(
-    StreamTransformer<BackupState, BackupState>.fromHandlers(
-      handleData: (data, sink) => sink.add(data),
-    ),
-  );
+  // El estado actual primero, igual que `syncStateProvider`: `states` es un
+  // broadcast **sin repetición**, así que quien abría la pantalla después de un
+  // fallo no veía nada hasta el próximo cambio — justo el caso en el que uno la
+  // abre. Y con el stream mudo la pantalla decía "Al día", que es la misma
+  // clase de mentira que costó meses de `meals` vacíos.
+  yield service.state;
+  yield* service.states;
 });
 
 /// Persistencia relacional: las mismas cosas del respaldo, como filas en las
@@ -118,7 +117,13 @@ final incomingPalRequestsProvider = Provider.autoDispose<int>(
 );
 
 /// Código propio para que alguien te agregue.
-final myPalCodeProvider = FutureProvider<String?>((ref) async {
+///
+/// `autoDispose` por lo mismo que `palsProvider`, y con una vuelta de tuerca:
+/// un `FutureProvider` global no solo cachea el valor, también **cachea el
+/// error**. Abrir Pals una vez sin conexión dejaba el código en "…" el resto de
+/// la sesión —el botón "Actualizar" invalida `palsProvider` y no este—, y el
+/// código es lo único que alguien necesita para que lo agreguen.
+final myPalCodeProvider = FutureProvider.autoDispose<String?>((ref) async {
   final client = ref.watch(palsClientProvider);
   return client?.myCode();
 });

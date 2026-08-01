@@ -98,6 +98,11 @@ class _NutrimatAppState extends ConsumerState<NutrimatApp>
       unawaited(ref.read(cloudBackupProvider)?.flush() ?? Future<void>.value());
     }
     if (state == AppLifecycleState.resumed) {
+      // Primero la fecha: si el día cambió mientras la app estaba en segundo
+      // plano, todo lo que se dibuje después tiene que hablar de hoy. Sin esto,
+      // dejarla abierta de noche y volver a la mañana dejaba Inicio en "Ayer" y
+      // el desayuno se cargaba en el día anterior.
+      ref.read(selectedDateProvider.notifier).refreshOnResume();
       _publishToWidget();
       unawaited(_pullFromTables());
     }

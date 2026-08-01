@@ -6,14 +6,16 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/motion.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../domain/repositories/repositories.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
 
 /// S-01 · Splash. Decide el destino inicial sin parpadeos.
 ///
-/// `checking` dura como máximo 1500 ms; si excede, se navega igual con los
-/// datos locales.
+/// La espera está acotada por [_SplashScreenState.maxEspera]: si lo que se trae
+/// del servidor no llegó en ese plazo, se entra igual con los datos locales y
+/// la reconciliación se reintenta al volver a primer plano.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -57,6 +59,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // en vez de reemplazarlo, así que lo que se cargó acá sin conexión
     // sobrevive y lo que se cargó en otro lado entra. Es lo que permite usar la
     // misma cuenta desde el teléfono y desde el navegador.
+    // Con un tope, y ahora de verdad.
+    //
+    // El comentario de arriba de esta clase prometía desde siempre que el
+    // splash no dura más de 1500 ms, y no había nada que lo hiciera cumplir:
+    // se esperaban dos operaciones de red sin límite propio, así que con una
+    // conexión que acepta y no contesta la app se quedaba en el logo. Cada
+    // cliente ya trae su plazo, pero sumados pasan del minuto.
+    //
+    // Lo que se trae del servidor es una mejora, no un requisito para entrar:
+    // si no llegó a tiempo se arranca con lo local, y la reconciliación se
+    // reintenta sola al volver a primer plano. El trabajo que quedó en vuelo no
+    // se pierde —termina y se aplica—, y aplicar un merge más tarde es
+    // exactamente lo que hace `refresh` en cualquier momento.
+    await _abrirRemoto(repo).timeout(maxEspera, onTimeout: () {});
+
+    if (!mounted) return;
+    context.go(Routes.home);
+  }
+
+  /// Lo que se trae al arrancar: primero las tablas, después el respaldo.
+  Future<void> _abrirRemoto(NutrimatRepositories repo) async {
     final desdeTablas = await ref
         .read(relationalSyncProvider)
         ?.openAfterPull(apply: repo.importDocument);
@@ -67,10 +90,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           localIsEmpty: (desdeTablas ?? false) ? false : !repo.hasUserData,
           apply: (json) => repo.importJson(json),
         );
-
-    if (!mounted) return;
-    context.go(Routes.home);
   }
+
+  /// Cuánto puede retener el splash antes de entrar igual.
+  static const Duration maxEspera = Duration(seconds: 8);
 
   @override
   Widget build(BuildContext context) {

@@ -8,7 +8,7 @@ publish_to: 'none'
 # APK por arquitectura con el corrimiento de Flutter, y el más alto que quedó
 # instalado fue 4011 (x86_64). Cualquier número por debajo de eso deja a esa
 # gente sin poder actualizar nunca más desde la app.
-version: 1.11.0+5014
+version: 1.12.0+5015
 
 environment:
   sdk: ^3.9.0
@@ -35,6 +35,10 @@ dependencies:
   # Ver `data/local/photo_normalizer.dart`: es un caso raro y caro.
   image: ^4.5.4
   collection: ^1.19.0
+  # SHA-256 del APK descargado contra el digest que publica GitHub
+  # (`data/remote/github_releases_client.dart`). Ya venía como transitiva; se
+  # declara porque ahora se importa directo.
+  crypto: ^3.0.6
   shared_preferences: ^2.3.3
   image_picker: ^1.2.2
   http: ^1.6.0
@@ -64,7 +68,10 @@ flutter_launcher_icons:
   adaptive_icon_background: assets/brand/adaptive-background.png
   adaptive_icon_foreground: assets/brand/adaptive-foreground.png
   adaptive_icon_monochrome: assets/brand/monochrome.png
-  min_sdk_android: 24
+  # El mismo que `android/app/build.gradle.kts`; tenerlos distintos hacía que
+  # el generador de íconos creara variantes para una API que la app ya no
+  # soporta.
+  min_sdk_android: 26
 
 flutter:
   uses-material-design: true

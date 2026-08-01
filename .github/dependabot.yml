@@ -1,0 +1,20 @@
+# Dependabot, por ahora solo para las actions de los workflows.
+#
+# Va de la mano con el pin por SHA de `ci.yml` y `release.yml`: clavar el
+# commit resuelve el problema de que un tag se reapunte, pero crea otro —los
+# pins envejecen y nadie se entera—. Dependabot lee el comentario `# vX.Y.Z`
+# que quedó al lado de cada SHA, así que puede abrir el PR con el SHA nuevo y
+# el comentario actualizado, sin perder el pin.
+#
+# Las dependencias de Dart quedan afuera a propósito: `flutter pub upgrade`
+# necesita correr los tests y mirar los breaking changes de cada major
+# (riverpod 2→3, go_router 14→17), y eso es trabajo de una persona, no de un
+# PR automático que nadie revisa.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

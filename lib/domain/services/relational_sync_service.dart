@@ -117,11 +117,19 @@ class RelationalSyncService {
   Future<bool> openAfterPull({
     required Future<void> Function(Map<String, dynamic> document) apply,
   }) async {
-    final traido = await _pullAndMerge(apply);
-
-    // Pase lo que pase: dejar la puerta cerrada por un fallo de red sería no
-    // volver a escribir nunca.
-    _canPush = true;
+    final bool traido;
+    try {
+      traido = await _pullAndMerge(apply);
+    } finally {
+      // Pase lo que pase, y ahora de verdad: sin el `finally` esta línea vivía
+      // después del `await`, así que cualquier cosa que se escapara de
+      // `_pullAndMerge` la salteaba. Y algo se escapa: sus `catch` son `on
+      // Exception`, mientras que un `TypeError` de los casts del mapeo es un
+      // `Error`. El resultado era `_canPush` en false el resto de la sesión,
+      // con `markDirty` saliendo temprano **en silencio**: el teléfono dejaba
+      // de escribir a las tablas hasta que alguien reiniciara la app.
+      _canPush = true;
+    }
 
     // Después de abrir la puerta, no antes: `markDirty` sale temprano mientras
     // `_canPush` sea false, así que llamarlo adentro del `try` no habría hecho
@@ -183,6 +191,14 @@ class RelationalSyncService {
     } on AppError {
       // Sin conexión no se trae, pero tampoco se toca lo local: un fallo de
       // lectura no puede parecerse a "no había nada".
+      return false;
+    } on Object catch (error, stack) {
+      // Todo lo demás también se come acá, y a propósito. Los `catch` del
+      // cliente son `on Exception`, así que un `TypeError` del mapeo —una
+      // columna que vino con otro tipo— salía derecho hasta el splash y hacía
+      // fallar el arranque entero. Traer es una mejora, no un requisito: si no
+      // se pudo, la app sigue con lo que tiene en el teléfono.
+      Zone.current.handleUncaughtError(error, stack);
       return false;
     } finally {
       _lastPull = DateTime.now();

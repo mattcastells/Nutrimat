@@ -453,6 +453,16 @@ class NutritionTable extends StatelessWidget {
     final nm = context.nm;
     final factor100 = food.servingSize <= 0 ? 0.0 : 100 / food.servingSize;
 
+    // La columna "por 100 g" solo tiene sentido si la porción se mide en peso o
+    // volumen. Para ARGENFOODS, Open Food Facts y USDA la porción **es** 100 g,
+    // así que la cuenta es trivial; pero un alimento propio se puede crear con
+    // porción "1 unidad" —el formulario lo permite— y ahí dividir por la
+    // porción daba "por 100 g: 7.000 kcal" para un huevo de 70. Un disparate
+    // con forma de dato, que es justo lo que la app no se permite.
+    const unidadesDePeso = <String>{'g', 'gr', 'gramos', 'ml', 'cc'};
+    final mostrarPor100 =
+        unidadesDePeso.contains(food.servingUnit.trim().toLowerCase());
+
     Widget row(String label, double perServing, String unit) => Padding(
       padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),
       child: Row(
@@ -463,17 +473,18 @@ class NutritionTable extends StatelessWidget {
               style: NmTextStyles.from(NmType.bodySm, color: nm.text),
             ),
           ),
-          SizedBox(
-            width: 80,
-            child: Text(
-              '${Fmt.decimal1(perServing * factor100)}$unit',
-              textAlign: TextAlign.right,
-              style: NmTextStyles.from(
-                NmType.caption,
-                color: nm.textMuted,
-              ).tnum,
+          if (mostrarPor100)
+            SizedBox(
+              width: 80,
+              child: Text(
+                '${Fmt.decimal1(perServing * factor100)}$unit',
+                textAlign: TextAlign.right,
+                style: NmTextStyles.from(
+                  NmType.caption,
+                  color: nm.textMuted,
+                ).tnum,
+              ),
             ),
-          ),
           SizedBox(
             width: 80,
             child: Text(
@@ -491,14 +502,15 @@ class NutritionTable extends StatelessWidget {
         Row(
           children: <Widget>[
             const Expanded(child: SizedBox.shrink()),
-            SizedBox(
-              width: 80,
-              child: Text(
-                'por 100 g',
-                textAlign: TextAlign.right,
-                style: NmTextStyles.from(NmType.micro, color: nm.textMuted),
+            if (mostrarPor100)
+              SizedBox(
+                width: 80,
+                child: Text(
+                  'por 100 ${food.servingUnit.trim().toLowerCase() == 'ml' ? 'ml' : 'g'}',
+                  textAlign: TextAlign.right,
+                  style: NmTextStyles.from(NmType.micro, color: nm.textMuted),
+                ),
               ),
-            ),
             SizedBox(
               width: 80,
               child: Text(

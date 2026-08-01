@@ -9,7 +9,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(8);
+select plan(10);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -55,19 +55,19 @@ select throws_ok(
 
 -- ── `rate_limits` no se lee ni se escribe directo ────────────────────────
 select is(
-  public.check_rate_limit('test_bucket', 2),
+  public.check_rate_limit('food_search', 2),
   true,
   'Primer uso del día: dentro del límite'
 );
 
 select is(
-  public.check_rate_limit('test_bucket', 2),
+  public.check_rate_limit('food_search', 2),
   true,
   'Segundo uso: todavía dentro del límite'
 );
 
 select is(
-  public.check_rate_limit('test_bucket', 2),
+  public.check_rate_limit('food_search', 2),
   false,
   'Tercer uso: ya pasó el límite'
 );
@@ -79,6 +79,25 @@ select is(
     where user_id = '44444444-4444-4444-4444-444444444444'),
   0,
   'La cuenta no puede leer su propio contador directo, solo por la función'
+);
+
+-- ── El bucket no lo elige el cliente ─────────────────────────────────────
+-- `p_bucket` era texto libre, así que una cuenta podía llamar la función con un
+-- nombre distinto cada vez y crear filas ilimitadas en `rate_limits`, que
+-- además no purgaba nadie. Los tres nombres válidos salen de las Edge
+-- Functions y de `request_pal`; agregar una cuota nueva pasa por una migración,
+-- que es donde se ve.
+select throws_ok(
+  $$select public.check_rate_limit('inventado', 5)$$,
+  '23514',
+  null,
+  'Un bucket que no existe no crea una fila: la función rechaza'
+);
+
+select is(
+  (select count(*)::int from public.rate_limits where bucket = 'inventado'),
+  0,
+  'Y por lo tanto no queda nada suelto en la tabla'
 );
 
 select * from finish();

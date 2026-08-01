@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/error/app_error.dart';
@@ -31,6 +33,16 @@ class PalsClient {
 
   final SupabaseClient _db;
 
+  /// Ningún `await` contra la red sin plazo propio.
+  ///
+  /// Los clientes de Supabase no lo traen, y acá la falta se pagaba caro:
+  /// `PalPublisher.publish` se queda con `_publishing = true` para siempre, así
+  /// que **la cuenta deja de publicar su día** hasta que se reinicie la app; y
+  /// la pantalla de Pals se queda en el esqueleto, o con "Enviar solicitud"
+  /// girando, sin error y sin salida. Con señal mala —el socket se abre y no
+  /// contesta— el `Future` no termina nunca.
+  static const Duration timeout = Duration(seconds: 30);
+
   String get _me => _db.auth.currentUser?.id ?? '';
 
   /// El nombre que ven los pals.
@@ -44,7 +56,8 @@ class PalsClient {
       await _db
           .from('profiles')
           .update(<String, dynamic>{'display_name': name})
-          .eq('id', _me);
+          .eq('id', _me)
+          .timeout(timeout);
     } on Exception {
       throw _offline;
     }
@@ -57,7 +70,8 @@ class PalsClient {
           .from('profiles')
           .select('pal_code')
           .eq('id', _me)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(timeout);
       return row?['pal_code'] as String?;
     } on Exception {
       return null;
@@ -66,10 +80,12 @@ class PalsClient {
 
   Future<PalRequestResult> request(String code) async {
     try {
-      final result = await _db.rpc<String>(
-        'request_pal',
-        params: <String, dynamic>{'p_code': code},
-      );
+      final result = await _db
+          .rpc<String>(
+            'request_pal',
+            params: <String, dynamic>{'p_code': code},
+          )
+          .timeout(timeout);
       return PalRequestResult.fromWire(result);
     } on PostgrestException catch (error) {
       throw AppError(
@@ -84,31 +100,51 @@ class PalsClient {
 
   /// Todos los vínculos, en las dos direcciones.
   ///
-  /// El nombre sale de un join con `profiles`, que RLS abre solo entre pals
-  /// aceptados o con solicitud en curso.
+  /// El nombre sale de `pal_profiles` y no de un join con `profiles`. Es una
+  /// vista de dos columnas —id y nombre— que existe justamente porque la
+  /// policy que abría `profiles` a los pals abría **la fila entera**: fecha de
+  /// nacimiento, altura, sexo y el código de pal, y encima con la solicitud
+  /// todavía sin aceptar (migración 28).
+  ///
+  /// Son dos consultas y no un join embebido porque PostgREST solo embebe
+  /// atravesando una FK, y una vista no la tiene. El costo es una consulta
+  /// más sobre una lista de ids que tiene el tamaño de la agenda de alguien.
   Future<List<Pal>> list() async {
     try {
       final rows = await _db
           .from('pals')
-          .select(
-            'id, status, requester_id, addressee_id, '
-            'requester:profiles!pals_requester_id_fkey(id, display_name), '
-            'addressee:profiles!pals_addressee_id_fkey(id, display_name)',
-          )
-          .order('created_at');
+          .select('id, status, requester_id, addressee_id')
+          .order('created_at')
+          .timeout(timeout);
+      if (rows.isEmpty) return const <Pal>[];
+
+      String otherOf(Map<String, dynamic> row) =>
+          (row['addressee_id'] == _me
+                  ? row['requester_id']
+                  : row['addressee_id'])
+              as String;
+
+      final names = await _db
+          .from('pal_profiles')
+          .select('id, display_name')
+          .inFilter('id', rows.map(otherOf).toSet().toList())
+          .timeout(timeout);
+      final nameById = <String, String>{
+        for (final n in names)
+          n['id'] as String: n['display_name'] as String? ?? '',
+      };
 
       return rows.map<Pal>((row) {
-        final incoming = row['addressee_id'] == _me;
-        final other =
-            (incoming ? row['requester'] : row['addressee'])
-                as Map<String, dynamic>?;
+        final other = otherOf(row);
         return Pal(
           id: row['id'] as String,
-          userId: (incoming ? row['requester_id'] : row['addressee_id'])
-              as String,
-          displayName: other?['display_name'] as String? ?? '',
+          userId: other,
+          // Vacío si la vista no lo devuelve: la pantalla ya sabe mostrar un
+          // vínculo sin nombre, y quedarse sin la lista entera por un nombre
+          // que falta sería peor.
+          displayName: nameById[other] ?? '',
           status: PalStatus.fromWire(row['status'] as String?),
-          isIncoming: incoming,
+          isIncoming: row['addressee_id'] == _me,
         );
       }).toList();
     } on Exception {
@@ -120,7 +156,7 @@ class PalsClient {
 
   Future<void> remove(String palId) async {
     try {
-      await _db.from('pals').delete().eq('id', palId);
+      await _db.from('pals').delete().eq('id', palId).timeout(timeout);
     } on Exception {
       throw _offline;
     }
@@ -134,7 +170,8 @@ class PalsClient {
             'status': status.wire,
             'responded_at': DateTime.now().toUtc().toIso8601String(),
           })
-          .eq('id', palId);
+          .eq('id', palId)
+          .timeout(timeout);
     } on Exception {
       throw _offline;
     }
@@ -148,7 +185,8 @@ class PalsClient {
           .select()
           .eq('user_id', userId)
           .eq('local_date', isoDate(date))
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(timeout);
       return row == null ? null : PalDay.fromRow(row);
     } on Exception {
       throw _offline;
@@ -169,7 +207,7 @@ class PalsClient {
         'sleep_minutes': day.sleepMinutes,
         'sleep_quality': day.sleepQuality?.wire,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      }).timeout(timeout);
     } on Exception {
       throw _offline;
     }
@@ -185,7 +223,8 @@ class PalsClient {
             'pal_share_activity_detail',
           )
           .eq('id', _me)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(timeout);
       return row == null ? const PalSharingPrefs() : PalSharingPrefs.fromRow(row);
     } on Exception {
       throw _offline;
@@ -202,7 +241,8 @@ class PalsClient {
             'pal_share_sleep': prefs.sleep,
             'pal_share_activity_detail': prefs.activityDetail,
           })
-          .eq('id', _me);
+          .eq('id', _me)
+          .timeout(timeout);
     } on Exception {
       throw _offline;
     }

@@ -98,10 +98,30 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
     }
   }
 
-  Future<void> _accept(Pal pal) async {
-    await ref.read(palsClientProvider)?.accept(pal.id);
+  /// Aceptar y quitar salen a la red, así que pueden fallar — y hasta acá el
+  /// fallo era un `await` sin capturar: una excepción asincrónica sin dueño,
+  /// sin mensaje y sin estado. Del lado de quien usa la app eso se vive como
+  /// "toco Aceptar y no pasa nada", que es exactamente la clase de bug que ya
+  /// se reportó por otro lado.
+  Future<void> _responder(Future<void> Function() accion) async {
+    try {
+      await accion();
+    } on AppError catch (error) {
+      if (!mounted) return;
+      NmSnackbar.show(context, error.message);
+      return;
+    } on Object {
+      if (!mounted) return;
+      NmSnackbar.show(context, 'No pudimos completar la acción.');
+      return;
+    }
+    if (!mounted) return;
     ref.invalidate(palsProvider);
   }
+
+  Future<void> _accept(Pal pal) => _responder(
+    () async => ref.read(palsClientProvider)?.accept(pal.id),
+  );
 
   Future<void> _remove(Pal pal) async {
     final confirmed = await showNmDialog<bool>(
@@ -123,8 +143,7 @@ class _PalsScreenState extends ConsumerState<PalsScreen> {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(palsClientProvider)?.remove(pal.id);
-    ref.invalidate(palsProvider);
+    await _responder(() async => ref.read(palsClientProvider)?.remove(pal.id));
   }
 
   @override

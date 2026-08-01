@@ -122,4 +122,57 @@ void main() {
       expect(repo.weightLogs, hasLength(1));
     });
   });
+
+  // El mismo problema que el del modo de prueba, por otra puerta y con peor
+  // final: acá los datos que se adoptan son de una persona de verdad. Se llega
+  // cuando una sesión vence sin pasar por "cerrar sesión" —contraseña cambiada
+  // en otro lado, refresh token invalidado— y en ese teléfono entra otra cuenta.
+  group('entrar con otra cuenta en el mismo teléfono', () {
+    test('arranca limpio en vez de adoptar lo de la persona anterior', () async {
+      FeatureFlags.seededDemoDataOverride = false;
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+
+      final repo = await _boot();
+      await repo.signIn('ana@nutrimat.test', accountId: 'uuid-ana');
+      await repo.logWeight(weightKg: 72, date: DateTime.now());
+      expect(repo.weightLogs, hasLength(1));
+
+      await repo.signIn('bruno@nutrimat.test', accountId: 'uuid-bruno');
+
+      // Lo que importa: el peso de Ana no queda dentro de la cuenta de Bruno,
+      // porque desde ahí el push lo escribiría con **su** user_id.
+      expect(repo.weightLogs, isEmpty);
+      expect(repo.hasUserData, isFalse);
+      expect(repo.profile.email, 'bruno@nutrimat.test');
+    });
+
+    test('la misma cuenta conserva lo suyo', () async {
+      FeatureFlags.seededDemoDataOverride = false;
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+
+      final repo = await _boot();
+      await repo.signIn('ana@nutrimat.test', accountId: 'uuid-ana');
+      await repo.logWeight(weightKg: 72, date: DateTime.now());
+
+      await repo.signIn('ana@nutrimat.test', accountId: 'uuid-ana');
+
+      expect(repo.weightLogs, hasLength(1));
+    });
+
+    test('sin id de cuenta no se borra nada', () async {
+      // Compilación sin servidor: no hay `auth.users.id` con qué comparar, así
+      // que se conserva. Es el lado seguro; el otro sería borrarle los datos a
+      // alguien por no tener con qué compararlos.
+      FeatureFlags.seededDemoDataOverride = false;
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+
+      final repo = await _boot();
+      await repo.signIn('ana@nutrimat.test');
+      await repo.logWeight(weightKg: 72, date: DateTime.now());
+
+      await repo.signIn('ana@nutrimat.test');
+
+      expect(repo.weightLogs, hasLength(1));
+    });
+  });
 }

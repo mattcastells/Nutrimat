@@ -67,16 +67,22 @@ control:
 | Who | What they receive | Why |
 | --- | --- | --- |
 | Supabase | Your account and app data | Hosting, authentication, and storage |
-| Google Gemini | A meal photo or a text description | Estimating meal contents |
+| Google Gemini | A meal photo, a text description, or — if you ask for meal suggestions — how many calories and how much protein you have left for the day | Estimating meal contents; suggesting meals that fit |
 | USDA FoodData Central | A search term | Looking up generic foods |
 | Open Food Facts | A search term or barcode | Looking up branded products |
+| GitHub | Nothing you typed, but the request itself: your IP address and app version, each time the app opens | Checking whether a newer release exists (the app is distributed outside Play Store) |
+
+Nothing sent to Gemini, USDA, Open Food Facts, or GitHub carries your name,
+email, or account id.
 
 ## Your controls
 
 - **Export or delete your local data** at any time from Settings → Privacy.
-- **Delete your account** from the same screen. This removes your profile,
-  meals, activities, weights, measurements, photos, and any connected
-  integrations. Deletion is irreversible after a 7-day grace period.
+- **Delete your account** from the same screen. This removes, immediately and
+  permanently: your profile, meals, activities, weights, measurements, sleep,
+  water, pal links, every photo in our storage buckets, your cloud backups,
+  and the account itself. There is no grace period and nothing is recoverable
+  afterwards, so export your data first if you want to keep it.
 - **Turn off any Pals sharing category** at any time from Profile → "What my
   pals see" — the change applies going forward, not retroactively to what a
   pal already saw.

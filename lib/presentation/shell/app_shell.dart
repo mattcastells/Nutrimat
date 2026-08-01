@@ -267,8 +267,17 @@ class _TabIcon extends StatelessWidget {
   }
 }
 
-/// Banner de registros pendientes de revisión por duplicado, visible sobre
-/// cualquier tab (RN-07).
+/// Banner de registros pendientes de revisión por duplicado (RN-07).
+///
+/// **Todavía no se monta en ningún lado**, y el comentario anterior decía que
+/// era "visible sobre cualquier tab", que es lo que va a ser y no lo que es.
+///
+/// Espera a la importación de sesiones de ejercicio desde Health Connect, que
+/// es lo único que puede duplicar de verdad y sigue afuera a propósito. Hasta
+/// entonces nada marca un registro como `needsReview`, así que
+/// `pendingReviewsProvider` está siempre vacío y esto no dibujaría nada aunque
+/// se colgara del shell. (`duplicateScore` sí se usa hoy, pero para avisar en
+/// el formulario de actividad, no por acá.)
 class PendingReviewBanner extends ConsumerWidget {
   const PendingReviewBanner({required this.onReview, super.key});
 

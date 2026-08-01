@@ -22,6 +22,7 @@ import 'package:nutrimat/domain/models/meal.dart';
 import 'package:nutrimat/domain/repositories/auth_gateway.dart';
 import 'package:nutrimat/domain/services/photo_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _FakeAuth implements AuthGateway {
   @override
@@ -45,9 +46,52 @@ class _FakeAuth implements AuthGateway {
   Future<void> signOut() async {}
   @override
   Future<void> sendPasswordReset(String email) async {}
+
+  @override
+  Future<void> deleteAccount() async {}
 }
 
 /// Guarda a qué rutas se le pidió borrar, que es lo único que hace falta saber.
+/// Un Storage que no contesta: es lo que devuelve `remove` sin conexión.
+class _SinConexionStorage implements SupabaseStorageClient {
+  @override
+  StorageFileApi from(String id) => _SinConexionFileApi();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _SinConexionFileApi implements StorageFileApi {
+  @override
+  Future<List<FileObject>> remove(List<String> paths) =>
+      throw const SocketException('sin conexión');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// Un Storage al que ya le habían borrado el objeto.
+class _NoEstaStorage implements SupabaseStorageClient {
+  @override
+  StorageFileApi from(String id) => _NoEstaFileApi();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _NoEstaFileApi implements StorageFileApi {
+  @override
+  Future<List<FileObject>> remove(List<String> paths) =>
+      throw const StorageException('Object not found', statusCode: '404');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
 class _FakeStorage implements PhotoStorageClient {
   final List<String> borradas = <String>[];
   AppError? fallaCon;
@@ -179,6 +223,34 @@ void main() {
       storage.fallaCon = null;
       expect(await repo.purgeDeletedPhotos(), 1);
       expect(storage.borradas, <String>['u1/m1.jpg']);
+    });
+
+    test('sin conexión, el cliente real avisa en vez de fingir que borró',
+        () async {
+      // El test de arriba usa un doble que lanza `AppError`, así que probaba la
+      // reacción de la purga y no el eslabón que fallaba. El bug estaba **acá**:
+      // `PhotoStorageClient.remove` capturaba `on Exception` y no hacía nada,
+      // así que un `SocketException` —estar sin conexión— salía como éxito. La
+      // purga entonces limpiaba `photoPath` sin haber borrado nada, y la foto
+      // quedaba en el bucket sin nada que la nombre: huérfana para siempre.
+      final cliente = PhotoStorageClient(_SinConexionStorage());
+
+      await expectLater(
+        cliente.remove(bucket: PhotoBucket.meal, path: 'u1/m1.jpg'),
+        throwsA(isA<AppError>()),
+      );
+    });
+
+    test('una foto que ya no está cuenta como borrada', () async {
+      // El 404 es el final que la purga buscaba, así que no es un fallo: si
+      // lanzara, la ruta no se limpiaría nunca y se reintentaría en cada
+      // arranque contra un objeto que no existe.
+      final cliente = PhotoStorageClient(_NoEstaStorage());
+
+      await expectLater(
+        cliente.remove(bucket: PhotoBucket.meal, path: 'u1/m1.jpg'),
+        completes,
+      );
     });
 
     test('pasar dos veces no vuelve a pedir el borrado', () async {

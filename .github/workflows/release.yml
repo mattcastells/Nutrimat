@@ -25,9 +25,9 @@ jobs:
     name: Compilar y publicar
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
@@ -58,6 +58,40 @@ jobs:
 
       - name: Tests
         run: flutter test
+
+      # Y las otras dos mitades de CI, por lo mismo: un tag puede apuntar a un
+      # commit que nunca pasó por un pull request, y hasta acá el release solo
+      # repetía `analyze` y `flutter test`. Una migración que no corre en una
+      # base limpia, o una Edge Function que no parsea, se publicaban igual y
+      # aparecían recién al desplegar a mano.
+      - name: Verificar que las Edge Functions parsean
+        run: |
+          fallo=0
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ -f "$dir/index.ts" ] || continue
+            echo "· $name"
+            if ! npx --yes esbuild@0.24.0 --bundle "$dir/index.ts" \
+              --format=esm --platform=neutral --external:jsr:* \
+              --outfile=/dev/null; then
+              echo "::error::La función $name no compila."
+              fallo=1
+            fi
+          done
+          exit $fallo
+
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1.7.1
+        with:
+          version: 2.110.0
+
+      - name: Migraciones y suite pgTAP desde cero
+        run: |
+          supabase start --exclude realtime,imgproxy,studio,edge-runtime
+          supabase test db
+
+      - name: Apagar el stack
+        if: always()
+        run: supabase stop --no-backup
 
       # El keystore vive solo en los secretos del repositorio. Nunca se
       # commitea: si se pierde, no se puede volver a publicar una actualización

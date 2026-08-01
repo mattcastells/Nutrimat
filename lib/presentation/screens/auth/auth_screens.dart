@@ -104,8 +104,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final repo = ref.read(repositoryProvider);
 
     final email = AuthValidation.normalizeEmail(_email.text);
+    final AuthAccount cuenta;
     try {
-      await ref
+      cuenta = await ref
           .read(authGatewayProvider)
           .signIn(email: email, password: _password.text);
     } on AppError catch (error) {
@@ -120,7 +121,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     // El perfil local se marca con el correo recién cuando el servidor aceptó
     // las credenciales: antes, cualquier contraseña equivocada dejaba la app
     // como si hubiera sesión.
-    await repo.signIn(email);
+    //
+    // Y va el id de la cuenta, no solo el correo: es lo que deja arrancar
+    // limpio cuando el que entra no es el mismo de la vez pasada.
+    await repo.signIn(email, accountId: cuenta.id);
 
     // Traer el respaldo **antes** de habilitar la subida. En un teléfono
     // recién instalado esto devuelve lo que había; si no se hiciera acá, el
@@ -272,7 +276,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
 
     await repo.startDemoSession(seeded: false);
-    await repo.signIn(email);
+    await repo.signIn(email, accountId: account?.id);
     await repo.updateProfile(
       repo.profile.copyWith(displayName: name),
     );

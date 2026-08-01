@@ -117,10 +117,20 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
     }
 
     if (widget.templateId != null) {
-      final template = repo.templates.firstWhere(
-        (t) => t.id == widget.templateId,
-        orElse: () => repo.templates.first,
-      );
+      // Sin `orElse` que caiga en `templates.first`: con cero plantillas eso
+      // lanza `StateError` y el formulario se cae, y con un id que no existe
+      // —una URL vieja, un enlace compartido— hidrataba **otra** plantilla en
+      // silencio, que es peor que no hidratar ninguna.
+      ExerciseTemplate? encontrada;
+      for (final t in repo.templates) {
+        if (t.id == widget.templateId) {
+          encontrada = t;
+          break;
+        }
+      }
+      if (encontrada == null) return;
+      final template = encontrada;
+
       setState(() {
         _typeId = template.activityTypeId;
         _duration = template.defaultDurationMinutes;
@@ -218,6 +228,10 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
   }
 
   Future<void> _save({bool addAnother = false}) async {
+    // Dos toques rápidos guardaban **dos** actividades: el botón principal
+    // pasa `loading: _saving` y se deshabilita solo, pero "Y otra" no lo hacía,
+    // y entre el primer toque y el `setState` hay una ventana.
+    if (_saving) return;
     final error = _validate();
     if (error != null) {
       setState(() => _error = error);
@@ -734,6 +748,7 @@ class _ActivityFormScreenState extends ConsumerState<ActivityFormScreen> {
                     const SizedBox(width: NmSpace.s2),
                     NmButton.secondary(
                       label: 'Y otra',
+                      loading: _saving,
                       onPressed: () => _save(addAnother: true),
                     ),
                   ],

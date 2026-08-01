@@ -138,6 +138,7 @@ class AppRelease {
     required this.apkUrl,
     required this.apkSizeBytes,
     required this.publishedAt,
+    this.apkSha256,
   });
 
   final AppVersion version;
@@ -152,6 +153,15 @@ class AppRelease {
   final Uri apkUrl;
   final int apkSizeBytes;
   final DateTime publishedAt;
+
+  /// SHA-256 del asset, en hexadecimal, tal como lo publica la API de GitHub.
+  ///
+  /// Nulo si el release es viejo y la API no lo trae. Cuando está, se compara
+  /// contra lo que se bajó: comparar solo el tamaño deja pasar un archivo del
+  /// largo correcto y contenido distinto. La defensa fuerte sigue siendo que
+  /// Android rechaza cualquier APK firmado con otra clave; esto ataja lo que
+  /// esa defensa no ve, que es la corrupción silenciosa.
+  final String? apkSha256;
 
   /// Tamaño legible para mostrar antes de que la persona acepte descargar: en
   /// un teléfono con datos móviles, 28 MB no es un detalle.

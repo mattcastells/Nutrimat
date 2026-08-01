@@ -74,4 +74,69 @@ void main() {
       expect(repo.currentWeightKg, 80);
     });
   });
+
+  // La base admite **un** peso por día y por persona. Con ids al azar, dos
+  // dispositivos que registran el mismo día creaban dos filas para esa misma
+  // clave: la segunda chocaba contra el índice único y el push de `weight_logs`
+  // fallaba. Y no se arreglaba solo, porque la reconciliación une por id y
+  // conserva las dos, así que volvía a fallar en cada intento.
+  group('un peso por día, también entre dispositivos', () {
+    Future<LocalRepository> dispositivoDe(String cuenta) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final repo = LocalRepository(await LocalStore.open(), onChanged: () {});
+      await repo.signIn('ana@nutrimat.test', accountId: cuenta);
+      return repo;
+    }
+
+    test('dos dispositivos de la misma cuenta generan el mismo id', () async {
+      final telefono = await dispositivoDe('uuid-ana');
+      final web = await dispositivoDe('uuid-ana');
+
+      final desdeElTelefono = await telefono.logWeight(
+        weightKg: 72,
+        date: hoy,
+      );
+      final desdeLaWeb = await web.logWeight(weightKg: 71.5, date: hoy);
+
+      // Mismo id: el upsert los hace converger en vez de chocar.
+      expect(desdeLaWeb.id, desdeElTelefono.id);
+    });
+
+    test('días distintos no comparten id', () async {
+      final repo = await dispositivoDe('uuid-ana');
+
+      final a = await repo.logWeight(weightKg: 72, date: hoy);
+      final b = await repo.logWeight(weightKg: 73, date: haceTresDias);
+
+      expect(a.id, isNot(b.id));
+    });
+
+    test('el peso importado se distingue del cargado a mano', () async {
+      // La columna `source` existe desde siempre y la base contempla
+      // `'imported'`, pero `logWeight` no lo aceptaba: todo entraba como
+      // `'manual'`. Sin eso no hay forma de deshacer una importación sin
+      // llevarse puesto lo que la persona cargó.
+      final repo = await dispositivoDe('uuid-ana');
+
+      final aMano = await repo.logWeight(weightKg: 72, date: hoy);
+      final importado = await repo.logWeight(
+        weightKg: 71,
+        date: hoy.subtract(const Duration(days: 1)),
+        source: 'imported',
+      );
+
+      expect(aMano.source, 'manual');
+      expect(importado.source, 'imported');
+    });
+
+    test('cuentas distintas no comparten id', () async {
+      final ana = await dispositivoDe('uuid-ana');
+      final bruno = await dispositivoDe('uuid-bruno');
+
+      final deAna = await ana.logWeight(weightKg: 72, date: hoy);
+      final deBruno = await bruno.logWeight(weightKg: 90, date: hoy);
+
+      expect(deAna.id, isNot(deBruno.id));
+    });
+  });
 }

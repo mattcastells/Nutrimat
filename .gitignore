@@ -12,6 +12,8 @@ android/key.properties
 google-play-service-account.json
 supabase/.env.local
 supabase/.temp/
+# Estado local de la CLI: en qué rama del proyecto está esta máquina.
+supabase/.branches/
 
 # Dependencias y builds
 node_modules/

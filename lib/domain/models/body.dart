@@ -77,6 +77,17 @@ class WeightLog {
 }
 
 /// Medida corporal (S-26). Cada métrica trae su propio rango válido.
+///
+/// Una por métrica y por día, igual que el peso: la base lo hace cumplir con
+/// un índice único sobre `(user_id, metric, local_date)`. De ahí salen las dos
+/// marcas de abajo, que no estaban y hacían falta:
+///
+/// - [updatedAt] es lo que desempata en la reconciliación. Sin ella, corregir
+///   una medida creaba una fila nueva que chocaba contra ese índice y **el
+///   push de todas las medidas fallaba, en esa cuenta, para siempre**.
+/// - [deletedAt] es la lápida. Borrar una medida la sacaba de la lista local
+///   sin decirle nada al servidor, así que volvía sola en la próxima
+///   reconciliación.
 class BodyMeasurement {
   const BodyMeasurement({
     required this.id,
@@ -84,6 +95,8 @@ class BodyMeasurement {
     required this.value,
     required this.localDate,
     this.notes,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   final String id;
@@ -92,7 +105,35 @@ class BodyMeasurement {
   final DateTime localDate;
   final String? notes;
 
+  /// Nulo en los documentos escritos antes de que esto existiera. La regla del
+  /// merge ya cubre ese caso: sin fecha de un lado no se reemplaza nada y gana
+  /// lo local, que es el lado conservador.
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  bool get isDeleted => deletedAt != null;
+
   String get unit => metric.unitLabel;
+
+  /// La clave por la que la base considera que dos medidas son la misma.
+  String get naturalKey => '${metric.wire}@${isoDate(localDate)}';
+
+  BodyMeasurement copyWith({
+    String? id,
+    double? value,
+    String? notes,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
+  }) => BodyMeasurement(
+    id: id ?? this.id,
+    metric: metric,
+    value: value ?? this.value,
+    localDate: localDate,
+    notes: notes ?? this.notes,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+  );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -100,6 +141,8 @@ class BodyMeasurement {
     'value': value,
     'localDate': isoDate(localDate),
     'notes': notes,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
   };
 
   static BodyMeasurement fromJson(Map<String, dynamic> j) => BodyMeasurement(
@@ -108,6 +151,12 @@ class BodyMeasurement {
     value: (j['value'] as num).toDouble(),
     localDate: DateTime.parse(j['localDate'] as String),
     notes: j['notes'] as String?,
+    updatedAt: j['updatedAt'] == null
+        ? null
+        : DateTime.tryParse(j['updatedAt'] as String),
+    deletedAt: j['deletedAt'] == null
+        ? null
+        : DateTime.tryParse(j['deletedAt'] as String),
   );
 }
 

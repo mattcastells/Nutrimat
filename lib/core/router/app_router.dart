@@ -216,14 +216,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MyItemsScreen(),
       ),
       GoRoute(
-        path: Routes.profileTemplates,
-        builder: (context, state) => const MyItemsScreen(initialTab: 1),
-      ),
-      GoRoute(
-        path: Routes.profileFavorites,
-        builder: (context, state) => const MyItemsScreen(initialTab: 2),
-      ),
-      GoRoute(
         path: Routes.settings,
         builder: (context, state) => const SettingsScreen(),
       ),

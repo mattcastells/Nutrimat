@@ -52,10 +52,16 @@ class _AddToSlotSheet extends ConsumerWidget {
     }
 
     Future<void> repeat(Meal meal) async {
+      // El messenger se toma **antes** del `pop`. Después, el `context` del
+      // sheet ya está desmontado y `context.mounted` da false según cómo caiga
+      // la carrera: la comida se agregaba igual, pero el aviso no aparecía
+      // nunca y quedaba sin confirmación de que algo había pasado.
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
       await repo.duplicateMeal(meal.id, date, slot);
-      if (!context.mounted) return;
-      NmSnackbar.show(context, '${meal.title} agregada');
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('${meal.title} agregada')));
     }
 
     return NmSheet(

@@ -38,6 +38,7 @@ class SleepLog {
     required this.loggedAt,
     this.notes,
     this.syncStatus = SyncStatus.pending,
+    this.deletedAt,
   });
 
   final String id;
@@ -51,6 +52,14 @@ class SleepLog {
   final DateTime loggedAt;
   final String? notes;
   final SyncStatus syncStatus;
+
+  /// La lápida. Sin ella, borrar una noche la sacaba de este teléfono y la
+  /// dejaba viva en la tabla, así que volvía sola en la reconciliación
+  /// siguiente. `loggedAt` se reescribe al borrar para que la lápida le gane
+  /// al registro del servidor, que es como desempata esta colección.
+  final DateTime? deletedAt;
+
+  bool get isDeleted => deletedAt != null;
 
   /// Dormir menos de 1 h o más de 16 es un error de carga, no una noche.
   static const int minMinutes = 60;
@@ -68,16 +77,22 @@ class SleepLog {
     return m == 0 ? '$h h' : '$h h $m';
   }
 
-  SleepLog copyWith({int? minutes, SleepQuality? quality, String? notes}) =>
-      SleepLog(
-        id: id,
-        localDate: localDate,
-        minutes: minutes == null ? this.minutes : clampMinutes(minutes),
-        quality: quality ?? this.quality,
-        loggedAt: DateTime.now(),
-        notes: notes ?? this.notes,
-        syncStatus: SyncStatus.pending,
-      );
+  SleepLog copyWith({
+    int? minutes,
+    SleepQuality? quality,
+    String? notes,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
+  }) => SleepLog(
+    id: id,
+    localDate: localDate,
+    minutes: minutes == null ? this.minutes : clampMinutes(minutes),
+    quality: quality ?? this.quality,
+    loggedAt: DateTime.now(),
+    notes: notes ?? this.notes,
+    syncStatus: SyncStatus.pending,
+    deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+  );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -87,6 +102,7 @@ class SleepLog {
     'loggedAt': loggedAt.toIso8601String(),
     'notes': notes,
     'syncStatus': syncStatus.wire,
+    'deletedAt': deletedAt?.toIso8601String(),
   };
 
   static SleepLog fromJson(Map<String, dynamic> j) => SleepLog(
@@ -100,5 +116,8 @@ class SleepLog {
       (s) => s.wire == j['syncStatus'],
       orElse: () => SyncStatus.pending,
     ),
+    deletedAt: j['deletedAt'] == null
+        ? null
+        : DateTime.tryParse(j['deletedAt'] as String),
   );
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -81,6 +82,21 @@ class CloudBackupClient {
   /// un megabyte.
   static const int historyLimit = 10;
 
+  /// Ningún `await` contra la red puede quedar sin plazo propio.
+  ///
+  /// Los clientes de Supabase no traen uno, así que sin esto un socket que
+  /// acepta la conexión y no contesta —señal mala, no "sin señal"— deja el
+  /// `Future` sin terminar nunca. En este cliente eso tenía consecuencias que
+  /// duraban toda la sesión: `CloudBackupService.flush` se queda con
+  /// `_uploading = true` para siempre y **la app deja de respaldar en
+  /// silencio**, y el splash espera `openAfterRestore`, así que se puede quedar
+  /// clavado en el logo. Una espera eterna es la peor forma de contar un fallo,
+  /// porque no se distingue de estar por terminar.
+  static const Duration timeout = Duration(seconds: 30);
+
+  /// El documento entero, que puede pesar cientos de kB con años de historial.
+  static const Duration uploadTimeout = Duration(seconds: 60);
+
   String _pathFor(String userId) => '$userId/$fileName';
 
   String _historyPathFor(String userId, DateTime at) {
@@ -119,9 +135,12 @@ class CloudBackupClient {
               // queremos es justamente pisar el anterior.
               upsert: true,
             ),
-          );
+          )
+          .timeout(uploadTimeout);
     } on StorageException catch (error) {
       throw _translate(error);
+    } on TimeoutException {
+      throw _slow;
     } on Exception {
       throw _offline;
     }
@@ -136,7 +155,8 @@ class CloudBackupClient {
               contentType: 'application/json',
               upsert: true,
             ),
-          );
+          )
+          .timeout(uploadTimeout);
       await _pruneHistory(userId);
     } on Object {
       // El historial es la red, no el respaldo. Que falle no puede convertir
@@ -151,7 +171,7 @@ class CloudBackupClient {
 
     final sobran = copies.sublist(historyLimit).map((c) => c.path).toList();
     try {
-      await _storage.from(bucket).remove(sobran);
+      await _storage.from(bucket).remove(sobran).timeout(timeout);
     } on Object {
       // Que no se pueda podar no rompe nada: solo ocupa un poco más.
     }
@@ -164,11 +184,14 @@ class CloudBackupClient {
     try {
       final bytes = await _storage
           .from(bucket)
-          .download(path ?? _pathFor(userId));
+          .download(path ?? _pathFor(userId))
+          .timeout(uploadTimeout);
       return utf8.decode(bytes);
     } on StorageException catch (error) {
       if (_isNotFound(error)) return null;
       throw _translate(error);
+    } on TimeoutException {
+      throw _slow;
     } on Exception {
       throw _offline;
     }
@@ -179,7 +202,8 @@ class CloudBackupClient {
     try {
       final files = await _storage
           .from(bucket)
-          .list(path: userId, searchOptions: const SearchOptions(limit: 100));
+          .list(path: userId, searchOptions: const SearchOptions(limit: 100))
+          .timeout(timeout);
 
       for (final file in files) {
         // `endsWith` y no `==`: según la versión, Storage devuelve el nombre
@@ -198,6 +222,8 @@ class CloudBackupClient {
     } on StorageException catch (error) {
       if (_isNotFound(error)) return null;
       throw _translate(error);
+    } on TimeoutException {
+      throw _slow;
     } on Exception {
       throw _offline;
     }
@@ -220,7 +246,8 @@ class CloudBackupClient {
           .list(
             path: '$userId/$historyFolder',
             searchOptions: const SearchOptions(limit: 100),
-          );
+          )
+          .timeout(timeout);
 
       final copies = <CloudBackupInfo>[
         for (final file in files)
@@ -255,6 +282,16 @@ class CloudBackupClient {
   static const AppError _offline = AppError(
     code: ApiErrorCode.offline,
     message: 'Sin conexión: el respaldo va a subir cuando vuelva internet.',
+  );
+
+  /// Se distingue de [_offline] a propósito: "no hay señal" y "hay señal pero
+  /// no contesta" se arreglan distinto, y decir la primera cuando pasa la
+  /// segunda manda a mirar el lugar equivocado.
+  static const AppError _slow = AppError(
+    code: ApiErrorCode.upstreamTimeout,
+    message:
+        'El respaldo tardó demasiado. Se reintenta con el próximo cambio; si '
+        'sigue igual, revisá tu conexión.',
   );
 
   static AppError _translate(StorageException error) {

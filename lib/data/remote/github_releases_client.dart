@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/error/app_error.dart';
@@ -32,9 +33,14 @@ class GithubReleasesClient {
 
   static const String _host = 'api.github.com';
 
-  /// Sufijo del asset que instala el updater. El release también publica un APK
-  /// por ABI (más chico), pero elegir entre ellos exige conocer la arquitectura
-  /// del teléfono: para actualizar sin equivocarse va el universal.
+  /// Sufijo del asset que instala el updater.
+  ///
+  /// **Desde la 1.3.2 el release publica un solo APK**, justamente este. Los
+  /// APK por ABI se dejaron de publicar porque `--split-per-abi` le suma un
+  /// corrimiento por arquitectura al `versionCode` (`abi × 1000 + code`): quien
+  /// tenía instalado el de su arquitectura recibía la actualización, la
+  /// descargaba, y Android la rechazaba por downgrade. Si alguna vez vuelven,
+  /// primero el updater tiene que elegir por arquitectura.
   static const String universalApkSuffix = '-universal.apk';
 
   static const Duration timeout = Duration(seconds: 10);
@@ -134,6 +140,12 @@ class GithubReleasesClient {
       notes: (body['body'] as String? ?? '').trim(),
       apkUrl: parsedUrl,
       apkSizeBytes: (apk['size'] as num?)?.toInt() ?? 0,
+      // Viene como `sha256:<hex>` cuando la API lo trae; los releases viejos no
+      // lo tienen y ahí queda nulo.
+      apkSha256: switch (apk['digest']) {
+        final String d when d.startsWith('sha256:') => d.substring(7),
+        _ => null,
+      },
       publishedAt:
           DateTime.tryParse(body['published_at'] as String? ?? '')?.toLocal() ??
           DateTime.now(),
@@ -235,11 +247,43 @@ class GithubReleasesClient {
       );
     }
 
+    // Y el contenido, cuando GitHub publica su digest.
+    //
+    // El tamaño solo dice que llegaron todos los bytes, no que sean los que
+    // corresponden: un archivo del largo correcto y contenido distinto pasaba
+    // el control anterior. Lo que de verdad impide instalar un APK ajeno es la
+    // firma —Android rechaza cualquiera que no esté firmado con la misma
+    // clave—, así que esto no reemplaza esa defensa: ataja lo que ella no ve,
+    // que es la corrupción en el camino.
+    final esperado = release.apkSha256;
+    if (esperado != null) {
+      final real = await _sha256Of(file);
+      if (real != esperado.toLowerCase()) {
+        await _discard(sink, file);
+        throw const AppError(
+          code: ApiErrorCode.upstreamFailed,
+          message:
+              'El archivo descargado no coincide con el publicado. Probá de '
+              'nuevo.',
+        );
+      }
+    }
+
     onProgress?.call(1);
   }
 
   /// Cierra y borra lo descargado a medias. Nada de esto puede tapar el error
   /// que nos trajo hasta acá, así que falla en silencio.
+  /// SHA-256 en hexadecimal, leyendo el archivo de a pedazos.
+  ///
+  /// Por streaming y no con `readAsBytes`: juntar 75 MB en memoria para
+  /// verificarlos sería repetir, en el último paso, justamente el error que
+  /// dejó a todo el mundo sin poder actualizarse entre la 1.0.4 y la 1.5.0.
+  static Future<String> _sha256Of(File file) async {
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString();
+  }
+
   Future<void> _discard(IOSink sink, File file) async {
     try {
       await sink.close();

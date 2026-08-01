@@ -1,7 +1,46 @@
-# Estado — 30 de julio de 2026
+# Estado — 1 de agosto de 2026
 
 Dónde quedamos y cómo retomar. **La app está publicada y en uso**: `v1.11.0` en
 GitHub, con sesión, respaldo y análisis de foto contra Supabase.
+
+---
+
+## Lo primero: hay una auditoría aplicada y sin publicar
+
+El 1 de agosto se hizo una auditoría técnica completa y **se implementaron
+todos los arreglos**, pero **no se publicó ninguna versión ni se aplicó nada al
+proyecto real todavía**. Todo está en el árbol de trabajo, en verde:
+**399 tests**, **85 pgTAP**, `analyze --fatal-infos` limpio, 32 migraciones
+aplicando desde cero.
+
+- El diagnóstico: [`docs/auditoria-2026-08-01.md`](docs/auditoria-2026-08-01.md)
+- Qué se hizo y qué falta: [`docs/auditoria-handoff.md`](docs/auditoria-handoff.md)
+
+Lo que encontró y ya está arreglado, en orden de gravedad:
+
+1. **Cualquiera que conociera tu código de pal podía verte el día.** La política
+   `pals_update` dejaba que **quien mandaba la solicitud se la aceptara solo**,
+   y `is_pal_of` solo mira que el estado diga `accepted` — no quién lo puso. La
+   víctima no tenía que hacer nada ni tener ninguna categoría prendida.
+2. **"Eliminar mi cuenta" no eliminaba nada.** Hacía `signOut()` y borraba lo
+   local: las tablas, las fotos, los respaldos y el usuario de Auth quedaban
+   intactos, y volver a entrar restauraba todo. La política de privacidad
+   publicada prometía lo contrario. Ahora lo hace de verdad una Edge Function.
+3. **Una solicitud de pal pendiente abría el perfil entero**: `pal_code`, fecha
+   de nacimiento, altura, sexo. RLS es por fila y el grant era sobre todas las
+   columnas.
+4. **Corregir una medida corporal rompía el push de medidas para siempre** en
+   esa cuenta, y la pantalla volvía al valor viejo. Id nuevo en cada corrección
+   contra un índice único que no se auto-reparaba.
+5. **Los borrados no llegaban al servidor.** Solo el peso dejaba lápida. Borrar
+   el sueño de una noche lo resucitaba en 30 segundos; las comidas borradas
+   revivían enteras en un teléfono nuevo, con la foto ya purgada.
+6. **Después de cada push, el servidor le ganaba a todo en la reconciliación**
+   —el trigger de `updated_at` se movía aunque la fila no cambiara—, y las horas
+   volvían en UTC: un almuerzo de 13:30 se mostraba 16:30.
+
+**Antes de publicar** hay que aplicar las migraciones 28-32 al proyecto real y
+desplegar `delete-account` con su secreto. El handoff tiene la lista completa.
 
 ---
 
@@ -251,12 +290,12 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 27 de 27 aplicadas |
+| Migraciones | 32 escritas; **27 aplicadas al proyecto real** — las 5 de la auditoría están sin aplicar |
 | Tablas | 26, **todas con RLS** — se sumó `rate_limits` (migración 24) |
 | Políticas | 83, más 5 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |
 | Pals | vínculo por código; `shared_days` sigue siendo la superficie compartida, ahora con fotos/agua/sueño/detalle de ejercicio opcionales, apagados por default y elegidos desde Perfil |
-| Suite pgTAP | **66 de 66** (22 RLS + 9 Storage + 19 Pals + 8 hardening + 8 privacidad de Pals), en local y contra el proyecto real |
+| Suite pgTAP | **85 de 85** en local (se suman 10 de consentimiento de Pals y 7 del contrato de sync); las 66 previas, también contra el proyecto real |
 
 Detalle completo: [`supabase/README.md`](supabase/README.md)
 

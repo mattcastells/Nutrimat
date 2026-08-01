@@ -21,6 +21,7 @@ class Goal {
     this.bmrKcal,
     this.tdeeKcal,
     this.endsOn,
+    this.updatedAt,
   });
 
   final String id;
@@ -40,6 +41,19 @@ class Goal {
   /// `null` = vigente.
   final DateTime? endsOn;
 
+  /// Lo que desempata en la reconciliación.
+  ///
+  /// Sin esto, los objetivos se unían por id y ante conflicto ganaba siempre el
+  /// local. Con dos dispositivos eso significa que el que tiene abierto un
+  /// objetivo viejo le gana al que ya lo cerró, y su push lo **des-cierra** en
+  /// el servidor: quedan dos objetivos vigentes para hoy y `goalForDate`
+  /// devuelve el primero de la lista, que puede ser el equivocado. Hoy no se
+  /// nota porque hay un dispositivo por cuenta; la versión web lo activaría.
+  ///
+  /// Nulo en los documentos escritos antes de que existiera: la regla del merge
+  /// ya cubre ese caso conservando lo local, que es el lado seguro.
+  final DateTime? updatedAt;
+
   bool get isCurrent => endsOn == null;
 
   Goal copyWith({
@@ -56,6 +70,7 @@ class Goal {
     String? macroMethod,
     DateTime? startsOn,
     DateTime? endsOn,
+    DateTime? updatedAt,
   }) => Goal(
     id: id,
     goalType: goalType ?? this.goalType,
@@ -71,6 +86,9 @@ class Goal {
     macroMethod: macroMethod ?? this.macroMethod,
     startsOn: startsOn ?? this.startsOn,
     endsOn: endsOn ?? this.endsOn,
+    // Cualquier cambio deja el objetivo más nuevo: es lo que hace que cerrarlo
+    // en un dispositivo le gane al que todavía lo tiene abierto.
+    updatedAt: updatedAt ?? DateTime.now(),
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -88,6 +106,7 @@ class Goal {
     'macroMethod': macroMethod,
     'startsOn': isoDate(startsOn),
     'endsOn': endsOn == null ? null : isoDate(endsOn!),
+    'updatedAt': updatedAt?.toIso8601String(),
   };
 
   static Goal fromJson(Map<String, dynamic> j) => Goal(
@@ -110,5 +129,8 @@ class Goal {
     endsOn: j['endsOn'] == null
         ? null
         : DateTime.parse(j['endsOn'] as String),
+    updatedAt: j['updatedAt'] == null
+        ? null
+        : DateTime.tryParse(j['updatedAt'] as String),
   );
 }

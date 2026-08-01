@@ -15,6 +15,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Solo lectura, explícito. Sin este bloque el token queda con el default del
+# repositorio —que en repos personales suele ser lectura **y escritura**—, y
+# entonces cualquier paso comprometido puede escribir en el repo o publicar un
+# release desde un simple push. Ninguno de los tres jobs de acá necesita
+# escribir nada: analizan, prueban y apagan.
+permissions:
+  contents: read
+
+# Las actions van clavadas a su commit y no a su tag.
+#
+# Un tag es mutable: `@v4` lo puede reapuntar quien controle ese repositorio, y
+# ya pasó de verdad (tj-actions, 2025). Acá la diferencia no es teórica —
+# `release.yml` maneja el keystore de firma, y si ese archivo se filtra no se
+# puede volver a publicar una actualización de esta app **nunca más**.
+#
+# El comentario al lado del SHA es la versión que corresponde, y es lo que deja
+# que Dependabot los mantenga al día sin perder el pin.
+
 env:
   FLUTTER_VERSION: 3.35.7
 
@@ -23,14 +41,14 @@ jobs:
     name: Escanear secretos filtrados
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       # docs/handoff/20-environment-variables.md §5 dice que esto ya corría;
       # no era cierto. Gratis para un repo público, sin licencia que configurar.
       - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -38,9 +56,9 @@ jobs:
     name: Analizar y probar la app
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
@@ -65,7 +83,7 @@ jobs:
     name: Compilar las Edge Functions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Nada en el pipeline compilaba las funciones: un error de sintaxis
       # aparecía recién al desplegar, y desplegar es manual. Pasó con una
@@ -94,13 +112,13 @@ jobs:
     name: Probar las políticas RLS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1.7.1
         with:
           version: 2.110.0
 
-      # Levanta Postgres y aplica las 18 migraciones desde cero: si una
+      # Levanta Postgres y aplica las 32 migraciones desde cero: si una
       # migración no corre en una base limpia, acá se ve.
       #
       # `storage-api` ya no se excluye: la migración 18 crea los buckets y

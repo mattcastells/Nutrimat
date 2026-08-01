@@ -33,18 +33,60 @@ final appRevisionProvider = NotifierProvider<AppRevision, int>(
   AppRevision.new,
 );
 
-/// Día visible en Inicio. Se resetea a hoy al volver a primer plano tras 4 h.
+/// Día visible en Inicio.
+///
+/// Vuelve a hoy al reanudar la app si pasó [_ventanaVigencia] desde la última
+/// vez que alguien lo eligió a mano. El comentario decía que esto ya pasaba y
+/// no pasaba: `goToToday` tenía un solo llamador —el botón "Hoy" del selector—
+/// y el ciclo de vida nunca tocaba esta fecha.
+///
+/// Se notaba dejando la app abierta de noche y volviendo a la mañana: Inicio
+/// seguía en "Ayer" y el "+" arma la URL con **esta** fecha, así que el
+/// desayuno caía en el día anterior. El widget del teléfono, mientras tanto,
+/// publicaba hoy: dos superficies de la misma app diciendo cosas distintas.
+///
+/// El plazo existe para no pisar a alguien que está mirando un día pasado a
+/// propósito —volver de la cámara son dos `resumed` seguidos—, así que solo se
+/// corrige cuando la elección ya quedó vieja.
 class SelectedDate extends Notifier<DateTime> {
+  /// Cuánto vale una elección manual antes de que reanudar la descarte.
+  static const Duration _ventanaVigencia = Duration(hours: 4);
+
+  DateTime? _elegidoAt;
+
   @override
   DateTime build() => today();
 
-  void set(DateTime date) => state = dateOnly(date);
+  void set(DateTime date) {
+    _elegidoAt = DateTime.now();
+    state = dateOnly(date);
+  }
 
-  void goToToday() => state = today();
+  void goToToday() {
+    _elegidoAt = null;
+    state = today();
+  }
 
-  void shift(int days) => state = state.add(Duration(days: days));
+  void shift(int days) {
+    _elegidoAt = DateTime.now();
+    state = state.add(Duration(days: days));
+  }
 
   bool get isToday => isSameDay(state, DateTime.now());
+
+  /// Al volver a primer plano. Devuelve si cambió el día visible.
+  ///
+  /// No hace nada si ya está en hoy, ni si la elección es reciente.
+  bool refreshOnResume() {
+    if (isToday) return false;
+    final elegido = _elegidoAt;
+    if (elegido != null &&
+        DateTime.now().difference(elegido) < _ventanaVigencia) {
+      return false;
+    }
+    goToToday();
+    return true;
+  }
 }
 
 final selectedDateProvider = NotifierProvider<SelectedDate, DateTime>(
@@ -161,15 +203,11 @@ final restoreOutcomeProvider = Provider<RestoreOutcome>(
   (ref) => ref.watch(repositoryProvider).lastRestore,
 );
 
-final offlineProvider = Provider<bool>((ref) {
-  ref.watch(appRevisionProvider);
-  return ref.watch(repositoryProvider).isOffline;
-});
-
-final pendingCountProvider = Provider<int>((ref) {
-  ref.watch(appRevisionProvider);
-  return ref.watch(repositoryProvider).pendingCount;
-});
+// `offlineProvider` y `pendingCountProvider` se sacaron: ninguna pantalla los
+// leía. Envolvían `isOffline` —que es siempre false desde que se quitó el
+// interruptor de desarrollo— y el conteo de pendientes, que tampoco se muestra
+// en ningún lado. Un provider sin consumidores es una promesa de que algo se
+// está mirando; los datos siguen en el repositorio para cuando haga falta.
 
 final integrationProvider = Provider((ref) {
   ref.watch(appRevisionProvider);

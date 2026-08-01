@@ -18,12 +18,17 @@ import '../../domain/models/user_profile.dart';
 import '../../domain/models/water.dart';
 import '../mock/seed.dart';
 
-/// Base local: la fuente de verdad para la UI (13-state-management.md).
+/// Base local: la copia con la que trabaja este dispositivo
+/// (13-state-management.md).
 ///
-/// En esta etapa el almacenamiento es un documento JSON en preferencias, con
-/// la misma forma que va a tener el esquema de Drift/SQLite. La red todavía no
-/// participa: cada escritura queda `synced` salvo que el modo sin conexión
-/// esté activo, en cuyo caso queda `pending` y suma a la cola.
+/// El almacenamiento es un documento JSON en preferencias, con la misma forma
+/// que va a tener el esquema de Drift/SQLite.
+///
+/// **La fuente de verdad de la cuenta son las tablas**, no esto: al entrar y al
+/// volver a primer plano se traen y se reconcilian contra este documento
+/// (`document_merge.dart`). El comentario anterior decía que "la red todavía no
+/// participa" y participa por tres lados —las tablas, el respaldo del documento
+/// entero a un bucket, y las fotos—.
 class LocalStore {
   LocalStore._();
 
@@ -44,6 +49,20 @@ class LocalStore {
 
   // Datos del usuario.
   UserProfile? profile;
+
+  /// De quién son los datos de este documento: el `auth.users.id` de la cuenta
+  /// con la que se abrió sesión la última vez.
+  ///
+  /// Existe para una sola pregunta, y es la que faltaba responder: **¿el que
+  /// está entrando es el mismo de la vez pasada?** Si la sesión de alguien
+  /// vence —contraseña cambiada en otro lado, refresh token invalidado—, la app
+  /// vuelve a la pantalla de bienvenida sin tocar el documento. Si ahí entra
+  /// otra persona en ese mismo teléfono, sus comidas, pesos y medidas se
+  /// mezclaban con las de la anterior y **subían a la cuenta nueva**.
+  ///
+  /// Se guarda el id y no el correo porque el correo se puede cambiar sin dejar
+  /// de ser la misma cuenta.
+  String? accountId;
   List<Goal> goals = <Goal>[];
   List<Meal> meals = <Meal>[];
   List<Activity> activities = <Activity>[];
@@ -293,8 +312,9 @@ class LocalStore {
   }
 
   /// Arranca vacío: es lo que ve alguien que recién crea su cuenta.
-  void reset({required UserProfile newProfile}) {
+  void reset({required UserProfile newProfile, String? accountId}) {
     profile = newProfile;
+    this.accountId = accountId;
     goals = <Goal>[];
     meals = <Meal>[];
     activities = <Activity>[];
@@ -364,6 +384,8 @@ class LocalStore {
       profileFailed = true;
     }
 
+    accountId = j['accountId'] as String?;
+
     goals = list('goals', Goal.fromJson);
     meals = list('meals', Meal.fromJson);
     activities = list('activities', Activity.fromJson);
@@ -421,6 +443,7 @@ class LocalStore {
   /// que viaja en el archivo de respaldo.
   Map<String, dynamic> toDocument() => <String, dynamic>{
     'schemaVersion': schemaVersion,
+    'accountId': accountId,
     'profile': profile?.toJson(),
     'goals': goals.map((e) => e.toJson()).toList(),
     'meals': meals.map((e) => e.toJson()).toList(),

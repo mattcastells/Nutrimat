@@ -54,10 +54,16 @@ const Map<String, List<String>> _timestampFields = <String, List<String>>{
   // El peso, las medidas y el sueño reescriben `loggedAt` en cada guardado, así
   // que cumple el mismo papel que `updatedAt` en los otros.
   'weightLogs': <String>['loggedAt'],
-  'measurements': <String>['loggedAt'],
+  // Las medidas no tienen `loggedAt` —el modelo nunca lo tuvo—, así que esta
+  // fila nombraba un campo inexistente y el desempate siempre caía en "gana el
+  // local". Ahora tienen `updatedAt` y desempata de verdad.
+  'measurements': <String>['updatedAt'],
   'sleepLogs': <String>['loggedAt'],
+  // Los objetivos sí desempatan: cerrar uno en un dispositivo tiene que ganarle
+  // al que todavía lo tiene abierto, o el push del segundo lo des-cierra y
+  // quedan dos vigentes para el mismo día.
+  'goals': <String>['updatedAt'],
   // Sin marca de tiempo: se unen por id y ante conflicto gana el local.
-  'goals': <String>[],
   'activityGoals': <String>[],
   'userFoods': <String>[],
   'templates': <String>[],
@@ -96,6 +102,11 @@ Map<String, dynamic> mergeDocuments({
     );
   }
 
+  merged['measurements'] = _collapseMeasurements(
+    rows: _rows(merged['measurements']),
+    remoteRows: _rows(remote['measurements']),
+  );
+
   for (final key in _idlessLists) {
     final localList = _values(local[key]);
     final remoteList = _values(remote[key]);
@@ -133,6 +144,76 @@ List<Map<String, dynamic>> _rows(Object? raw) {
 
 List<Object?> _values(Object? raw) =>
     raw is List ? List<Object?>.from(raw) : const <Object?>[];
+
+/// Deja **una sola** medida por métrica y día, y la deja apuntando a la fila
+/// que el servidor ya tiene.
+///
+/// La unión por id no alcanza para las medidas porque la base las considera
+/// iguales por otra clave: hay un índice único sobre `(user_id, metric,
+/// local_date)`. Cuando corregir una medida generaba un id nuevo —lo hacía
+/// hasta que se arregló—, quedaban dos filas para el mismo día: la vieja del
+/// servidor y la nueva de acá. Dos consecuencias, las dos feas:
+///
+/// 1. La pantalla mostraba la vieja, o sea el número que la persona acababa de
+///    corregir.
+/// 2. El `upsert` de medidas intentaba insertar la nueva contra ese índice y
+///    fallaba **entero**, en cada push, para siempre.
+///
+/// Acá se colapsan: gana la más reciente por `updatedAt` —y ante empate o falta
+/// de fecha, la local, como en todo el resto del archivo— y **se queda con el
+/// id que el servidor ya conoce**. Eso último es lo que repara una cuenta que
+/// ya venía rota: el push siguiente actualiza esa fila en su lugar en vez de
+/// intentar insertar una que choca.
+List<Map<String, dynamic>> _collapseMeasurements({
+  required List<Map<String, dynamic>> rows,
+  required List<Map<String, dynamic>> remoteRows,
+}) {
+  if (rows.isEmpty) return rows;
+
+  final remoteIdByKey = <String, String>{};
+  for (final row in remoteRows) {
+    final key = _measurementKey(row);
+    final id = row['id'];
+    if (key != null && id is String && id.isNotEmpty) remoteIdByKey[key] = id;
+  }
+
+  // `LinkedHashMap` por defecto: conserva el orden en que se vieron, que es el
+  // orden local primero. Reordenar una serie que la persona ya miró no aporta.
+  final chosen = <String, Map<String, dynamic>>{};
+  final sinClave = <Map<String, dynamic>>[];
+
+  for (final row in rows) {
+    final key = _measurementKey(row);
+    if (key == null) {
+      // Sin métrica o sin fecha no se puede aparear con nada. Se conserva:
+      // descartarla sería perder un registro por venir mal formada.
+      sinClave.add(row);
+      continue;
+    }
+    final actual = chosen[key];
+    if (actual == null ||
+        _remoteIsNewer(actual, row, const <String>['updatedAt'])) {
+      chosen[key] = row;
+    }
+  }
+
+  return <Map<String, dynamic>>[
+    for (final entry in chosen.entries)
+      if (remoteIdByKey[entry.key] case final String remoteId
+          when remoteId != entry.value['id'])
+        <String, dynamic>{...entry.value, 'id': remoteId}
+      else
+        entry.value,
+    ...sinClave,
+  ];
+}
+
+String? _measurementKey(Map<String, dynamic> row) {
+  final metric = row['metric'];
+  final date = row['localDate'];
+  if (metric is! String || date is! String) return null;
+  return '$metric@$date';
+}
 
 /// Une dos listas por `id`, resolviendo los repetidos por marca de tiempo.
 ///

@@ -93,27 +93,53 @@ class PhotoStorageClient {
     try {
       return await _storage
           .from(bucket.id)
-          .createSignedUrl(path, signedUrlTtl.inSeconds);
+          .createSignedUrl(path, signedUrlTtl.inSeconds)
+          .timeout(timeout);
     } on StorageException catch (error) {
       throw _translate(error);
+    } on TimeoutException {
+      throw const AppError(
+        code: ApiErrorCode.upstreamTimeout,
+        message: 'La foto tardó demasiado en cargar. Probá de nuevo.',
+      );
     } on Exception {
       throw _offline;
     }
   }
 
+  /// Borra la foto del bucket.
+  ///
+  /// **Lanza si no se pudo borrar**, y eso no es un detalle: `purgeDeletedPhotos`
+  /// limpia `photoPath` del registro solo cuando esto no lanzó, justamente para
+  /// no dejar una foto en el bucket sin nada que la nombre. Antes acá se tragaba
+  /// cualquier `Exception` —incluido el `SocketException` de estar sin
+  /// conexión—, así que la purga creía haber borrado, limpiaba la ruta, y la
+  /// foto quedaba huérfana **para siempre** en el único recurso que de verdad
+  /// puede llenarse.
+  ///
+  /// Lo único que sigue contando como éxito es que la foto ya no esté: un 404
+  /// es el final que se buscaba.
   Future<void> remove({
     required PhotoBucket bucket,
     required String path,
   }) async {
     try {
-      await _storage.from(bucket.id).remove(<String>[path]);
+      await _storage.from(bucket.id).remove(<String>[path]).timeout(timeout);
     } on StorageException catch (error) {
+      if (error.statusCode == '404') return;
       throw _translate(error);
+    } on TimeoutException {
+      throw const AppError(
+        code: ApiErrorCode.upstreamTimeout,
+        message: 'No pudimos borrar la foto: el servidor no contestó.',
+      );
     } on Exception {
-      // Borrar una foto que quizá ya no está no puede romperle el día a nadie:
-      // el registro local ya se borró, que es lo que la persona pidió.
+      throw _offline;
     }
   }
+
+  /// Listar y borrar son pedidos chicos; con más de esto, algo anda mal.
+  static const Duration timeout = Duration(seconds: 20);
 
   static const AppError _offline = AppError(
     code: ApiErrorCode.offline,

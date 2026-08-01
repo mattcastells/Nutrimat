@@ -136,7 +136,13 @@ abstract interface class ProfileRepository {
   });
   /// Modo demo sin cuenta: usuario local anónimo (D-15).
   Future<void> startDemoSession({required bool seeded});
-  Future<void> signIn(String email);
+  /// Marca el documento local como el de esta cuenta.
+  ///
+  /// [accountId] es el `auth.users.id`. Va porque es lo que permite distinguir
+  /// "la misma persona vuelve a entrar" de "en este teléfono entra otra": el
+  /// segundo caso arranca limpio en vez de adoptar —y subir a la cuenta nueva—
+  /// los datos del anterior.
+  Future<void> signIn(String email, {String? accountId});
   Future<void> signOut();
   Future<void> setThemeMode(ThemeModeSetting mode);
   Future<void> setUnitSystem(UnitSystem units);
@@ -310,10 +316,16 @@ abstract interface class BodyRepository {
   List<WeightLog> get weightLogs;
   WeightLog? weightOn(DateTime date);
   double? get currentWeightKg;
+  /// [source] distingue lo que cargó la persona de lo que trajo una
+  /// integración. La base contempla `'imported'` desde siempre y la app
+  /// mandaba `'manual'` para todo, así que la procedencia de un peso que vino
+  /// de Health Connect se perdía — y con ella la posibilidad de deshacer una
+  /// importación sin tocar lo cargado a mano.
   Future<WeightLog> logWeight({
     required double weightKg,
     required DateTime date,
     String? notes,
+    String source = 'manual',
   });
   Future<void> deleteWeight(String id);
   Future<void> restoreWeight(String id);
@@ -371,9 +383,17 @@ abstract interface class AiPhotoRepository {
   int get quotaUsed;
   /// [onStage] avisa en qué paso real va el circuito, para que la pantalla de
   /// espera muestre lo que está pasando y no una animación decorativa.
+  ///
+  /// [onUploaded] entrega la ruta del bucket **apenas la foto sube**, antes de
+  /// que el modelo conteste. Existe porque analizar sube la foto con un id al
+  /// azar, y si después el análisis falla o alguien cancela, esa copia queda en
+  /// el bucket sin que ninguna comida la nombre: invisible, imborrable y
+  /// pagando espacio para siempre. Con la ruta en la mano, la pantalla la puede
+  /// borrar al salir.
   Future<AiAnalysis> analyze({
     required String photoPath,
     void Function(AnalysisStage stage)? onStage,
+    void Function(String remotePath)? onUploaded,
   });
 
   /// Estima una comida a partir de una descripción escrita. Comparte la cuota

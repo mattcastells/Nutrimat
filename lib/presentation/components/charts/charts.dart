@@ -19,8 +19,6 @@ abstract final class ChartSession {
   static final Set<String> _seen = <String>{};
 
   static bool shouldAnimate(String id) => _seen.add(id);
-
-  static void reset() => _seen.clear();
 }
 
 /// Envoltura común: alternativa textual accesible + tabla de datos
@@ -228,7 +226,12 @@ class WeightChart extends StatelessWidget {
             secondary: movingAverage,
             progress: t,
             lineColor: NmChartColors.weight,
-            trendColor: NmChartColors.trend,
+            // La media móvil sale del tema y no de un color fijo.
+            // `NmChartColors.trend` es #E9E9ED, que es el color de **texto del
+            // tema oscuro**: sobre el fondo blanco del tema claro da 1,06:1 de
+            // contraste, o sea que la línea directamente no se veía. Es lo
+            // mismo que ya hace el anillo de calorías con su track.
+            trendColor: nm.textMuted,
             gridColor: nm.divider,
             labelColor: nm.textMuted,
             labelStyle: NmTextStyles.from(NmType.micro, color: nm.textMuted),
@@ -289,7 +292,9 @@ class CaloriesChart extends StatelessWidget {
             targetLine: days.isEmpty ? null : days.last.target.toDouble(),
             progress: t,
             barColor: NmChartColors.intake,
-            targetColor: NmChartColors.target,
+            // Ídem: #CFD3E5 sobre blanco es 1,35:1 y la línea de objetivo se
+            // perdía entera en tema claro.
+            targetColor: nm.textMuted,
             gridColor: nm.divider,
             labelStyle: NmTextStyles.from(NmType.micro, color: nm.textMuted),
           ),

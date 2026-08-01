@@ -22,11 +22,12 @@ import '../local/local_store.dart';
 ///
 /// ## Cómo convive con el respaldo
 ///
-/// Los dos caminos escriben. El documento sigue siendo la fuente de verdad de
-/// la app y las filas se llenan en paralelo, así que un fallo de este lado no
-/// puede romper nada de lo que ya funcionaba. Cuando las filas estén
-/// verificadas contra el uso real, se da vuelta: mandan las tablas y el
-/// documento queda como respaldo.
+/// Los dos caminos escriben, y **ya se dio vuelta**: mandan las tablas y el
+/// documento es la copia con la que trabaja cada dispositivo. Al entrar y al
+/// volver a la app se traen las filas y se reconcilian contra lo local
+/// (`document_merge.dart`); el respaldo del documento entero al bucket quedó
+/// como red de seguridad, no como fuente. El comentario anterior describía el
+/// paso previo, cuando esto todavía se estaba verificando.
 ///
 /// ## Lo que hay que saber del esquema
 ///
@@ -159,6 +160,9 @@ class RelationalSyncClient {
             'macro_method': g.macroMethod,
             'starts_on': isoDate(g.startsOn),
             'ends_on': g.endsOn == null ? null : isoDate(g.endsOn!),
+            'updated_at': (g.updatedAt ?? DateTime.now())
+                .toUtc()
+                .toIso8601String(),
           },
       ]);
 
@@ -189,6 +193,14 @@ class RelationalSyncClient {
             'unit': m.metric.unit,
             'local_date': isoDate(m.localDate),
             'notes': m.notes,
+            // La lápida viaja: sin esto, borrar una medida la sacaba del
+            // teléfono y la dejaba viva en la tabla, y la reconciliación
+            // siguiente la traía de vuelta. Y `updated_at` es lo que le
+            // permite ganar el desempate a la corrección más reciente.
+            'updated_at': (m.updatedAt ?? DateTime.now())
+                .toUtc()
+                .toIso8601String(),
+            'deleted_at': m.deletedAt?.toUtc().toIso8601String(),
           },
       ]);
 
@@ -212,6 +224,7 @@ class RelationalSyncClient {
             'quality': s.quality.wire,
             'logged_at': s.loggedAt.toUtc().toIso8601String(),
             'notes': s.notes,
+            'deleted_at': s.deletedAt?.toUtc().toIso8601String(),
           },
       ]);
 
@@ -250,25 +263,39 @@ class RelationalSyncClient {
       ]);
 
       // Las comidas antes que sus ítems: `meal_items.meal_id` es FK.
+      //
+      // Las borradas **también suben**, con su lápida. Antes se filtraban con
+      // `if (!m.isDeleted)`, así que un borrado se quedaba en el teléfono: la
+      // fila seguía viva en la tabla, y como las tablas son la fuente de
+      // verdad, la comida volvía entera en un teléfono nuevo o en la web — con
+      // la foto ya purgada del bucket, o sea con `photo_path` roto. De paso,
+      // `purge_soft_deleted` sobre `meals` era un no-op perpetuo: nunca había
+      // una fila con `deleted_at`, así que el servidor se quedaba para siempre
+      // con lo que alguien había pedido borrar.
       await subir('meals', <Map<String, dynamic>>[
         for (final m in store.meals)
-          if (!m.isDeleted)
-            <String, dynamic>{
-              'id': m.id,
-              'user_id': userId,
-              'slot': m.slot.wire,
-              'logged_at': m.loggedAt.toUtc().toIso8601String(),
-              'local_date': isoDate(m.localDate),
-              'name': m.name,
-              'total_kcal': m.totalKcal,
-              'total_protein_g': m.totalProteinG,
-              'total_carbs_g': m.totalCarbsG,
-              'total_fat_g': m.totalFatG,
-              'source': m.source.wire,
-              'photo_path': m.photoPath,
-              'notes': m.notes,
-              'is_favorite': m.isFavorite,
-            },
+          <String, dynamic>{
+            'id': m.id,
+            'user_id': userId,
+            'slot': m.slot.wire,
+            'logged_at': m.loggedAt.toUtc().toIso8601String(),
+            'local_date': isoDate(m.localDate),
+            'name': m.name,
+            'total_kcal': m.totalKcal,
+            'total_protein_g': m.totalProteinG,
+            'total_carbs_g': m.totalCarbsG,
+            'total_fat_g': m.totalFatG,
+            'source': m.source.wire,
+            'photo_path': m.photoPath,
+            'notes': m.notes,
+            'is_favorite': m.isFavorite,
+            // El vínculo con el análisis de IA no viajaba, así que cada vez
+            // que la reconciliación traía una comida de vuelta se perdía sin
+            // que nada lo dijera.
+            'ai_analysis_id': m.aiAnalysisId,
+            'updated_at': m.updatedAt.toUtc().toIso8601String(),
+            'deleted_at': m.deletedAt?.toUtc().toIso8601String(),
+          },
       ]);
 
       await subir('meal_items', <Map<String, dynamic>>[
@@ -300,7 +327,9 @@ class RelationalSyncClient {
       final custom = tipos['custom'];
       final actividades = <Map<String, dynamic>>[];
       for (final a in store.activities) {
-        if (a.isDeleted) continue;
+        // Las borradas suben con su lápida, por lo mismo que las comidas: un
+        // borrado que no llega al servidor no es un borrado, es un borrado en
+        // este teléfono.
         final tipoLocal = store.typeById(a.activityTypeId);
         // Un tipo creado por la persona no existe del lado del servidor: la
         // actividad se apoya en `custom` y el nombre viaja en `custom_name`,
@@ -331,6 +360,8 @@ class RelationalSyncClient {
           'source_type': a.sourceType.wire,
           'notes': a.notes,
           'is_favorite': a.isFavorite,
+          'updated_at': a.updatedAt.toUtc().toIso8601String(),
+          'deleted_at': a.deletedAt?.toUtc().toIso8601String(),
         });
       }
       await subir('activities', actividades);
@@ -393,13 +424,32 @@ class RelationalSyncClient {
           .timeout(timeout);
       if (perfil == null) return null;
 
+      /// Trae una tabla entera, de a páginas.
+      ///
+      /// PostgREST corta en `max_rows` (1000 por omisión) **sin decir nada**:
+      /// no es un error, es un límite, así que una consulta plana devuelve las
+      /// primeras mil filas y parece completa. A cuatro comidas por día con
+      /// tres ítems cada una, `meal_items` cruza esa marca en unos tres meses
+      /// de uso — y desde ahí cada reconciliación reconstruía las comidas con
+      /// ítems faltantes contra una base que es la fuente de verdad.
+      ///
+      /// El orden por `id` es lo que hace que paginar sea correcto: sin un
+      /// orden estable, dos páginas pueden repetir y saltear filas.
       Future<List<Map<String, dynamic>>> traer(String tabla) async {
-        final rows = await _db
-            .from(tabla)
-            .select()
-            .eq('user_id', userId)
-            .timeout(timeout);
-        return rows.cast<Map<String, dynamic>>();
+        const tamano = 500;
+        final todo = <Map<String, dynamic>>[];
+        for (var desde = 0; ; desde += tamano) {
+          final pagina = await _db
+              .from(tabla)
+              .select()
+              .eq('user_id', userId)
+              .order('id')
+              .range(desde, desde + tamano - 1)
+              .timeout(timeout);
+          todo.addAll(pagina.cast<Map<String, dynamic>>());
+          if (pagina.length < tamano) break;
+        }
+        return todo;
       }
 
       final goals = await traer('goals');
@@ -424,12 +474,27 @@ class RelationalSyncClient {
           foods.isNotEmpty;
       if (!hayContenido) return null;
 
+      // Los ítems, de a tandas de comidas.
+      //
+      // Antes se pedían todos de una con un `inFilter` sobre la lista completa
+      // de ids. PostgREST codifica eso como `in.(...)` en el **query string**
+      // de un GET, así que la URL crece con el historial: un año de uso son
+      // ~1.400 uuids, más de 50 kB de URL, bastante por encima de lo que
+      // aceptan los proxies. El pull entero fallaba, `refresh` devolvía false
+      // en silencio y el teléfono dejaba de reconciliar — justo en las cuentas
+      // con más datos, que son las que más lo necesitan.
       final itemsPorComida = <String, List<Map<String, dynamic>>>{};
-      if (meals.isNotEmpty) {
+      const porTanda = 200;
+      final idsDeComidas = meals.map((m) => m['id'] as String).toList();
+      for (var i = 0; i < idsDeComidas.length; i += porTanda) {
+        final tanda = idsDeComidas.sublist(
+          i,
+          i + porTanda > idsDeComidas.length ? idsDeComidas.length : i + porTanda,
+        );
         final items = await _db
             .from('meal_items')
             .select()
-            .inFilter('meal_id', meals.map((m) => m['id'] as String).toList())
+            .inFilter('meal_id', tanda)
             .timeout(timeout);
         for (final item in items) {
           (itemsPorComida[item['meal_id'] as String] ??=
@@ -445,7 +510,19 @@ class RelationalSyncClient {
         for (final e in tipos.entries) e.value: e.key,
       };
 
-      String isoOf(Object? v) => v == null ? '' : v.toString();
+      /// Un `timestamptz` de PostgREST, pasado a la hora local del teléfono.
+      ///
+      /// Vuelven en UTC (`2026-07-31T16:30:00+00:00`) y el documento guarda las
+      /// fechas en hora local y sin desfase, que es lo que escribe la app. Sin
+      /// convertir acá, `DateTime.parse` dejaba un `DateTime` en UTC y las
+      /// pantallas lo formateaban tal cual: **un almuerzo registrado 13:30 se
+      /// mostraba 16:30** en cuanto la reconciliación traía esa comida de
+      /// vuelta. Y `duplicateMeal` copiaba esa hora corrida a la comida nueva.
+      String isoOf(Object? v) {
+        if (v == null) return '';
+        final parsed = DateTime.tryParse(v.toString());
+        return parsed == null ? v.toString() : parsed.toLocal().toIso8601String();
+      }
 
       return <String, dynamic>{
         'schemaVersion': LocalStore.schemaVersion,
@@ -486,6 +563,7 @@ class RelationalSyncClient {
               'macroMethod': g['macro_method'],
               'startsOn': g['starts_on'],
               'endsOn': g['ends_on'],
+              'updatedAt': isoOf(g['updated_at']),
             },
         ],
         'meals': <Map<String, dynamic>>[
@@ -500,9 +578,15 @@ class RelationalSyncClient {
               'photoPath': m['photo_path'],
               'notes': m['notes'],
               'isFavorite': m['is_favorite'],
+              'aiAnalysisId': m['ai_analysis_id'],
               'syncStatus': 'synced',
               'createdAt': isoOf(m['created_at']),
               'updatedAt': isoOf(m['updated_at']),
+              // Sin mapear la lápida, una comida borrada desde otro
+              // dispositivo volvía viva en cada reconciliación.
+              'deletedAt': m['deleted_at'] == null
+                  ? null
+                  : isoOf(m['deleted_at']),
               'items': <Map<String, dynamic>>[
                 for (final i
                     in (itemsPorComida[m['id']] ?? const <Map<String, dynamic>>[]))
@@ -552,6 +636,9 @@ class RelationalSyncClient {
                 'syncStatus': 'synced',
                 'createdAt': isoOf(a['created_at']),
                 'updatedAt': isoOf(a['updated_at']),
+                'deletedAt': a['deleted_at'] == null
+                    ? null
+                    : isoOf(a['deleted_at']),
               },
         ],
         'weightLogs': <Map<String, dynamic>>[
@@ -577,6 +664,10 @@ class RelationalSyncClient {
               'value': m['value'],
               'localDate': m['local_date'],
               'notes': m['notes'],
+              'updatedAt': isoOf(m['updated_at']),
+              'deletedAt': m['deleted_at'] == null
+                  ? null
+                  : isoOf(m['deleted_at']),
             },
         ],
         'waterLogs': <Map<String, dynamic>>[
@@ -599,6 +690,9 @@ class RelationalSyncClient {
               'loggedAt': isoOf(s['logged_at']),
               'notes': s['notes'],
               'syncStatus': 'synced',
+              'deletedAt': s['deleted_at'] == null
+                  ? null
+                  : isoOf(s['deleted_at']),
             },
         ],
         'activityGoals': <Map<String, dynamic>>[

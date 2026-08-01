@@ -654,8 +654,8 @@ class PrivacyScreen extends ConsumerWidget {
                 const SizedBox(height: NmSpace.s2),
                 Text(
                   'Se borran el perfil, las comidas, las actividades, los '
-                  'pesos, las medidas, las fotos y las integraciones. Es '
-                  'irreversible tras 7 días de gracia.',
+                  'pesos, las medidas, las fotos y los respaldos, del teléfono '
+                  'y del servidor. Es inmediato y no se puede deshacer.',
                   style: NmTextStyles.from(
                     NmType.caption,
                     color: nm.textMuted,
@@ -802,6 +802,7 @@ class DeleteAccountScreen extends ConsumerStatefulWidget {
 class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   final TextEditingController _confirm = TextEditingController();
   int _step = 1;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -809,9 +810,36 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     super.dispose();
   }
 
+  /// Borra primero del servidor y **recién después** limpia el teléfono.
+  ///
+  /// El orden no es cosmético. Al revés —o como estaba antes, que era solo
+  /// `signOut` y nada más—, la persona se queda sin sus datos locales y con la
+  /// cuenta viva en el servidor: lo peor de los dos mundos. Si el borrado falla
+  /// no se toca nada y se dice qué pasó.
+  Future<void> _delete() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(authGatewayProvider).deleteAccount();
+      await ref.read(repositoryProvider).signOut();
+      if (!mounted) return;
+      context.go(Routes.welcome);
+    } on AppError catch (error) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      NmSnackbar.show(context, error.message);
+    } on Object {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      NmSnackbar.show(
+        context,
+        'No pudimos borrar la cuenta. Probá de nuevo en un rato.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(repositoryProvider);
     final canDelete = _confirm.text.trim().toUpperCase() == 'ELIMINAR';
 
     return NmScreen(
@@ -859,14 +887,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               label: 'Eliminar definitivamente',
               variant: NmButtonVariant.danger,
               block: true,
-              onPressed: canDelete
-                  ? () async {
-                      await ref.read(authGatewayProvider).signOut();
-                      await repo.signOut();
-                      if (!context.mounted) return;
-                      context.go(Routes.welcome);
-                    }
-                  : null,
+              loading: _busy,
+              onPressed: canDelete ? _delete : null,
             ),
           ],
         ],

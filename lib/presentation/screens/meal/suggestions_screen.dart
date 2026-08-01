@@ -106,6 +106,23 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
         _error = error;
         _loading = false;
       });
+    } on Object catch (error) {
+      // `on AppError` solo no alcanza y ya nos costó una vez: un `TypeError`
+      // **no es una `Exception`**, así que una respuesta con forma inesperada
+      // se escapaba de todos los catch y dejaba `_loading` en true para
+      // siempre. En pantalla: "Buscando opciones que entren…" girando sin
+      // error, y sin el botón de refrescar, que solo se dibuja cuando no está
+      // cargando.
+      if (!mounted) return;
+      setState(() {
+        _error = AppError(
+          code: ApiErrorCode.server,
+          message:
+              'No pudimos leer las sugerencias. Probá de nuevo en un rato.',
+          requestId: error.toString(),
+        );
+        _loading = false;
+      });
     }
   }
 

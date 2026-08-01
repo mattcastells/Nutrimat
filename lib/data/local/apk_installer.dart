@@ -69,7 +69,21 @@ class AndroidApkInstaller implements ApkInstaller {
     final file = File('${dir.path}${Platform.pathSeparator}$fileName');
 
     try {
-      // Un intento anterior pudo dejar un archivo a medias.
+      // Los APK de versiones anteriores también se van.
+      //
+      // Antes solo se borraba el archivo del **mismo nombre**, así que cada
+      // actualización dejaba el suyo: `nutrimat-1.9.0.apk`,
+      // `nutrimat-1.10.0.apk`… a 75 MB cada uno, en el directorio de soporte,
+      // que Android no limpia solo. Tres actualizaciones eran un cuarto de giga
+      // ocupado por instaladores que ya se usaron.
+      await for (final entry in dir.list()) {
+        if (entry is! File) continue;
+        final name = entry.path.split(Platform.pathSeparator).last;
+        if (name.startsWith('nutrimat-') && name.endsWith('.apk')) {
+          await entry.delete();
+        }
+      }
+      // Y el que se va a escribir, por si no matcheaba el patrón de arriba.
       if (await file.exists()) await file.delete();
     } on FileSystemException {
       throw const AppError(

@@ -46,9 +46,10 @@ visible. Las que ya existen conservan el que tengan —reescribirlas a ciegas le
 borraría el nombre a quien sí lo puso—, y se cambian desde Perfil → tocar el
 nombre.
 
-**⚠️ Falta aplicar la migración `20260801002600_enum_constraints_al_dia`.** Es lo
-primero de todo: hasta que se aplique, la base sigue rechazando lo que la app
-manda.
+**La base rechazaba lo que la app manda. Ya está arreglado del lado del
+servidor** (migración `20260801002600_enum_constraints_al_dia`, aplicada y
+verificada: los cinco valores que antes rechazaba ahora entran, probados con
+`insert` + `rollback` contra el proyecto real).
 
 Cuatro restricciones de valores fijos se habían quedado atrás de sus enums y
 rechazaban cada fila. No se notó porque el síntoma no se parece a la causa:
@@ -67,6 +68,26 @@ teléfonos tenían meses de comidas.
 
 **No se perdió nada**: está todo en los teléfonos y sube con el próximo registro
 de cada persona. Para verificar, `docs/verificar-sincronizacion.md`.
+
+Los conteos al momento de aplicar la migración, en el orden del push:
+
+```
+     6   profiles          1   water_logs        0   meals
+     2   goals             1   sleep_logs        0   meal_items
+     1   weight_logs       0   activity_goals    0   activities
+     0   body_measurements 0   foods
+```
+
+**Ojo con leer de más en esos ceros.** `subir` sale temprano cuando la lista está
+vacía, así que un 0 puede ser "falló" o "esa persona no cargó nada de eso" — y
+que `water_logs` y `sleep_logs` tengan filas con `body_measurements` en 0 muestra
+justamente eso: para esos usuarios las medidas estaban vacías, no fallando. Cada
+teléfono empuja por su cuenta y rompe en el punto que le toca según lo que tenga
+cargado. Lo único que estos números prueban sin ambigüedad es que **de `meals`
+para abajo no hay una sola fila**, con seis perfiles y meses de uso.
+
+Lo que falta para cerrarlo del todo: que un teléfono con la 1.11.0 registre algo
+y los conteos dejen de dar 0. Eso no se puede verificar desde acá.
 
 Lo que impide que vuelva a pasar es `test/data/enum_constraints_test.dart`, que
 compara cada enum de Dart contra cada `check` de las migraciones y falla si se
@@ -192,7 +213,7 @@ Proyecto `ifincvqdsotorvmwzpos`, región **sa-east-1**, Postgres 17.6.
 
 | | |
 | --- | --- |
-| Migraciones | 26 aplicadas + **1 sin aplicar** (`20260801002600_enum_constraints_al_dia`) |
+| Migraciones | 27 de 27 aplicadas |
 | Tablas | 26, **todas con RLS** — se sumó `rate_limits` (migración 24) |
 | Políticas | 83, más 5 de Storage |
 | Buckets | 4 (3 de fotos + `backups`), privados, con política por prefijo |

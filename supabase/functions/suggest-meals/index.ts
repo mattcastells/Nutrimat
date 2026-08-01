@@ -41,8 +41,31 @@ const MIN_BUDGET = 150;
 /** Un presupuesto más grande que esto es el día entero, no una comida. */
 const MAX_BUDGET = 3000;
 
-/** Cuánto del presupuesto tiene que usar una opción para valer la pena. */
-const MIN_USE = 0.45;
+/**
+ * Cuánto del presupuesto tiene que usar una opción para valer la pena.
+ *
+ * Bajo a propósito. El prompt pide entre 70 % y 95 %, así que esto no está para
+ * afinar la respuesta sino para descartar el absurdo —una "opción" de 60 kcal
+ * cuando quedan 600—. Cada filtro de más es una forma de que la pantalla quede
+ * vacía, y una feature que siempre dice "esta vez no salió nada" es una feature
+ * que no existe.
+ */
+const MIN_USE = 0.3;
+
+/**
+ * Cuánto puede desviarse un ingrediente de Atwater (4/4/9) antes de descartar
+ * la opción.
+ *
+ * 25 % y no el 15 % del resto del proyecto. La validación que ya corre en
+ * producción —la de las dos estimaciones— **no** chequea Atwater por ítem: solo
+ * rangos. Poner acá una regla más dura que la que está probada contra el modelo
+ * real es la forma más fácil de que esta pantalla no muestre nunca nada.
+ *
+ * 25 % deja pasar lo que legítimamente se desvía —una ensalada con aceite, algo
+ * con fibra, el redondeo de una porción— y sigue atrapando lo que importa: un
+ * ingrediente cuyos macros no tienen nada que ver con sus calorías.
+ */
+const ATWATER_TOLERANCE = 0.25;
 
 const UNITS = ['g', 'ml', 'unidad', 'taza', 'cucharada', 'rebanada', 'porcion'];
 
@@ -185,7 +208,10 @@ function validateSuggestions(raw: unknown, budget: number): Suggestion[] | null 
 
       // (3) Atwater por ingrediente.
       const atwater = iProtein * 4 + iCarbs * 4 + iFat * 9;
-      if (iKcal > 0 && Math.abs(atwater - iKcal) > Math.max(iKcal * 0.15, 25)) {
+      if (
+        iKcal > 0 &&
+        Math.abs(atwater - iKcal) > Math.max(iKcal * ATWATER_TOLERANCE, 30)
+      ) {
         itemInvalido = true;
         break;
       }

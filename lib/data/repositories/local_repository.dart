@@ -251,6 +251,57 @@ class LocalRepository
         ':${isoDate(date)}:$extra',
       );
 
+  /// Repara lo que quedó mal guardado antes de los arreglos de la 1.14.2.
+  ///
+  /// Prevenir no alcanzaba: las filas rotas ya estaban en el teléfono, y una
+  /// tabla que el servidor rechaza no sube **ninguna** de sus filas, así que
+  /// una sola fila vieja dejaba fuera a todas las nuevas. Esto es la otra
+  /// mitad del arreglo.
+  ///
+  /// Dos cosas, las dos idempotentes —correrlo mil veces deja lo mismo que una,
+  /// así que no necesita bandera de "ya se hizo":
+  ///
+  /// 1. **Objetivos con las fechas al revés** (`ends_on < starts_on`). Se
+  ///    descartan: no gobernaron ni un día, así que no son historial. Es la
+  ///    misma decisión que toma `saveGoal`.
+  /// 2. **Ids de agua derivados del literal `'local'`**, que colisionaban entre
+  ///    cuentas. Se regeneran con la identidad de esta instalación. Solo se
+  ///    tocan los que **no** coinciden con el id esperado, así que lo que ya
+  ///    estaba bien se queda como está.
+  ///
+  /// El agua es la única colección que se re-identifica porque es la única que
+  /// falló: peso, sueño y medidas conservan el id de la fila existente y los
+  /// suyos nunca chocaron. Cambiarles el id sin necesidad crearía filas
+  /// huérfanas en el servidor a cambio de nada.
+  Future<void> repararRegistrosViejos() async {
+    final objetivos = store.goals
+        .where((g) => g.endsOn == null || !g.endsOn!.isBefore(g.startsOn))
+        .toList();
+
+    final agua = <WaterLog>[
+      for (final w in store.waterLogs)
+        if (w.id == _dailyId('water', w.localDate))
+          w
+        else
+          WaterLog(
+            id: _dailyId('water', w.localDate),
+            localDate: w.localDate,
+            glasses: w.glasses,
+            updatedAt: w.updatedAt,
+            syncStatus: SyncStatus.pending,
+          ),
+    ];
+
+    final cambio =
+        objetivos.length != store.goals.length ||
+        agua.indexed.any((e) => e.$2.id != store.waterLogs[e.$1].id);
+    if (!cambio) return;
+
+    store.goals = objetivos;
+    store.waterLogs = agua;
+    await _commit();
+  }
+
   @override
   Future<void> signIn(String email, {String? accountId}) async {
     final base = store.profile ?? UserProfile.empty(_uuid.v4());

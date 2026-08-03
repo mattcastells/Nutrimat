@@ -154,6 +154,12 @@ Future<void> bootstrap() async {
     },
   );
 
+  // Antes de que nada intente subir: una fila vieja que el servidor rechaza
+  // deja fuera a **todas** las de su tabla, así que sanear tiene que pasar
+  // antes del primer push y no después. Es idempotente y sale enseguida si no
+  // hay nada que corregir.
+  await repository.repararRegistrosViejos();
+
   // Sale del mismo cálculo del día que muestra Inicio, así que el widget no
   // puede decir un número distinto del de la app.
   const widgetPublisher = HomeWidgetPublisher();

@@ -36,12 +36,28 @@ dice: donde no hay permiso muestra "no está compartido" y no un vacío.
 ## Correrlo
 
 ```bash
+cd backoffice
 npm install
-cp .env.local.example .env.local   # completá los dos valores
 npm run dev
 ```
 
-Los dos valores salen del dashboard de Supabase → Settings → API Keys:
+Y abrís **http://localhost:3000**.
+
+### La primera vez: el `.env.local`
+
+Hacen falta dos variables. Son **las mismas dos que ya usa la app** en
+`env/local.json`, así que en vez de copiarlas a mano conviene generarlas desde
+ahí — un valor tipeado mal da un error de login que no dice que el problema es
+la clave:
+
+```bash
+# desde backoffice/
+URL=$(node -p "require('../env/local.json').SUPABASE_URL")
+KEY=$(node -p "require('../env/local.json').SUPABASE_PUBLISHABLE_KEY")
+printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$URL" "$KEY" > .env.local
+```
+
+Si no tenés `env/local.json`, salen del dashboard → Settings → API Keys:
 
 | Variable | Qué va |
 | --- | --- |
@@ -49,11 +65,27 @@ Los dos valores salen del dashboard de Supabase → Settings → API Keys:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | La publishable key (`sb_publishable_…`) |
 
 Las dos son públicas por diseño: viajan al navegador igual que en la app.
+`.env.local` está en `.gitignore`.
+
+### Antes de subir un cambio
 
 ```bash
 npm run typecheck
 npm run build
 ```
+
+### Si entrás y no ves ningún paciente
+
+Es lo esperado hasta que alguien te dé acceso. El circuito completo es:
+
+1. Entrás al panel → arriba aparece tu código `NT-XXXXXX`
+2. El paciente lo carga en la app: **Perfil → Mi nutricionista → Dar acceso con
+   un código**
+3. Recargás el panel
+
+Si la cuenta es nueva y **no puede entrar**, fijate que esté confirmada:
+Authentication → Users. Una cuenta creada desde el dashboard nace confirmada;
+una creada por la API queda esperando el mail de verificación.
 
 ## Desplegarlo en Vercel
 

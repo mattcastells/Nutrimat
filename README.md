@@ -66,6 +66,27 @@ makes it. `flutter emulators` lists what's available and `adb devices` shows
 whether it finished booting (`device`, not `offline`). Once `flutter run` is
 attached, `r` hot-reloads, `R` restarts, and `q` quits.
 
+## The professional panel
+
+A separate web app, in [`backoffice/`](./backoffice/), for a nutritionist to
+follow someone's day-to-day. It reads only what the user granted, per category
+and revocably, and it is read-only.
+
+```bash
+cd backoffice
+npm install
+npm run dev          # http://localhost:3000
+```
+
+The first run needs a `.env.local` — see
+[`backoffice/README.md`](./backoffice/README.md), which also explains how the
+access is granted and what to check when the list of patients comes up empty.
+
+What protects the data is not that app: it enters with the publishable key and
+the viewer's own session, and Postgres decides what comes back
+(`supabase/migrations/20260803000100_care_access.sql`, verified by
+`supabase/tests/care_access_test.sql` in CI).
+
 ## Legal
 
 [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md) · [`TERMS_OF_SERVICE.md`](./TERMS_OF_SERVICE.md)

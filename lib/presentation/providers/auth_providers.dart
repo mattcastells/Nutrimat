@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/supabase_config.dart';
+import '../../data/remote/care_client.dart';
 import '../../data/remote/pals_client.dart';
+import '../../domain/models/care_grant.dart';
 import '../../domain/models/pal.dart';
 import '../../domain/repositories/auth_gateway.dart';
 import '../../domain/services/cloud_backup_service.dart';
@@ -88,6 +90,23 @@ final photoSyncProvider = Provider<PhotoSyncService?>((ref) => null);
 
 /// Vínculos con pals y sus días. Null sin servidor: la función no existe.
 final palsClientProvider = Provider<PalsClient?>((ref) => null);
+
+/// Permisos dados a profesionales. Null sin servidor: sin cuenta los datos no
+/// salieron del teléfono, así que no hay nada que conceder.
+final careClientProvider = Provider<CareClient?>((ref) => null);
+
+/// Los permisos vigentes, recargables tras conceder o revocar.
+///
+/// `autoDispose` por lo mismo que `palsProvider`: sin eso la lista se consulta
+/// una sola vez por sesión de app y revocar desde otro lado no se vería nunca
+/// hasta reiniciar.
+final careGrantsProvider = FutureProvider.autoDispose<List<CareGrant>>((
+  ref,
+) async {
+  final client = ref.watch(careClientProvider);
+  if (client == null) return <CareGrant>[];
+  return client.list();
+});
 
 /// Los vínculos, recargables tras aceptar o quitar uno.
 ///

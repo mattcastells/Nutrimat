@@ -13,7 +13,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(21);
+select plan(23);
 
 -- ── Ana (paciente), Nutri (profesional) y Otra (una desconocida) ─────────
 insert into auth.users (
@@ -209,19 +209,28 @@ select columns_are(
 -- ── Solo lectura ─────────────────────────────────────────────────────────
 -- No hay una sola política de escritura para la profesional. Si mañana el
 -- backoffice tuviera un bug que intenta corregir una comida, la base lo frena.
-select throws_ok(
-  $q$update public.meals set total_kcal = 100
-      where id = 'dddddddd-0000-0000-0000-000000000001'$q$,
-  '42501',
-  null,
-  'Ver no es editar: no puede tocar la comida de Ana'
+--
+-- Se verifica el efecto y no una excepción: un UPDATE o un DELETE que RLS
+-- filtra **no lanza**, simplemente no alcanza ninguna fila. Esperar un error
+-- daría verde por el motivo equivocado el día que la policy se rompa y la
+-- escritura sí pase.
+update public.meals set total_kcal = 100
+ where id = 'dddddddd-0000-0000-0000-000000000001';
+
+select is(
+  (select total_kcal from public.meals
+    where id = 'dddddddd-0000-0000-0000-000000000001'),
+  508,
+  'Ver no es editar: la comida de Ana queda como estaba'
 );
 
-select throws_ok(
-  $q$delete from public.meals
-      where id = 'dddddddd-0000-0000-0000-000000000001'$q$,
-  '42501',
-  null,
+delete from public.meals
+ where id = 'dddddddd-0000-0000-0000-000000000001';
+
+select is(
+  (select count(*)::int from public.meals
+    where id = 'dddddddd-0000-0000-0000-000000000001'),
+  1,
   'Ni borrarla'
 );
 

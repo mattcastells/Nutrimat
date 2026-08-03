@@ -22,6 +22,7 @@ import '../../presentation/screens/pals/pal_sharing_screen.dart';
 import '../../presentation/screens/pals/pals_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
+import '../../presentation/screens/profile/care_access_screen.dart';
 import '../../presentation/screens/profile/goal_picker_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
@@ -214,6 +215,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.profileFoods,
         builder: (context, state) => const MyItemsScreen(),
+      ),
+      GoRoute(
+        path: Routes.profileCare,
+        builder: (context, state) => const CareAccessScreen(),
       ),
       GoRoute(
         path: Routes.settings,

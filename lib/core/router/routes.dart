@@ -50,6 +50,9 @@ abstract final class Routes {
   // mantener andando. Se llega por `profileFoods` y se toca la solapa.
   static const String profileFoods = '/profile/foods';
 
+  /// A quién le diste acceso a tu seguimiento, y qué ve.
+  static const String profileCare = '/profile/care';
+
   static const String settings = '/settings';
   static const String exerciseCredit = '/settings/exercise-credit';
   static const String units = '/settings/units';

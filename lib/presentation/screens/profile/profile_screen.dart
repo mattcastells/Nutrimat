@@ -216,6 +216,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
+                  title: 'Mi nutricionista',
+                  subtitle: 'Darle acceso a tu seguimiento, y cortarlo',
+                  leading: Icon(PhosphorIcons.stethoscope()),
+                  onTap: () => context.push(Routes.profileCare),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
                   title: 'Qué ven mis pals',
                   subtitle: palRequests > 0
                       ? '$palRequests ${palRequests == 1 ? 'solicitud' : 'solicitudes'} sin responder'

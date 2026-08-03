@@ -5,14 +5,19 @@ import {
   fetchActivities,
   fetchGoal,
   fetchMeals,
+  fetchMeasurements,
+  fetchSleep,
   fetchWater,
   fetchWeights,
   signPhotos,
-  SLOT_LABEL,
+  METRIC_LABEL,
   type Meal,
 } from '@/lib/queries';
 import { WeightChart } from '@/components/weight-chart';
 import { CaloriesChart } from '@/components/calories-chart';
+import { BarChart, type Point } from '@/components/bar-chart';
+import { DayCard, horas } from '@/components/day-card';
+import { Stat, StatRow, Section } from '@/components/stat';
 import { RangePicker } from '@/components/range-picker';
 
 export const dynamic = 'force-dynamic';
@@ -32,23 +37,25 @@ export default async function PatientPage({
 
   const supabase = await serverClient();
 
-  // La ficha sale de `care_patients`, que ya filtra por permiso vigente. Si no
-  // hay fila, no hay acceso: no se distingue de "no existe" a propósito, porque
-  // decir "existe pero no podés verlo" ya cuenta algo sobre esa persona.
+  // La ficha sale de `care_patients`, que ya filtra por permiso vigente. Sin
+  // fila no hay acceso, y no se distingue de "no existe" a propósito: decir
+  // "existe pero no podés verlo" ya cuenta algo sobre esa persona.
   const { data: row } = await supabase
     .from('care_patients')
     .select(
-      'patient_id, patient_name, share_meals, share_photos, share_body, ' +
-        'share_wellbeing',
+      'patient_id, patient_name, birth_date, height_cm, share_meals, ' +
+        'share_photos, share_body, share_wellbeing',
     )
     .eq('patient_id', id)
     .maybeSingle();
 
   if (!row) notFound();
 
-  const patient = row as unknown as {
+  const p = row as unknown as {
     patient_id: string;
     patient_name: string | null;
+    birth_date: string | null;
+    height_cm: number | null;
     share_meals: boolean;
     share_photos: boolean;
     share_body: boolean;
@@ -58,28 +65,80 @@ export default async function PatientPage({
   const to = hoy();
   const from = hace(days);
 
-  const [meals, weights, water, activities, goal] = await Promise.all([
-    patient.share_meals ? fetchMeals(supabase, id, from, to) : [],
-    patient.share_body ? fetchWeights(supabase, id, from, to) : [],
-    patient.share_wellbeing ? fetchWater(supabase, id, from, to) : [],
-    patient.share_wellbeing ? fetchActivities(supabase, id, from, to) : [],
-    patient.share_meals ? fetchGoal(supabase, id) : null,
-  ]);
+  const [meals, weights, water, activities, sleep, measurements, goal] =
+    await Promise.all([
+      p.share_meals ? fetchMeals(supabase, id, from, to) : [],
+      p.share_body ? fetchWeights(supabase, id, from, to) : [],
+      p.share_wellbeing ? fetchWater(supabase, id, from, to) : [],
+      p.share_wellbeing ? fetchActivities(supabase, id, from, to) : [],
+      p.share_wellbeing ? fetchSleep(supabase, id, from, to) : [],
+      p.share_body ? fetchMeasurements(supabase, id, from, to) : [],
+      p.share_meals ? fetchGoal(supabase, id) : null,
+    ]);
 
-  const photoUrls = patient.share_photos
+  const photoUrls = p.share_photos
     ? await signPhotos(
         supabase,
-        meals.map((m) => m.photo_path).filter((p): p is string => !!p),
+        meals.map((m) => m.photo_path).filter((x): x is string => !!x),
       )
     : {};
 
-  const porDia = agruparPorDia(meals);
-  const kcalPorDia = [...porDia.entries()]
-    .map(([date, ms]) => ({
-      date,
-      kcal: ms.reduce((a, m) => a + m.total_kcal, 0),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const target = goal?.base_calorie_target ?? null;
+
+  // Se recorren los días del período y no solo los que tienen algo: un hueco
+  // es información —"no registró"— y una lista que salta del 3 al 7 lo esconde.
+  const fechas = rango(from, to);
+  const porDia = new Map<string, Meal[]>();
+  for (const m of meals) {
+    porDia.set(m.local_date, [...(porDia.get(m.local_date) ?? []), m]);
+  }
+
+  const kcalPorDia: Point[] = fechas
+    .filter((d) => porDia.has(d))
+    .map((d) => ({
+      date: d,
+      value: (porDia.get(d) ?? []).reduce((a, m) => a + m.total_kcal, 0),
+    }));
+
+  const diasConComida = kcalPorDia.length;
+  const promedioKcal = diasConComida
+    ? Math.round(kcalPorDia.reduce((a, x) => a + x.value, 0) / diasConComida)
+    : 0;
+  const dentro =
+    target && diasConComida
+      ? kcalPorDia.filter((x) => x.value <= target).length
+      : 0;
+
+  const proteinaPorDia: Point[] = kcalPorDia.map((x) => ({
+    date: x.date,
+    value: (porDia.get(x.date) ?? []).reduce(
+      (a, m) => a + Number(m.total_protein_g),
+      0,
+    ),
+  }));
+
+  const aguaPorDia: Point[] = water.map((w) => ({
+    date: w.local_date,
+    value: w.glasses,
+  }));
+  const suenoPorDia: Point[] = sleep.map((s) => ({
+    date: s.local_date,
+    value: s.minutes / 60,
+  }));
+  const actPorDia = agrupar(
+    activities.map((a) => ({ date: a.local_date, value: a.duration_minutes })),
+  );
+
+  const deltaPeso =
+    weights.length >= 2
+      ? Number(weights[weights.length - 1].weight_kg) -
+        Number(weights[0].weight_kg)
+      : null;
+
+  const porMetrica = new Map<string, { local_date: string; value: number; unit: string }[]>();
+  for (const m of measurements) {
+    porMetrica.set(m.metric, [...(porMetrica.get(m.metric) ?? []), m]);
+  }
 
   return (
     <main className="page">
@@ -91,204 +150,324 @@ export default async function PatientPage({
         className="row"
         style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}
       >
-        <h1>{patient.patient_name || 'Sin nombre'}</h1>
+        <div>
+          <h1>{p.patient_name || 'Sin nombre'}</h1>
+          <p className="caption">
+            {[
+              p.birth_date ? `${edad(p.birth_date)} años` : null,
+              p.height_cm ? `${Math.round(p.height_cm)} cm` : null,
+              goal?.goal_type ? OBJETIVO[goal.goal_type] : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
         <RangePicker current={String(days)} />
       </div>
 
-      {/* ── Calorías ─────────────────────────────────────────────────── */}
-      <div className="section-header">Calorías por día</div>
-      {patient.share_meals ? (
-        <div className="card">
-          <CaloriesChart days={kcalPorDia} target={goal?.target_kcal ?? null} />
-        </div>
+      {/* ── Resumen ──────────────────────────────────────────────────── */}
+      <Section
+        title="Resumen del período"
+        hint={`Últimos ${days} días · del ${corto(from)} al ${corto(to)}`}
+      >
+        <StatRow>
+          {p.share_meals && (
+            <>
+              <Stat
+                label="Promedio diario"
+                value={promedioKcal ? String(promedioKcal) : '—'}
+                unit="kcal"
+                caption={target ? `objetivo ${target}` : 'sin objetivo cargado'}
+              />
+              <Stat
+                label="Días con comidas"
+                value={`${diasConComida}`}
+                unit={`de ${days}`}
+                caption={
+                  diasConComida < days
+                    ? `${days - diasConComida} sin registrar`
+                    : 'completo'
+                }
+              />
+              {target !== null && target > 0 && (
+                <Stat
+                  label="Días dentro del objetivo"
+                  value={`${dentro}`}
+                  unit={`de ${diasConComida}`}
+                />
+              )}
+            </>
+          )}
+          {p.share_body && (
+            <Stat
+              label="Variación de peso"
+              value={
+                deltaPeso === null
+                  ? '—'
+                  : `${deltaPeso > 0 ? '+' : ''}${deltaPeso.toFixed(1)}`
+              }
+              unit="kg"
+              caption={
+                weights.length
+                  ? `último ${Number(weights[weights.length - 1].weight_kg).toFixed(1)} kg`
+                  : 'sin registros'
+              }
+            />
+          )}
+          {p.share_wellbeing && (
+            <>
+              <Stat
+                label="Actividad"
+                value={`${activities.reduce((a, x) => a + x.duration_minutes, 0)}`}
+                unit="min"
+                caption={`${activities.length} ${activities.length === 1 ? 'sesión' : 'sesiones'}`}
+              />
+              <Stat
+                label="Sueño promedio"
+                value={
+                  sleep.length
+                    ? horas(
+                        Math.round(
+                          sleep.reduce((a, s) => a + s.minutes, 0) / sleep.length,
+                        ),
+                      )
+                    : '—'
+                }
+              />
+              <Stat
+                label="Agua promedio"
+                value={
+                  water.length
+                    ? (
+                        water.reduce((a, w) => a + w.glasses, 0) / water.length
+                      ).toFixed(1)
+                    : '—'
+                }
+                unit="vasos"
+              />
+            </>
+          )}
+        </StatRow>
+      </Section>
+
+      {/* ── Comidas ──────────────────────────────────────────────────── */}
+      {p.share_meals ? (
+        <>
+          <Section
+            title="Calorías por día"
+            hint="La línea punteada es el objetivo del día."
+          >
+            <div className="card">
+              <CaloriesChart
+                days={kcalPorDia.map((x) => ({ date: x.date, kcal: x.value }))}
+                target={target}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Proteínas por día"
+            hint="Es el macro que más cambia qué conviene ajustar."
+          >
+            <div className="card">
+              <BarChart
+                points={proteinaPorDia}
+                unit="g"
+                color="var(--chart-protein)"
+                target={goal?.protein_g ?? null}
+              />
+            </div>
+          </Section>
+        </>
       ) : (
         <NoCompartido que="Las comidas" />
       )}
 
-      {/* ── Peso ─────────────────────────────────────────────────────── */}
-      <div className="section-header">Peso</div>
-      {patient.share_body ? (
-        <div className="card">
-          <WeightChart logs={weights} />
-        </div>
+      {/* ── Cuerpo ───────────────────────────────────────────────────── */}
+      {p.share_body ? (
+        <>
+          <Section
+            title="Peso"
+            hint="Los puntos son cada pesaje; la línea es la media móvil de 7 días, que es la que muestra la tendencia."
+          >
+            <div className="card">
+              <WeightChart logs={weights} />
+            </div>
+          </Section>
+
+          {porMetrica.size > 0 && (
+            <Section
+              title="Medidas corporales"
+              hint="Perímetros y bioimpedancia. La bioimpedancia es una estimación indirecta: cambia con la hidratación y la hora del día."
+            >
+              <div className="grid">
+                {[...porMetrica.entries()].map(([metric, serie]) => (
+                  <div className="card" key={metric}>
+                    <h3>{METRIC_LABEL[metric] ?? metric}</h3>
+                    <div style={{ marginTop: 'var(--s3)' }}>
+                      <BarChart
+                        points={serie.map((s) => ({
+                          date: s.local_date,
+                          value: Number(s.value),
+                        }))}
+                        unit={serie[0].unit === 'pct' ? '%' : 'cm'}
+                        color="var(--chart-weight)"
+                        height={120}
+                        format={(v) => v.toFixed(1)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+        </>
       ) : (
         <NoCompartido que="El peso y las medidas" />
       )}
 
-      {/* ── Día a día ────────────────────────────────────────────────── */}
-      <div className="section-header">Día a día</div>
-      {!patient.share_meals && <NoCompartido que="Las comidas" />}
-
-      {patient.share_meals && porDia.size === 0 && (
-        <div className="card">
-          <p className="muted">Sin comidas cargadas en este período.</p>
-        </div>
+      {/* ── Hábitos ──────────────────────────────────────────────────── */}
+      {p.share_wellbeing ? (
+        <Section
+          title="Actividad, agua y sueño"
+          hint="Las calorías del ejercicio son una estimación por MET, no una medición."
+        >
+          <div className="grid">
+            <div className="card">
+              <h3>Minutos de actividad</h3>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <BarChart
+                  points={actPorDia}
+                  unit="min"
+                  color="var(--chart-walking, var(--accent))"
+                  height={130}
+                />
+              </div>
+            </div>
+            <div className="card">
+              <h3>Agua</h3>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <BarChart
+                  points={aguaPorDia}
+                  unit="vasos"
+                  color="var(--info)"
+                  height={130}
+                />
+              </div>
+            </div>
+            <div className="card">
+              <h3>Sueño</h3>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <BarChart
+                  points={suenoPorDia}
+                  unit="h"
+                  color="var(--chart-weight)"
+                  height={130}
+                  format={(v) => v.toFixed(1)}
+                />
+              </div>
+            </div>
+          </div>
+        </Section>
+      ) : (
+        <NoCompartido que="La actividad, el agua y el sueño" />
       )}
 
-      {patient.share_meals &&
-        [...porDia.entries()]
-          .sort((a, b) => b[0].localeCompare(a[0]))
-          .map(([date, ms]) => {
-            const total = ms.reduce((a, m) => a + m.total_kcal, 0);
-            const agua = water.find((w) => w.local_date === date);
-            const act = activities.filter((a) => a.local_date === date);
+      {/* ── Día a día ────────────────────────────────────────────────── */}
+      <Section
+        title="Día a día"
+        hint="Cada día con sus comidas por momento, los ítems de cada una y lo que se registró alrededor."
+      >
+        {!p.share_meals && !p.share_wellbeing && (
+          <div className="card">
+            <p className="muted">Nada compartido para mostrar acá.</p>
+          </div>
+        )}
 
-            return (
-              <div key={date} className="card" style={{ marginBottom: 'var(--s4)' }}>
-                <div
-                  className="row"
-                  style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}
-                >
-                  <h3>{fechaLarga(date)}</h3>
-                  <span className="tnum">
-                    {total} kcal
-                    {goal?.target_kcal ? (
-                      <span className="muted"> de {goal.target_kcal}</span>
-                    ) : null}
-                  </span>
-                </div>
+        {(p.share_meals || p.share_wellbeing) &&
+          [...fechas]
+            .reverse()
+            .filter(
+              (d) =>
+                porDia.has(d) ||
+                activities.some((a) => a.local_date === d) ||
+                water.some((w) => w.local_date === d) ||
+                sleep.some((s) => s.local_date === d),
+            )
+            .map((d) => (
+              <DayCard
+                key={d}
+                date={d}
+                meals={porDia.get(d) ?? []}
+                activities={activities.filter((a) => a.local_date === d)}
+                water={water.find((w) => w.local_date === d)}
+                sleep={sleep.find((s) => s.local_date === d)}
+                targetKcal={target}
+                photoUrls={photoUrls}
+                sharePhotos={p.share_photos}
+                shareWellbeing={p.share_wellbeing}
+              />
+            ))}
 
-                {ms.map((m) => (
-                  <div key={m.id} style={{ marginTop: 'var(--s4)' }}>
-                    <hr className="divider" />
-                    <div
-                      className="row"
-                      style={{
-                        justifyContent: 'space-between',
-                        marginTop: 'var(--s3)',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div>
-                        <strong>{SLOT_LABEL[m.slot] ?? m.slot}</strong>
-                        {m.name ? <span className="muted"> · {m.name}</span> : null}
-                        {esIA(m) && (
-                          <span className="tag tag--ai" style={{ marginLeft: 8 }}>
-                            Estimado por IA
-                          </span>
-                        )}
-                      </div>
-                      <span className="tnum">{m.total_kcal} kcal</span>
-                    </div>
+        {(p.share_meals || p.share_wellbeing) &&
+          fechas.every(
+            (d) =>
+              !porDia.has(d) &&
+              !activities.some((a) => a.local_date === d) &&
+              !water.some((w) => w.local_date === d) &&
+              !sleep.some((s) => s.local_date === d),
+          ) && (
+            <div className="card">
+              <p className="muted">Sin registros en este período.</p>
+            </div>
+          )}
+      </Section>
 
-                    <div className="scroll-x" style={{ marginTop: 'var(--s2)' }}>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Ítem</th>
-                            <th style={{ textAlign: 'right' }}>Cant.</th>
-                            <th style={{ textAlign: 'right' }}>kcal</th>
-                            <th style={{ textAlign: 'right' }}>P</th>
-                            <th style={{ textAlign: 'right' }}>C</th>
-                            <th style={{ textAlign: 'right' }}>G</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {m.meal_items.map((it) => (
-                            <tr key={it.id}>
-                              <td>
-                                {it.name}
-                                {it.ai_confidence !== null &&
-                                  it.ai_confidence < 0.5 && (
-                                    <span
-                                      className="caption estimate"
-                                      style={{ marginLeft: 6 }}
-                                    >
-                                      confianza baja
-                                    </span>
-                                  )}
-                              </td>
-                              <td className="tnum" style={{ textAlign: 'right' }}>
-                                {fmt(it.quantity)} {it.unit}
-                              </td>
-                              <td className="tnum" style={{ textAlign: 'right' }}>
-                                {it.kcal}
-                              </td>
-                              <td className="tnum" style={{ textAlign: 'right' }}>
-                                {fmt(it.protein_g)}
-                              </td>
-                              <td className="tnum" style={{ textAlign: 'right' }}>
-                                {fmt(it.carbs_g)}
-                              </td>
-                              <td className="tnum" style={{ textAlign: 'right' }}>
-                                {fmt(it.fat_g)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {m.photo_path && photoUrls[m.photo_path] && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={photoUrls[m.photo_path]}
-                        alt={`Foto de ${SLOT_LABEL[m.slot] ?? m.slot}`}
-                        style={{
-                          marginTop: 'var(--s3)',
-                          maxWidth: 260,
-                          width: '100%',
-                          borderRadius: 'var(--radius-md)',
-                          display: 'block',
-                        }}
-                      />
-                    )}
-                  </div>
-                ))}
-
-                {patient.share_wellbeing && (agua || act.length > 0) && (
-                  <p className="caption" style={{ marginTop: 'var(--s4)' }}>
-                    {agua ? `${agua.glasses} vasos de agua` : null}
-                    {agua && act.length > 0 ? ' · ' : null}
-                    {act.length > 0
-                      ? `${act.length} ${act.length === 1 ? 'actividad' : 'actividades'}, ` +
-                        `≈ ${act.reduce((a, x) => a + (x.estimated_calories ?? 0), 0)} kcal`
-                      : null}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-
-      <p className="caption" style={{ marginTop: 'var(--s7)' }}>
-        Las calorías del ejercicio y lo estimado por IA son estimaciones, no
-        mediciones. Este panel es de solo lectura: nada de lo que ves se puede
-        modificar desde acá.
+      <p className="caption" style={{ marginTop: 'var(--s8)' }}>
+        Este panel es de solo lectura: nada de lo que ves se puede modificar
+        desde acá.
       </p>
     </main>
   );
 }
 
-/** Una categoría apagada no es lo mismo que un día sin registros, y decirlo
- *  evita leer un vacío como "no comió". */
+const OBJETIVO: Record<string, string> = {
+  lose: 'Bajar de peso',
+  maintain: 'Mantener',
+  gain: 'Subir de peso',
+};
+
 function NoCompartido({ que }: { que: string }) {
   return (
-    <div className="card">
-      <p className="muted">
-        {que} no {que.includes('y') ? 'están' : 'está'} compartido. Se prende
-        desde la app, en Perfil → Mi nutricionista.
-      </p>
-    </div>
+    <Section title={que}>
+      <div className="card">
+        <p className="muted">
+          No está compartido. Se prende desde la app, en Perfil → Mi
+          nutricionista.
+        </p>
+      </div>
+    </Section>
   );
 }
 
-function esIA(m: Meal): boolean {
-  return m.source === 'ai_photo' || m.source === 'ai_text';
+/** Suma los valores que caen en el mismo día. */
+function agrupar(points: Point[]): Point[] {
+  const out = new Map<string, number>();
+  for (const p of points) out.set(p.date, (out.get(p.date) ?? 0) + p.value);
+  return [...out.entries()]
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function agruparPorDia(meals: Meal[]): Map<string, Meal[]> {
-  const out = new Map<string, Meal[]>();
-  for (const m of meals) {
-    const list = out.get(m.local_date) ?? [];
-    list.push(m);
-    out.set(m.local_date, list);
+function rango(from: string, to: string): string[] {
+  const out: string[] = [];
+  const d = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  while (d <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
   }
   return out;
-}
-
-function fmt(v: number): string {
-  const n = Number(v);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',');
 }
 
 function hoy(): string {
@@ -301,11 +480,19 @@ function hace(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function fechaLarga(iso: string): string {
+function corto(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
-    weekday: 'long',
     day: 'numeric',
-    month: 'long',
+    month: 'short',
   });
+}
+
+function edad(birthDate: string): number {
+  const n = new Date(birthDate);
+  const h = new Date();
+  let a = h.getFullYear() - n.getFullYear();
+  const mes = h.getMonth() - n.getMonth();
+  if (mes < 0 || (mes === 0 && h.getDate() < n.getDate())) a--;
+  return a;
 }

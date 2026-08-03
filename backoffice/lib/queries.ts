@@ -43,7 +43,6 @@ export type MealItem = {
 
 export type WeightLog = { local_date: string; weight_kg: number };
 export type WaterLog = { local_date: string; glasses: number };
-export type SleepLog = { local_date: string; minutes: number; quality: string | null };
 export type Activity = {
   id: string;
   local_date: string;
@@ -52,7 +51,47 @@ export type Activity = {
   estimated_calories: number | null;
   intensity: string;
 };
-export type Goal = { target_kcal: number | null; protein_g: number | null };
+/** Ojo con los nombres: la columna es `base_calorie_target`, no `target_kcal`.
+ *  Pedir la que no existe devuelve un 400 que esta capa se traga, así que el
+ *  objetivo llegaba en null y la línea de referencia no se dibujaba nunca. */
+export type Goal = {
+  base_calorie_target: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  goal_type: string | null;
+};
+
+export type SleepLog = {
+  local_date: string;
+  minutes: number;
+  quality: string | null;
+};
+
+export type Measurement = {
+  local_date: string;
+  metric: string;
+  value: number;
+  unit: string;
+};
+
+export const QUALITY_LABEL: Record<string, string> = {
+  bad: 'Mala',
+  poor: 'Regular',
+  ok: 'Normal',
+  good: 'Buena',
+  great: 'Muy buena',
+};
+
+export const METRIC_LABEL: Record<string, string> = {
+  waist: 'Cintura',
+  hip: 'Cadera',
+  chest: 'Pecho',
+  arm: 'Brazo',
+  thigh: 'Muslo',
+  neck: 'Cuello',
+  body_fat_pct: 'Grasa corporal',
+};
 
 export const SLOT_LABEL: Record<string, string> = {
   breakfast: 'Desayuno',
@@ -146,13 +185,48 @@ export async function fetchGoal(
 ): Promise<Goal | null> {
   const { data } = await db
     .from('goals')
-    .select('target_kcal, protein_g')
+    .select('base_calorie_target, protein_g, carbs_g, fat_g, goal_type')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('starts_on', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   return (data ?? null) as unknown as Goal | null;
+}
+
+export async function fetchSleep(
+  db: SupabaseClient,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<SleepLog[]> {
+  const { data } = await db
+    .from('sleep_logs')
+    .select('local_date, minutes, quality')
+    .eq('user_id', userId)
+    .gte('local_date', from)
+    .lte('local_date', to)
+    .order('local_date');
+
+  return (data ?? []) as unknown as SleepLog[];
+}
+
+export async function fetchMeasurements(
+  db: SupabaseClient,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<Measurement[]> {
+  const { data } = await db
+    .from('body_measurements')
+    .select('local_date, metric, value, unit')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .gte('local_date', from)
+    .lte('local_date', to)
+    .order('local_date');
+
+  return (data ?? []) as unknown as Measurement[];
 }
 
 /**

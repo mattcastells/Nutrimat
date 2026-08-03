@@ -13,7 +13,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(18);
+select plan(21);
 
 -- ── Ana (paciente), Nutri (profesional) y Otra (una desconocida) ─────────
 insert into auth.users (
@@ -174,6 +174,36 @@ select is(
   (select patient_name from public.care_patients),
   'Ana',
   'Ana aparece en la lista de pacientes, con su nombre'
+);
+
+-- ── El perfil no se abre por policy ──────────────────────────────────────
+-- Tests estructurales, y están acá por un antecedente concreto: la policy que
+-- abría `profiles` a los pals decía en su comentario que abría "solo el
+-- nombre" y abría la fila entera —nacimiento, altura y el código que es la
+-- llave para pedir vínculos a nombre de otro— (migración 28).
+--
+-- La primera versión de esta migración repetía ese error. Que la superficie
+-- sea una vista de columnas contadas es lo que hace que no se repita, y esto
+-- es lo que lo fija.
+select is(
+  (select count(*)::int from public.profiles
+    where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  0,
+  'El acceso concedido no abre la tabla de perfiles'
+);
+
+select columns_are(
+  'public', 'care_patients',
+  array['grant_id', 'patient_id', 'patient_name', 'biological_sex',
+        'birth_date', 'height_cm', 'unit_system', 'share_meals',
+        'share_photos', 'share_body', 'share_wellbeing', 'accepted_at',
+        'expires_at'],
+  'La lista de pacientes tiene las columnas del cálculo, y ningún código'
+);
+
+select columns_are(
+  'public', 'care_professionals', array['id', 'display_name'],
+  'Y del profesional, el dueño ve el nombre y nada más'
 );
 
 -- ── Solo lectura ─────────────────────────────────────────────────────────

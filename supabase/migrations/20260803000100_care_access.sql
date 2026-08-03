@@ -257,19 +257,19 @@ create policy goals_care_read on public.goals
   for select to authenticated
   using (public.has_care_access(user_id, 'meals'));
 
--- Del perfil, solo lo que hace falta para leer los números: nombre para saber
--- a quién está mirando, y sexo/nacimiento/altura porque son las entradas del
--- cálculo que ella va a querer revisar. La política no puede filtrar columnas,
--- así que la restricción de columnas la hace la vista de abajo y esta política
--- se limita a quien tenga cualquier categoría abierta.
-drop policy if exists profiles_care_read on public.profiles;
-create policy profiles_care_read on public.profiles
-  for select to authenticated
-  using (
-    public.has_care_access(id, 'meals')
-    or public.has_care_access(id, 'body')
-    or public.has_care_access(id, 'wellbeing')
-  );
+-- Del perfil **no se abre nada por policy**, a propósito.
+--
+-- Es la lección de la migración 28: una policy sobre `profiles` no puede
+-- filtrar columnas, así que "abrirle el nombre" abre en realidad la fila
+-- entera —fecha de nacimiento, altura, y los códigos que son la llave para
+-- pedir vínculos—. Ahí se resolvió borrando la policy y dejando una vista de
+-- columnas contadas; acá se hace igual desde el principio en vez de repetir el
+-- agujero y arreglarlo después.
+--
+-- Las vistas están más abajo. Corren con los privilegios de su dueño
+-- (`security_invoker` en false, el default), y lo que las acota es su propio
+-- `where`. `security_barrier` impide que el planificador cuele una función de
+-- quien consulta por delante de ese `where`.
 
 -- ── Fotos ────────────────────────────────────────────────────────────────
 -- Como la de pals, pero sin la ventana de siete días: un seguimiento mira
@@ -284,13 +284,15 @@ create policy meal_photos_care_read on storage.objects
   );
 
 -- ── A quién sigue cada profesional ───────────────────────────────────────
--- El backoffice necesita listar pacientes sin poder leer `profiles` entero.
--- `security_invoker` para que la vista no sea un agujero: sigue corriendo con
--- los permisos de quien consulta, así que devuelve exactamente lo que las
--- políticas de arriba ya permiten.
+-- El backoffice necesita listar pacientes, y para leer los números necesita
+-- las entradas del cálculo: sexo, nacimiento y altura son datos de salud que
+-- la profesional va a querer revisar, y para eso se le concedió el acceso.
+--
+-- Lo que **no** viaja son los códigos: `pal_code` y `care_code` ajenos son la
+-- llave para pedir vínculos a nombre de otro. Por eso la lista es una vista de
+-- columnas contadas y no un `select *` sobre `profiles`.
 create or replace view public.care_patients
-with (security_invoker = true)
-as
+with (security_barrier = true) as
   select
     g.id            as grant_id,
     g.owner_id      as patient_id,
@@ -307,12 +309,28 @@ as
     g.expires_at
   from public.care_grants g
   join public.profiles p on p.id = g.owner_id
- where g.professional_id = auth.uid()
+ where g.professional_id = (select auth.uid())
    and g.status = 'accepted'
    and g.revoked_at is null
    and (g.expires_at is null or g.expires_at > now());
 
 grant select on public.care_patients to authenticated;
+
+-- ── Y a quién le concedió cada dueño ─────────────────────────────────────
+-- El otro lado del mismo problema: la app tiene que poder mostrar "le diste
+-- acceso a Laura" y sin esto no hay forma de traducir el id a un nombre. Dos
+-- columnas, por lo mismo de arriba.
+create or replace view public.care_professionals
+with (security_barrier = true) as
+  select p.id, p.display_name
+    from public.profiles p
+   where exists (
+     select 1 from public.care_grants g
+      where g.professional_id = p.id
+        and g.owner_id = (select auth.uid())
+   );
+
+grant select on public.care_professionals to authenticated;
 
 -- ── Conceder acceso por código ───────────────────────────────────────────
 -- El dueño no puede leer `profiles` ajenos para traducir un código a un id

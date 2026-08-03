@@ -382,6 +382,22 @@ class RelationalSyncClient {
       }
 
       return escritas;
+    } on AppError {
+      // Va **primero** y no es decorativo: `AppError implements Exception`, así
+      // que sin esta rama el error de arriba —el que nombra las tablas que no
+      // subieron y por qué— lo atrapaba el `on Exception` de abajo y salía como
+      // "Sin conexión: se guarda cuando vuelva internet".
+      //
+      // Eso no era un mensaje impreciso, era uno que mentía en las dos mitades:
+      // no había problema de conexión, y no se iba a guardar cuando volviera
+      // internet porque internet nunca se había ido. Con el respaldo en archivo
+      // subiendo bien al lado, la pantalla decía "sin conexión" mientras
+      // acababa de subir 176 kB.
+      //
+      // El resultado es que una tabla podía dejar de sincronizar durante días
+      // sin que nada dijera cuál ni por qué, que es exactamente el fallo
+      // silencioso que el resto de este archivo se esfuerza en evitar.
+      rethrow;
     } on PostgrestException catch (error) {
       throw AppError(
         code: ApiErrorCode.server,
@@ -725,6 +741,10 @@ class RelationalSyncClient {
             },
         ],
       };
+    } on AppError {
+      // Por lo mismo que en `push`: un `AppError` que naciera acá adentro se
+      // convertiría en "sin conexión" y perdería lo que sabía.
+      rethrow;
     } on PostgrestException catch (error) {
       throw AppError(
         code: ApiErrorCode.server,

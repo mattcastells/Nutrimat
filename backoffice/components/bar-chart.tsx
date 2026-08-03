@@ -21,7 +21,7 @@ export function BarChart({
   color = 'var(--chart-intake)',
   target,
   targetLabel,
-  format,
+  decimals = 0,
   height = 150,
 }: {
   points: Point[];
@@ -29,7 +29,14 @@ export function BarChart({
   color?: string;
   target?: number | null;
   targetLabel?: string;
-  format?: (v: number) => string;
+  /** Cuántos decimales mostrar.
+   *
+   *  Es un número y no una función de formato a propósito: este componente es
+   *  un Client Component y quien lo usa es un Server Component, así que **una
+   *  función no puede cruzar esa frontera** — React no la puede serializar y la
+   *  página muere con "Functions cannot be passed directly to Client
+   *  Components". Un número viaja; el formateo se hace de este lado. */
+  decimals?: number;
   height?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -38,7 +45,10 @@ export function BarChart({
     return <p className="muted">Sin registros en este período.</p>;
   }
 
-  const fmt = format ?? ((v: number) => String(Math.round(v)));
+  const fmt = (v: number) =>
+    decimals === 0
+      ? String(Math.round(v))
+      : v.toFixed(decimals).replace('.', ',');
   const W = 720;
   const H = height;
   const PAD = { top: 12, right: 12, bottom: 22, left: 44 };

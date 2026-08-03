@@ -313,7 +313,7 @@ export default async function PatientPage({
                         unit={serie[0].unit === 'pct' ? '%' : 'cm'}
                         color="var(--chart-weight)"
                         height={120}
-                        format={(v) => v.toFixed(1)}
+                        decimals={1}
                       />
                     </div>
                   </div>
@@ -363,7 +363,7 @@ export default async function PatientPage({
                   unit="h"
                   color="var(--chart-weight)"
                   height={130}
-                  format={(v) => v.toFixed(1)}
+                  decimals={1}
                 />
               </div>
             </div>

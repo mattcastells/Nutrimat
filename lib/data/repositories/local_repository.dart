@@ -230,10 +230,24 @@ class LocalRepository
   ///
   /// Las filas que ya existen con id al azar no se tocan: esto solo aplica al
   /// crear una nueva, y el id que ya está siempre se reutiliza.
+  /// Id estable por día: volver a registrar el mismo día actualiza en vez de
+  /// duplicar (D-16).
+  ///
+  /// El sufijo de identidad **no puede ser un literal compartido**. Era
+  /// `store.accountId ?? 'local'`, y todo lo cargado antes de iniciar sesión
+  /// caía en `'local'`: dos personas distintas generaban el **mismo UUID** para
+  /// el mismo día. Al sincronizar, el upsert chocaba contra la fila de otro y
+  /// RLS lo rechazaba —"new row violates row-level security policy"—, así que
+  /// esa tabla dejaba de subir para siempre sin decir por qué.
+  ///
+  /// El perfil ya tiene un id propio, distinto en cada instalación, así que
+  /// sirve de identidad mientras no haya cuenta. `'local'` queda solo para el
+  /// caso imposible de no tener ni perfil.
   String _dailyId(String coleccion, DateTime date, [String extra = '']) =>
       _uuid.v5(
         Namespace.url.value,
-        'nutrimat:$coleccion:${store.accountId ?? 'local'}'
+        'nutrimat:$coleccion'
+        ':${store.accountId ?? store.profile?.id ?? 'local'}'
         ':${isoDate(date)}:$extra',
       );
 
@@ -312,13 +326,28 @@ class LocalRepository
 
   /// Guardar cierra la fila vigente (`endsOn = ayer`) e inserta la nueva desde
   /// hoy: el historial no se reescribe (F-13, AC-16).
+  ///
+  /// Un objetivo que empezó hoy y se reemplaza hoy **se descarta**, no se
+  /// cierra.
+  ///
+  /// Cerrarlo lo dejaba con `ends_on = ayer` contra `starts_on = hoy`, y el
+  /// servidor lo rechazaba con `goals_dates: ends_on >= starts_on`. Como cada
+  /// tabla sube en un solo lote, eso tiraba los objetivos enteros de la cuenta
+  /// —no solo esa fila— y la persona se quedaba sin objetivo del lado del
+  /// servidor sin que nada lo dijera.
+  ///
+  /// Descartarlo y no cerrarlo el mismo día es lo correcto por dos motivos: no
+  /// gobernó ni un día, así que no es historial que preservar; y cerrarlo con
+  /// `ends_on = hoy` lo dejaría **vigente**, con dos objetivos activos a la vez.
   @override
   Future<void> saveGoal(Goal goal) async {
     final yesterday = today().subtract(const Duration(days: 1));
     store.goals = <Goal>[
-      ...store.goals.map(
-        (g) => g.isCurrent ? g.copyWith(endsOn: yesterday) : g,
-      ),
+      for (final g in store.goals)
+        if (!g.isCurrent)
+          g
+        else if (!yesterday.isBefore(g.startsOn))
+          g.copyWith(endsOn: yesterday),
       goal,
     ];
     await _commit();

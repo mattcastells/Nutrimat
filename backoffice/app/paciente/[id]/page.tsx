@@ -422,11 +422,6 @@ export default async function PatientPage({
             </div>
           )}
       </Section>
-
-      <p className="caption" style={{ marginTop: 'var(--s8)' }}>
-        Este panel es de solo lectura: nada de lo que ves se puede modificar
-        desde acá.
-      </p>
     </main>
   );
 }

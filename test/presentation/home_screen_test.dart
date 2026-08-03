@@ -102,7 +102,7 @@ void main() {
     expect(find.byType(CalorieRing), findsOneWidget);
   });
 
-  testWidgets('con crédito 0 % no hay fila de ajuste y se ofrece cambiarlo', (
+  testWidgets('con crédito 0 % no hay fila de ajuste ni texto sobre ella', (
     tester,
   ) async {
     late ProviderContainer container;
@@ -116,10 +116,11 @@ void main() {
     await tester.pumpWidget(_wrap(container, const HomeScreen()));
     await _settle(tester);
 
-    // D-02 / AC-04: sin crédito, la fila de ajuste desaparece.
+    // D-02 / AC-04: sin crédito, la fila de ajuste desaparece. El crédito se
+    // maneja desde preferencias, así que la tarjeta tampoco lo explica acá.
     expect(find.text('Ajuste aplicado'), findsNothing);
-    expect(find.text('El ejercicio no suma a tu presupuesto'), findsOneWidget);
-    expect(find.text('Cambiar'), findsOneWidget);
+    expect(find.text('El ejercicio no suma a tu presupuesto'), findsNothing);
+    expect(find.text('Objetivo ajustado'), findsNothing);
   });
 
   testWidgets('con crédito 50 % aparecen el ajuste y el objetivo ajustado', (

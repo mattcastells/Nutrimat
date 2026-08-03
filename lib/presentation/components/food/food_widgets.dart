@@ -141,50 +141,72 @@ class MealListItem extends StatelessWidget {
               horizontal: NmSpace.s3,
               vertical: NmSpace.s3,
             ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        meal.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: NmTextStyles.from(NmType.body, color: nm.text),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // Barrita de acento: separa la comida del título del slot,
+                  // que también es texto alineado a la izquierda. Con ella la
+                  // fila se lee como un ítem y no como otro encabezado.
+                  Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: (nm.isDark ? nm.accentText : nm.accent).withValues(
+                        alpha: 0.55,
                       ),
-                      Text(
-                        <String>[
-                          if (showDate) shortDay(meal.localDate),
-                          timeOfDay(meal.loggedAt),
-                          itemsLabel,
-                        ].join(' · '),
-                        style: NmTextStyles.from(
-                          NmType.caption,
-                          color: nm.textMuted,
-                        ).tnum,
-                      ),
-                      if (meal.source == MealSource.aiPhoto ||
-                          meal.syncStatus != SyncStatus.synced) ...<Widget>[
-                        const SizedBox(height: NmSpace.s1),
-                        Wrap(
-                          spacing: NmSpace.s2,
-                          children: <Widget>[
-                            if (meal.source == MealSource.aiPhoto)
-                              const DataOriginBadge(origin: DataOrigin.ai),
-                            SyncStatusBadge(status: meal.syncStatus),
-                          ],
-                        ),
-                      ],
-                    ],
+                      borderRadius: NmRadius.brSm,
+                    ),
                   ),
-                ),
-                const SizedBox(width: NmSpace.s3),
-                Text(
-                  Fmt.kcal(meal.totalKcal),
-                  style: NmTextStyles.from(NmType.bodySm, color: nm.text).tnum,
-                ),
-              ],
+                  const SizedBox(width: NmSpace.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          meal.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: NmTextStyles.from(NmType.body, color: nm.text),
+                        ),
+                        Text(
+                          <String>[
+                            if (showDate) shortDay(meal.localDate),
+                            timeOfDay(meal.loggedAt),
+                            itemsLabel,
+                          ].join(' · '),
+                          style: NmTextStyles.from(
+                            NmType.caption,
+                            color: nm.textMuted,
+                          ).tnum,
+                        ),
+                        if (meal.source == MealSource.aiPhoto ||
+                            meal.syncStatus != SyncStatus.synced) ...<Widget>[
+                          const SizedBox(height: NmSpace.s1),
+                          Wrap(
+                            spacing: NmSpace.s2,
+                            children: <Widget>[
+                              if (meal.source == MealSource.aiPhoto)
+                                const DataOriginBadge(origin: DataOrigin.ai),
+                              SyncStatusBadge(status: meal.syncStatus),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: NmSpace.s3),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      Fmt.kcal(meal.totalKcal),
+                      style: NmTextStyles.from(
+                        NmType.bodySm,
+                        color: nm.text,
+                      ).tnum,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

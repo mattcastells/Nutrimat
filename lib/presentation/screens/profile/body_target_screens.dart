@@ -647,7 +647,13 @@ class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
           const SizedBox(height: NmSpace.s6),
           if (_tab == 0)
             _EmptyOrList(
-              items: repo.ownFoods().map((f) => f.displayName).toList(),
+              items: <_MyItem>[
+                for (final food in repo.ownFoods())
+                  _MyItem(
+                    title: food.displayName,
+                    onTap: () => context.push(Routes.food(food.id)),
+                  ),
+              ],
               emptyTitle: 'Sin alimentos propios',
               emptyBody: 'Los alimentos que crees aparecen acá.',
               icon: PhosphorIcons.bowlFood(),
@@ -655,7 +661,7 @@ class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
           else if (_tab == 1)
             repo.templates.isEmpty
                 ? _EmptyOrList(
-                    items: const <String>[],
+                    items: const <_MyItem>[],
                     emptyTitle: 'Sin plantillas',
                     emptyBody:
                         'Guardá una actividad como plantilla para repetirla '
@@ -690,6 +696,11 @@ class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
                                         ),
                                       )
                                       .calories,
+                            // Una plantilla se mira para usarla: abre el
+                            // formulario ya cargado con lo que guardó.
+                            onUse: () => context.push(
+                              '${Routes.activityNew}?templateId=${template.id}',
+                            ),
                             onDelete: () => repo.deleteTemplate(template.id),
                           ),
                         ),
@@ -697,11 +708,19 @@ class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
                   )
           else
             _EmptyOrList(
-              items: <String>[
-                ...repo.favorites().map((f) => 'Alimento · ${f.name}'),
-                ...repo
-                    .favoriteActivities()
-                    .map((a) => 'Actividad · ${a.displayName}'),
+              items: <_MyItem>[
+                for (final food in repo.favorites())
+                  _MyItem(
+                    title: food.name,
+                    subtitle: 'Alimento',
+                    onTap: () => context.push(Routes.food(food.id)),
+                  ),
+                for (final activity in repo.favoriteActivities())
+                  _MyItem(
+                    title: activity.displayName,
+                    subtitle: 'Actividad',
+                    onTap: () => context.push(Routes.activity(activity.id)),
+                  ),
               ],
               emptyTitle: 'Sin favoritos',
               emptyBody: 'Marcá con la estrella lo que uses seguido.',
@@ -713,6 +732,19 @@ class _MyItemsScreenState extends ConsumerState<MyItemsScreen> {
   }
 }
 
+/// Una fila de "Mis cosas" con adónde lleva.
+///
+/// La lista mostraba texto y nada más: se veía qué había guardado pero no se
+/// podía abrir nada, así que el alimento propio o el favorito eran un nombre
+/// suelto. Cada fila lleva ahora a su ficha.
+class _MyItem {
+  const _MyItem({required this.title, required this.onTap, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+}
+
 class _EmptyOrList extends StatelessWidget {
   const _EmptyOrList({
     required this.items,
@@ -721,13 +753,15 @@ class _EmptyOrList extends StatelessWidget {
     required this.icon,
   });
 
-  final List<String> items;
+  final List<_MyItem> items;
   final String emptyTitle;
   final String emptyBody;
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
+    final nm = context.nm;
+
     // El vacío es el `EmptyState` del sistema y no una columna a mano: la de
     // acá no estiraba al ancho disponible, así que el título y el cuerpo
     // quedaban centrados entre sí pero corridos respecto de la pantalla.
@@ -738,7 +772,18 @@ class _EmptyOrList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: NmSpace.s2),
       child: Column(
         children: <Widget>[
-          for (final item in items) NmListRow(title: item, dense: true),
+          for (final item in items)
+            NmListRow(
+              title: item.title,
+              subtitle: item.subtitle,
+              dense: true,
+              onTap: item.onTap,
+              trailing: Icon(
+                PhosphorIcons.caretRight(),
+                size: NmIconSize.md,
+                color: nm.textMuted,
+              ),
+            ),
         ],
       ),
     );

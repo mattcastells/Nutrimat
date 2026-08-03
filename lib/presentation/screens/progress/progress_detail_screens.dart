@@ -125,9 +125,10 @@ class WeightChartScreen extends ConsumerWidget {
                       }
                       return false;
                     },
-                    child: ValueRow(
-                      label: friendlyDay(log.localDate),
-                      value: Fmt.weight(log.weightKg, units),
+                    child: _WeightLogRow(
+                      day: friendlyDay(log.localDate),
+                      value: Fmt.weightValue(log.weightKg, units),
+                      unit: Fmt.weightUnit(units),
                       onEdit: () =>
                           showWeightSheet(context, date: log.localDate),
                     ),
@@ -142,6 +143,90 @@ class WeightChartScreen extends ConsumerWidget {
             onPressed: () => showWeightSheet(context),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Una fila del historial de peso, en columnas fijas.
+///
+/// `ValueRow` sirve para pares etiqueta/valor sueltos, pero acá hay veinte
+/// filas seguidas y lo que se lee es una tabla: si el número y la unidad
+/// comparten una sola caja alineada a la derecha, el ancho del número corre la
+/// unidad y las comas quedan cada una en su lugar. Por eso van en tres
+/// columnas: fecha, número (derecha), unidad (izquierda, ancho fijo), y el
+/// lápiz en su propia ranura para que el borde derecho sea una línea recta.
+class _WeightLogRow extends StatelessWidget {
+  const _WeightLogRow({
+    required this.day,
+    required this.value,
+    required this.unit,
+    required this.onEdit,
+  });
+
+  final String day;
+  final String value;
+  final String unit;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+
+    return Semantics(
+      label: '$day: $value $unit',
+      button: true,
+      onTapHint: 'Editar',
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: NmRadius.brSm,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: NmSpace.s4,
+              vertical: NmSpace.s3,
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    day,
+                    overflow: TextOverflow.ellipsis,
+                    style: NmTextStyles.from(NmType.bodySm, color: nm.text),
+                  ),
+                ),
+                const SizedBox(width: NmSpace.s3),
+                ConstrainedBox(
+                  // Piso, no ancho fijo: alinea los números de siempre sin
+                  // recortar uno más largo si alguna vez aparece.
+                  constraints: const BoxConstraints(minWidth: 56),
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    style: NmTextStyles.from(NmType.bodySm, color: nm.text).tnum,
+                  ),
+                ),
+                const SizedBox(width: NmSpace.s2),
+                SizedBox(
+                  width: 22,
+                  child: Text(
+                    unit,
+                    style: NmTextStyles.from(
+                      NmType.bodySm,
+                      color: nm.textMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: NmSpace.s3),
+                Icon(
+                  PhosphorIcons.pencilSimple(),
+                  size: NmIconSize.sm,
+                  color: nm.isDark ? nm.accentText : nm.accent,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -610,13 +695,6 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
               ),
             ),
           ],
-
-          const SizedBox(height: NmSpace.s6),
-          Text(
-            'El peso se registra desde Inicio y la altura en Perfil corporal: '
-            'los dos alimentan otros cálculos, así que viven ahí y no acá.',
-            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
-          ),
         ],
       ),
     );

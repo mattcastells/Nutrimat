@@ -14,19 +14,17 @@ import '../system/surfaces.dart';
 /// Muestra **siempre por separado** objetivo base, consumido, actividad,
 /// ajuste aplicado, objetivo ajustado y restantes: el objetivo base nunca se
 /// modifica por el ejercicio (RN-01). Con crédito 0 % la fila de ajuste
-/// desaparece y en su lugar va el texto tenue de D-02.
+/// simplemente no está; el crédito se maneja desde preferencias, no desde acá.
 class DailySummaryCard extends StatelessWidget {
   const DailySummaryCard({
     required this.summary,
     required this.onBreakdown,
-    required this.onChangeCredit,
     this.onEditTarget,
     super.key,
   });
 
   final DailySummary summary;
   final VoidCallback onBreakdown;
-  final VoidCallback onChangeCredit;
 
   /// Editar las calorías del día. Sin esto el objetivo base se lee como un
   /// número que la app decidió y no se puede tocar.
@@ -64,7 +62,6 @@ class DailySummaryCard extends StatelessWidget {
           const NmDivider(),
           ValueRow(
             label: 'Actividad',
-            caption: '≈ estimado',
             value: Fmt.integer(summary.exerciseEstimatedKcal),
           ),
           const NmDivider(),
@@ -80,34 +77,7 @@ class DailySummaryCard extends StatelessWidget {
               value: Fmt.integer(summary.adjustedTarget),
             ),
             const NmDivider(),
-          ] else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: NmSpace.s3),
-              child: InkWell(
-                onTap: onChangeCredit,
-                borderRadius: NmRadius.brSm,
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        'El ejercicio no suma a tu presupuesto',
-                        style: NmTextStyles.from(
-                          NmType.caption,
-                          color: nm.textMuted,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'Cambiar',
-                      style: NmTextStyles.from(
-                        NmType.caption,
-                        color: nm.isDark ? nm.accentText : nm.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          ],
           ValueRow(
             label: balance.isOverBudget ? 'Te pasaste por' : 'Te quedan',
             value: '${Fmt.integer(summary.remainingKcal.abs())} kcal',

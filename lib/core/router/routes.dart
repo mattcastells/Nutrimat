@@ -77,6 +77,10 @@ abstract final class Routes {
   static String meal(String id) => '/meal/$id';
   static String mealEdit(String id) => '/meal/$id/edit';
   static const String photoCapture = '/meal/photo/capture';
+
+  /// Entre sacar la foto y analizarla: aclarar qué es, si hace falta. La foto
+  /// no muestra el relleno de una empanada y quien la sacó sí lo sabe.
+  static const String photoDescribe = '/meal/photo/describe';
   static const String photoAnalyzing = '/meal/photo/analyzing';
   static const String photoReview = '/meal/photo/review';
 

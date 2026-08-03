@@ -104,7 +104,7 @@ class SettingsScreen extends ConsumerWidget {
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
                   title: 'Actualizaciones',
-                  subtitle: 'Buscar una versión nueva en GitHub',
+                  subtitle: 'Buscar una versión nueva',
                   leading: Icon(PhosphorIcons.downloadSimple()),
                   onTap: () => context.push(Routes.updates),
                 ),

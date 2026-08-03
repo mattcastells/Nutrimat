@@ -218,8 +218,27 @@ formulario de comida con todo puesto, para revisarlo antes de guardar: lo que el
 modelo propuso es un punto de partida, y guardarlo sin mirar sería meter números
 estimados sin que nadie los haya aceptado. Queda como `aiText`, que es lo que es.
 
-Va antes de la foto y de la descripción en el menú a propósito: esas dos parten
-de que ya sabés qué comiste, y esta parte de la pregunta anterior.
+Va arriba en el menú a propósito: describir y sacar una foto parten de que ya
+sabés qué comiste, y esta parte de la pregunta anterior.
+
+**Las cuatro formas de armar una comida viven juntas.** Buscar en el catálogo,
+escanear un código, sacar una foto y describirla están las cuatro en la pantalla
+de la comida. El menú "+" ofrece "Agregar comida" y lleva ahí: sacar una foto no
+es una entrada paralela sino una forma de sumar ítems, y tenerla suelta en el
+menú hacía elegir el método antes de empezar.
+
+**La foto se puede acompañar con una aclaración.** Entre la cámara y el análisis
+hay un paso con un campo opcional. Es lo único que sube el techo de la foto: una
+empanada se ve igual sea de carne, de humita o de jamón y queso, y el pollo
+frito y el hervido son el mismo pollo desde arriba. El modelo elige el más
+probable y se equivoca callado; quien la sacó sabe la respuesta.
+
+Lo escrito llega a la Edge Function y va en el prompt **después de la imagen**,
+con reglas explícitas: manda la foto, la aclaración sirve para lo que la foto no
+puede mostrar —el relleno, la cocción, la marca— y no habilita inventar
+alimentos que no están. Si dice una porción, se toma y sube la confianza: es un
+dato que el modelo no podía medir. El campo vacío es una respuesta válida y deja
+el análisis como era; si fuera obligatorio, el paso sería un peaje.
 
 **La regla es una sola y no se le delega al modelo: ninguna opción puede pasarse
 del presupuesto.** Se le pide en el prompt y después se suma de nuevo, en la

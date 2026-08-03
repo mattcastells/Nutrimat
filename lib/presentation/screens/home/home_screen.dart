@@ -136,8 +136,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               summary: summary,
                               onBreakdown: () =>
                                   showDailyBreakdownSheet(context, summary),
-                              onChangeCredit: () =>
-                                  context.push(Routes.exerciseCredit),
                               onEditTarget: () =>
                                   showCalorieTargetSheet(context),
                             ),
@@ -166,8 +164,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(height: NmSpace.s8),
                             ],
 
-                            // Comidas: 4 secciones por slot.
-                            const NmSectionHeader(title: 'Comidas'),
+                            // Comidas: 4 secciones por slot, sin encabezado
+                            // propio — cada slot ya se nombra solo.
                             for (final slot in MealSlot.values)
                               Padding(
                                 padding: const EdgeInsets.only(

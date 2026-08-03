@@ -311,6 +311,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PhotoCaptureScreen(),
       ),
       GoRoute(
+        path: Routes.photoDescribe,
+        builder: (context, state) => const PhotoDescribeScreen(),
+      ),
+      GoRoute(
         path: Routes.photoAnalyzing,
         builder: (context, state) => const PhotoAnalyzingScreen(),
       ),

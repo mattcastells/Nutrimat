@@ -1785,6 +1785,7 @@ class LocalRepository
   @override
   Future<AiAnalysis> analyze({
     required String photoPath,
+    String? description,
     void Function(AnalysisStage stage)? onStage,
     void Function(String remotePath)? onUploaded,
   }) async {
@@ -1810,7 +1811,10 @@ class LocalRepository
       if (remotePath != photoPath) onUploaded?.call(remotePath);
 
       onStage?.call(AnalysisStage.analyzing);
-      final analysis = await client.analyze(photoPath: remotePath);
+      final analysis = await client.analyze(
+        photoPath: remotePath,
+        description: description,
+      );
       _quotaUsed++;
 
       // La ruta del bucket viaja de vuelta con el análisis, y de ahí la toma la

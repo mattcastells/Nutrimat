@@ -173,13 +173,16 @@ class ActivityDetailScreen extends ConsumerWidget {
           const SizedBox(height: NmSpace.s4),
           Row(
             children: <Widget>[
-              DataOriginBadge(
-                origin: activity.origin,
-                sourceLabel: activity.externalSource == null
-                    ? null
-                    : HealthProvider.healthConnect.label,
-              ),
-              const SizedBox(width: NmSpace.s2),
+              // Igual que en la lista: "Manual" es lo esperado, no una marca.
+              if (activity.origin != DataOrigin.manual) ...<Widget>[
+                DataOriginBadge(
+                  origin: activity.origin,
+                  sourceLabel: activity.externalSource == null
+                      ? null
+                      : HealthProvider.healthConnect.label,
+                ),
+                const SizedBox(width: NmSpace.s2),
+              ],
               SyncStatusBadge(status: activity.syncStatus, compact: false),
             ],
           ),

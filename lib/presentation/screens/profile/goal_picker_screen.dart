@@ -78,7 +78,7 @@ class _GoalPickerScreenState extends ConsumerState<GoalPickerScreen> {
           const SizedBox(height: NmSpace.s4),
           Text(
             'Cambiarlo recalcula tus calorías, tus macros y tu objetivo de '
-            'actividad. Rige desde hoy.',
+            'actividad.',
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
           const SizedBox(height: NmSpace.s6),

@@ -376,8 +376,12 @@ SeedData buildSeed({
       userId: demoProfileId,
       name: 'Tarta de verdura casera',
       source: FoodSource.user,
-      servingSize: 1,
-      servingUnit: 'porción',
+      // `servingSize` va en la misma unidad que `FoodPortion.grams`: el detalle
+      // calcula `grams / servingSize` y `kcalPer100g` divide por él. Decía
+      // "1 porción" contra una porción de 180 g, así que el multiplicador daba
+      // 180 y el detalle mostraba 47.700 kcal para una tarta.
+      servingSize: 180,
+      servingUnit: 'g',
       kcal: 265,
       proteinG: 11.5,
       carbsG: 24.0,

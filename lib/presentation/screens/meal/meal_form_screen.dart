@@ -328,6 +328,24 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                                 }
                               : null,
                         ),
+                        const SizedBox(height: NmSpace.s2),
+                        // La cuarta: contarlo en una frase. Estaba solo en el
+                        // menú Agregar, y esta es la pantalla donde se elige
+                        // con qué se arma la comida: si están el buscador, el
+                        // escáner y la foto, tiene que estar también.
+                        NmButton.secondary(
+                          label: 'Describir lo que comiste',
+                          block: true,
+                          icon: PhosphorIcons.chatText(),
+                          onPressed: _aiAvailable
+                              ? () {
+                                  ref
+                                      .read(photoTargetProvider.notifier)
+                                      .state = null;
+                                  context.push(Routes.mealDescribe);
+                                }
+                              : null,
+                        ),
                         if (!_aiAvailable) ...<Widget>[
                           const SizedBox(height: NmSpace.s2),
                           Text(

@@ -13,7 +13,7 @@
 // estiman la misma cosa y solo cambia qué se le manda al modelo.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { PROMPT_V3 } from './prompts/v3.ts';
+import { PROMPT_V3, describedBy } from './prompts/v3.ts';
 import {
   CORS,
   DAILY_QUOTA,
@@ -25,6 +25,9 @@ import {
   rateLimitedResponse,
   validate,
 } from '../_shared/estimation.ts';
+
+/** Mismo techo que `analyze-meal-text`: más que esto no es una aclaración. */
+const MAX_DESCRIPTION = 400;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -59,9 +62,13 @@ Deno.serve(async (req) => {
   }
 
   let photoPath: string;
+  // Lo que la persona escribió sobre la foto, si escribió algo. Es opcional a
+  // propósito: la foto sola tiene que seguir andando igual que antes.
+  let description = '';
   try {
     const body = await req.json();
     photoPath = String(body.photoPath ?? '');
+    description = String(body.description ?? '').trim().slice(0, MAX_DESCRIPTION);
   } catch {
     return fail('ERR_VALIDATION', 'Falta indicar la foto.');
   }
@@ -104,11 +111,16 @@ Deno.serve(async (req) => {
   const base64 = toBase64(bytes);
 
   // ── Gemini ─────────────────────────────────────────────────────────────
+  // La aclaración va **después** de la imagen: lo que dice es sobre lo que se
+  // ve, no un pedido suelto. Al modelo se le explica cómo tratarla en
+  // `describedBy` — es contexto que la foto no puede dar (el relleno de una
+  // empanada), no permiso para agregar lo que no está.
   const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
     geminiKey,
     [
       { text: PROMPT_V3 },
       { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+      ...(description ? [{ text: describedBy(description) }] : []),
     ],
   );
 

@@ -135,22 +135,9 @@ class _MainPane extends ConsumerWidget {
             disabledNote: 'Las sugerencias necesitan servidor configurado',
             onTap: () => onGo(Routes.mealSuggestions),
           ),
-          ActionRow(
-            icon: PhosphorIcons.camera(),
-            label: 'Sacar foto de una comida',
-            subtitle: 'La IA estima los ítems y vos los revisás',
-            // Sin servidor no hay Edge Function a la que preguntarle, así que
-            // se muestra deshabilitado en vez de fallar al tocarlo.
-            enabled:
-                FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
-            disabledNote: 'El análisis con IA necesita servidor configurado',
-            onTap: () {
-              // Desde el menú general no hay slot elegido: el de la revisión
-              // se deduce de la hora. Se limpia por si quedó uno de antes.
-              ref.read(photoTargetProvider.notifier).state = null;
-              onGo(Routes.photoCapture);
-            },
-          ),
+          // "Sacar foto" no está acá: es una forma de sumar ítems a una comida,
+          // no una entrada paralela. Vive en la pantalla de la comida, junto al
+          // buscador y al escáner, que es donde se decide con qué se arma.
           ActionRow(
             icon: PhosphorIcons.barcode(),
             label: 'Escanear alimento',

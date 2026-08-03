@@ -390,8 +390,14 @@ abstract interface class AiPhotoRepository {
   /// el bucket sin que ninguna comida la nombre: invisible, imborrable y
   /// pagando espacio para siempre. Con la ruta en la mano, la pantalla la puede
   /// borrar al salir.
+  /// [description] es la aclaración opcional que escribió la persona sobre la
+  /// foto. Una imagen no dice de qué es el relleno de una empanada ni si el
+  /// pollo está frito o hervido: eso lo sabe quien comió, y cuando lo cuenta la
+  /// estimación deja de ser una adivinanza. Vacía o nula, el análisis es el de
+  /// siempre.
   Future<AiAnalysis> analyze({
     required String photoPath,
+    String? description,
     void Function(AnalysisStage stage)? onStage,
     void Function(String remotePath)? onUploaded,
   });

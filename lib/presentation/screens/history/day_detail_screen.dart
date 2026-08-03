@@ -44,7 +44,6 @@ class DayDetailScreen extends ConsumerWidget {
           DailySummaryCard(
             summary: summary,
             onBreakdown: () => showDailyBreakdownSheet(context, summary),
-            onChangeCredit: () => context.push(Routes.exerciseCredit),
             onEditTarget: () => showCalorieTargetSheet(context),
           ),
           const SizedBox(height: NmSpace.s6),
@@ -55,7 +54,8 @@ class DayDetailScreen extends ConsumerWidget {
           SleepCard(date: date),
           const SizedBox(height: NmSpace.s8),
 
-          const NmSectionHeader(title: 'Comidas'),
+          // Las comidas van sin encabezado: los cuatro slots ya se nombran
+          // solos y "Comidas" arriba de "Desayuno" no agregaba nada.
           for (final slot in MealSlot.values)
             Padding(
               padding: const EdgeInsets.only(bottom: NmSpace.s4),

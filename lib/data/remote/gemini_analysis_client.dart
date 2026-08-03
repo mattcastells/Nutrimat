@@ -65,13 +65,24 @@ class GeminiAnalysisClient {
   }
 
   /// Analiza una foto **ya subida al bucket**.
-  Future<AiAnalysis> analyze({required String photoPath}) async {
+  ///
+  /// [description] es lo que la persona aclaró sobre la foto, si aclaró algo.
+  /// Va vacía o nula la mayoría de las veces y entonces ni se manda: la foto
+  /// sola tiene que seguir funcionando igual.
+  Future<AiAnalysis> analyze({
+    required String photoPath,
+    String? description,
+  }) async {
+    final hint = description?.trim() ?? '';
     final FunctionResponse response;
     try {
       response = await _functions
           .invoke(
             functionName,
-            body: <String, dynamic>{'photoPath': photoPath},
+            body: <String, dynamic>{
+              'photoPath': photoPath,
+              if (hint.isNotEmpty) 'description': hint,
+            },
           )
           .timeout(timeout);
     } on FunctionException catch (error) {

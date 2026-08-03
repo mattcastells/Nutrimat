@@ -137,24 +137,31 @@ class ActivityListItem extends StatelessWidget {
                           color: nm.textMuted,
                         ).tnum,
                       ),
-                      const SizedBox(height: NmSpace.s1),
-                      Wrap(
-                        spacing: NmSpace.s2,
-                        runSpacing: NmSpace.s1,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: <Widget>[
-                          DataOriginBadge(
-                            origin: activity.origin,
-                            sourceLabel: activity.externalSource == null
-                                ? null
-                                : HealthProvider.healthConnect.label,
-                          ),
-                          SyncStatusBadge(
-                            status: activity.syncStatus,
-                            onRetry: onReview,
-                          ),
-                        ],
-                      ),
+                      // "Manual" es el caso normal y no aporta nada verlo en
+                      // cada fila: solo se marca lo que vino de afuera. Si no
+                      // queda nada que marcar, tampoco va la fila vacía.
+                      if (activity.origin != DataOrigin.manual ||
+                          activity.syncStatus != SyncStatus.synced) ...<Widget>[
+                        const SizedBox(height: NmSpace.s1),
+                        Wrap(
+                          spacing: NmSpace.s2,
+                          runSpacing: NmSpace.s1,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            if (activity.origin != DataOrigin.manual)
+                              DataOriginBadge(
+                                origin: activity.origin,
+                                sourceLabel: activity.externalSource == null
+                                    ? null
+                                    : HealthProvider.healthConnect.label,
+                              ),
+                            SyncStatusBadge(
+                              status: activity.syncStatus,
+                              onRetry: onReview,
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

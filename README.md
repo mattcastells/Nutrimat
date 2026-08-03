@@ -45,6 +45,27 @@ Without `env/local.json` the app runs entirely offline against local storage —
 enough to clone the repo and run it, or run the test suite, with no
 credentials at all.
 
+### On the emulator
+
+Boots the `nutrimat` AVD, waits for it, and installs the app on it:
+
+```bash
+flutter emulators --launch nutrimat
+adb wait-for-device shell 'while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 2; done'
+flutter run -d emulator-5554                                       # demo mode
+flutter run -d emulator-5554 --dart-define-from-file=env/local.json  # your real account
+```
+
+Prefer the first one for poking at the app: no credentials, no login, and
+"Probar sin cuenta" seeds a full day plus 30 days of history — none of which
+touches a real account. The seed only happens in a debug build compiled
+without a server (see [`docs/estado-de-la-app.md`](./docs/estado-de-la-app.md#datos-de-ejemplo)).
+
+If the AVD doesn't exist yet, `flutter emulators --create --name nutrimat`
+makes it. `flutter emulators` lists what's available and `adb devices` shows
+whether it finished booting (`device`, not `offline`). Once `flutter run` is
+attached, `r` hot-reloads, `R` restarts, and `q` quits.
+
 ## Legal
 
 [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md) · [`TERMS_OF_SERVICE.md`](./TERMS_OF_SERVICE.md)

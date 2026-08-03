@@ -27,6 +27,7 @@ import '../../components/activity/badges.dart';
 import '../../components/feedback/analysis_progress.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/food_widgets.dart';
+import '../../components/food/meal_photo.dart';
 import '../../components/food/photo_viewer.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
@@ -42,6 +43,14 @@ const _uuid = Uuid();
 /// El análisis en curso, para pasarlo de "Analizando" a "Revisar".
 final analysisProvider = StateProvider<AiAnalysis?>((ref) => null);
 final photoPathProvider = StateProvider<String?>((ref) => null);
+
+/// Lo que la persona aclaró sobre la foto antes de analizarla.
+///
+/// Viaja por provider por lo mismo que [photoTargetProvider]: son tres
+/// pantallas encadenadas con `pushReplacement` y arrastrar el texto como query
+/// param solo abre lugares donde perderlo. Se limpia al sacar cada foto: una
+/// aclaración vieja aplicada a una comida nueva es peor que ninguna.
+final photoNoteProvider = StateProvider<String>((ref) => '');
 
 /// Slot y día a los que va la comida cuando se entró desde una sección
 /// concreta ("+" de Almuerzo, por ejemplo) y no desde el menú general.
@@ -99,8 +108,13 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       setState(() => _busy = false);
       if (path == null) return;
       ref.read(photoPathProvider.notifier).state = path;
+      // Foto nueva, aclaración en blanco: lo que se escribió sobre la comida
+      // anterior no tiene nada que ver con esta.
+      ref.read(photoNoteProvider.notifier).state = '';
       if (!mounted) return;
-      context.pushReplacement(Routes.photoAnalyzing);
+      // Antes de analizar se pregunta qué es: la foto no puede mostrar el
+      // relleno de una empanada y la persona sí lo sabe (S-18b).
+      context.pushReplacement(Routes.photoDescribe);
     } on PlatformException catch (error) {
       // Solo esto es un problema de permiso o de cámara. Antes el `on Object`
       // marcaba `_permissionDenied` para **cualquier** fallo, así que una
@@ -255,6 +269,100 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
   }
 }
 
+/// S-18b · Qué es lo que se ve. El paso entre sacar la foto y analizarla.
+///
+/// Existe porque la foto tiene un techo que no se puede subir mejorando el
+/// prompt: una empanada se ve igual sea de carne, de humita o de jamón y
+/// queso, y el pollo frito y el hervido son el mismo pollo desde arriba. El
+/// modelo elige el más probable y se equivoca callado. La persona que la sacó
+/// sabe la respuesta y hasta ahora no tenía dónde escribirla.
+///
+/// El campo es **opcional**: seguir sin escribir nada deja el análisis
+/// exactamente como era. Por eso el botón dice "Analizar" y no "Continuar", y
+/// no hay validación de largo mínimo — vacío es una respuesta válida.
+class PhotoDescribeScreen extends ConsumerStatefulWidget {
+  const PhotoDescribeScreen({super.key});
+
+  @override
+  ConsumerState<PhotoDescribeScreen> createState() =>
+      _PhotoDescribeScreenState();
+}
+
+class _PhotoDescribeScreenState extends ConsumerState<PhotoDescribeScreen> {
+  late final TextEditingController _text = TextEditingController(
+    text: ref.read(photoNoteProvider),
+  );
+
+  /// Mismo techo que acepta la Edge Function: cortar acá evita que alguien
+  /// escriba de más y el servidor lo recorte sin decirlo.
+  static const int _maxLength = 400;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _analyze() {
+    ref.read(photoNoteProvider.notifier).state = _text.text.trim();
+    context.pushReplacement(Routes.photoAnalyzing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nm = context.nm;
+    final path = ref.watch(photoPathProvider);
+
+    return NmScreen(
+      title: '¿Qué es?',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SizedBox(height: NmSpace.s4),
+          if (path != null) ...<Widget>[
+            MealPhoto(path: path, height: 200),
+            const SizedBox(height: NmSpace.s5),
+          ],
+          Text(
+            'Si querés, contanos qué hay en la foto. La IA ve la forma pero no '
+            'el relleno ni cómo está cocinado: con eso estima mucho mejor.',
+            style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
+          ),
+          const SizedBox(height: NmSpace.s5),
+          NmTextField(
+            label: 'Descripción (opcional)',
+            controller: _text,
+            hint: 'empanadas de carne al horno, la ensalada con aceite',
+            maxLines: 3,
+            maxLength: _maxLength,
+            autofocus: true,
+            textInputAction: TextInputAction.newline,
+          ),
+          const SizedBox(height: NmSpace.s6),
+          NmButton(
+            label: 'Analizar',
+            block: true,
+            icon: PhosphorIcons.sparkle(),
+            onPressed: _analyze,
+          ),
+          const SizedBox(height: NmSpace.s3),
+          // No es un "cancelar": es decir que la foto habla por sí sola. Se
+          // deja explícito para que saltearlo no se sienta como abandonar un
+          // paso obligatorio a medio llenar.
+          NmButton.ghost(
+            label: 'Analizar sin describir',
+            block: true,
+            onPressed: () {
+              _text.clear();
+              _analyze();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// S-19 · Analizando. La única espera larga del producto (21-motion §4.4).
 class PhotoAnalyzingScreen extends ConsumerStatefulWidget {
   const PhotoAnalyzingScreen({super.key});
@@ -391,6 +499,7 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
           .read(repositoryProvider)
           .analyze(
             photoPath: path ?? '',
+            description: ref.read(photoNoteProvider),
             onStage: _onStage,
             onUploaded: (remote) => _subida = remote,
           );

@@ -36,10 +36,14 @@ update public.profiles set display_name = 'Ana'
 
 -- El día de Ana: una comida con su ítem, un peso, una medida y un vaso de
 -- agua. Uno de cada categoría, que es lo que hay que poder abrir por separado.
-insert into public.meals (id, user_id, slot, local_date, name, total_kcal)
+-- Sin `total_kcal`: ese campo lo escribe **solo** el trigger de totales a
+-- partir de los ítems (D-11). Ponerlo a mano acá daría un número que el primer
+-- insert de un ítem pisa, y el test quedaría comparando contra algo que la
+-- base ya reemplazó.
+insert into public.meals (id, user_id, slot, local_date, name)
 values ('dddddddd-0000-0000-0000-000000000001',
         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lunch', current_date,
-        'Milanesa con puré', 508);
+        'Milanesa con puré');
 
 insert into public.meal_items (id, meal_id, name, quantity, unit, kcal)
 values ('dddddddd-0000-0000-0000-000000000002',
@@ -127,12 +131,14 @@ select throws_ok(
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
 
-select isnt(
+-- `ok(... is not null)` y no `isnt(..., null)`: el `null` pelado deja a pgTAP
+-- sin poder resolver el tipo polimórfico y el test falla por la firma, no por
+-- lo que se quería probar.
+select ok(
   public.grant_care_access(
     (select care_code from codigos
       where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-    p_share_meals => true),
-  null,
+    p_share_meals => true) is not null,
   'Ana concede acceso a las comidas, y nada más'
 );
 
@@ -220,8 +226,8 @@ update public.meals set total_kcal = 100
 select is(
   (select total_kcal from public.meals
     where id = 'dddddddd-0000-0000-0000-000000000001'),
-  508,
-  'Ver no es editar: la comida de Ana queda como estaba'
+  289,
+  'Ver no es editar: la comida de Ana queda como la dejó el trigger'
 );
 
 delete from public.meals
@@ -251,12 +257,11 @@ select is(
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
 
-select isnt(
+select ok(
   public.grant_care_access(
     (select care_code from codigos
       where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-    p_share_meals => true, p_share_body => true),
-  null,
+    p_share_meals => true, p_share_body => true) is not null,
   'Ana suma el peso al permiso que ya existía'
 );
 

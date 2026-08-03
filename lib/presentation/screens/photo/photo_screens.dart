@@ -339,23 +339,18 @@ class _PhotoDescribeScreenState extends ConsumerState<PhotoDescribeScreen> {
             textInputAction: TextInputAction.newline,
           ),
           const SizedBox(height: NmSpace.s6),
+          // Un solo botón, que lee el campo.
+          //
+          // Eran dos —"Analizar" y "Analizar sin describir"— y el segundo
+          // existía para decir que saltear estaba permitido. Pero con el campo
+          // vacío los dos hacían exactamente lo mismo, y con el campo lleno el
+          // de abajo tiraba lo escrito: dos botones para una sola decisión que
+          // el campo ya expresa solo.
           NmButton(
             label: 'Analizar',
             block: true,
             icon: PhosphorIcons.sparkle(),
             onPressed: _analyze,
-          ),
-          const SizedBox(height: NmSpace.s3),
-          // No es un "cancelar": es decir que la foto habla por sí sola. Se
-          // deja explícito para que saltearlo no se sienta como abandonar un
-          // paso obligatorio a medio llenar.
-          NmButton.ghost(
-            label: 'Analizar sin describir',
-            block: true,
-            onPressed: () {
-              _text.clear();
-              _analyze();
-            },
           ),
         ],
       ),

@@ -19,6 +19,7 @@ import 'package:nutrimat/core/theme/app_theme.dart';
 import 'package:nutrimat/core/utils/dates.dart';
 import 'package:nutrimat/data/local/local_store.dart';
 import 'package:nutrimat/data/repositories/local_repository.dart';
+import 'package:nutrimat/presentation/components/system/buttons.dart';
 import 'package:nutrimat/presentation/providers/app_providers.dart';
 import 'package:nutrimat/presentation/screens/photo/photo_screens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -127,7 +128,7 @@ void main() {
     expect(find.text('analizando'), findsOneWidget);
   });
 
-  testWidgets('"Analizar sin describir" descarta lo tipeado', (tester) async {
+  testWidgets('hay un solo botón, y es el campo el que decide', (tester) async {
     late ProviderContainer container;
     await tester.runAsync(() async {
       container = await _boot();
@@ -137,12 +138,18 @@ void main() {
     await tester.pumpWidget(_wrap(container));
     await _settle(tester);
 
-    await tester.enterText(find.byType(TextField), 'algo que no quiero mandar');
-    await tester.tap(find.text('Analizar sin describir'));
+    // Había un segundo botón —"Analizar sin describir"— que con el campo vacío
+    // hacía lo mismo que este y con el campo lleno tiraba lo escrito: dos
+    // botones para una decisión que el campo ya expresa solo.
+    expect(find.widgetWithText(NmButton, 'Analizar'), findsOneWidget);
+    expect(find.textContaining('sin describir'), findsNothing);
+
+    // Borrar lo tipeado vuelve al caso vacío sin necesitar otro botón.
+    await tester.enterText(find.byType(TextField), 'algo');
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Analizar'));
     await _settle(tester);
 
-    // Si el texto sobreviviera al botón que dice que no lo va a usar, sería
-    // exactamente lo contrario de lo que ofrece.
     expect(container.read(photoNoteProvider), '');
     expect(find.text('analizando'), findsOneWidget);
   });

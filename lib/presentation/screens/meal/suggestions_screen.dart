@@ -14,6 +14,7 @@ import '../../../domain/models/meal.dart';
 import '../../../domain/models/meal_suggestion.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
@@ -60,10 +61,31 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
   /// distinto del que se usó para pedirlas y dirían cualquier cosa.
   int _budget = 0;
 
+  /// Si el presupuesto lo puso la persona en vez de salir del día.
+  ///
+  /// "Lo que me queda" es la pregunta de la noche, cuando lo que importa es no
+  /// pasarse. Pero también se cocina para el mediodía teniendo el día entero
+  /// por delante, y ahí el número que interesa es el del plato —"algo de 600"—
+  /// y no el saldo. Con un solo modo, la segunda pregunta no se podía hacer.
+  bool _custom = false;
+
+  /// De qué modo salieron las opciones que están en pantalla. Va aparte de
+  /// [_custom] por lo mismo que [_budget]: el texto tiene que describir lo que
+  /// se ve, no lo que está elegido ahora.
+  bool _shownIsCustom = false;
+
+  final TextEditingController _target = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _pedir());
+  }
+
+  @override
+  void dispose() {
+    _target.dispose();
+    super.dispose();
   }
 
   int get _remaining {
@@ -71,10 +93,15 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
     return balance.remainingKcal;
   }
 
+  /// Con cuántas calorías se piden las opciones.
+  int get _presupuesto => _custom
+      ? int.tryParse(_target.text.trim()) ?? 0
+      : _remaining;
+
   Future<void> _pedir() async {
     if (!mounted) return;
     final summary = ref.read(todaySummaryProvider);
-    final restante = _remaining;
+    final restante = _presupuesto;
     final proteina = summary.macros.protein;
 
     setState(() {
@@ -82,6 +109,7 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
       _error = null;
       _options = null;
       _budget = restante;
+      _shownIsCustom = _custom;
     });
 
     try {
@@ -193,12 +221,66 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
         children: <Widget>[
           const SizedBox(height: NmSpace.s4),
 
-          if (_budget > 0)
+          NmSegmentedControl<bool>(
+            options: <(bool, String)>[
+              (false, 'Lo que me queda'),
+              (true, 'Otro número'),
+            ],
+            value: _custom,
+            onChanged: (custom) {
+              setState(() {
+                _custom = custom;
+                // El saldo del día como punto de partida: casi siempre lo que
+                // se quiere es correrlo un poco, no escribirlo de cero.
+                if (custom && _target.text.trim().isEmpty && _remaining > 0) {
+                  _target.text = '$_remaining';
+                }
+              });
+              // Volver a "lo que me queda" no necesita confirmación: el número
+              // ya está y es el del día. Al revés sí, porque todavía no se sabe
+              // cuál va a ser.
+              if (!custom) _pedir();
+            },
+          ),
+          const SizedBox(height: NmSpace.s4),
+
+          if (_custom) ...<Widget>[
+            NmTextField(
+              label: 'Calorías del plato',
+              controller: _target,
+              suffix: 'kcal',
+              hint: '600',
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) {
+                if (_presupuesto > 0) _pedir();
+              },
+            ),
+            const SizedBox(height: NmSpace.s3),
+            NmButton(
+              label: 'Buscar opciones',
+              block: true,
+              icon: PhosphorIcons.magnifyingGlass(),
+              loading: _loading,
+              onPressed: _presupuesto > 0 ? _pedir : null,
+            ),
+            const SizedBox(height: NmSpace.s5),
+          ] else if (_budget > 0) ...<Widget>[
             Text(
               'Tres platos que entran en las $_budget kcal que te quedan hoy.',
               style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
             ),
-          const SizedBox(height: NmSpace.s6),
+            const SizedBox(height: NmSpace.s6),
+          ],
+
+          if (_custom && _budget > 0 && _shownIsCustom) ...<Widget>[
+            Text(
+              'Tres platos de hasta $_budget kcal.',
+              style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
+            ),
+            const SizedBox(height: NmSpace.s5),
+          ],
 
           if (_loading)
             const _Buscando()
@@ -214,8 +296,8 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
             const EmptyState(
               icon: Icons.no_food_outlined,
               title: 'Esta vez no salió nada',
-              body: 'Ninguna opción cerró con las calorías que te quedan. '
-                  'Probá de nuevo: el modelo no siempre contesta lo mismo.',
+              body: 'Ninguna opción cerró con ese presupuesto. Probá de nuevo: '
+                  'el modelo no siempre contesta lo mismo.',
             )
           else if (_options != null)
             for (final option in _options!)

@@ -106,7 +106,7 @@ void main() {
     });
   }
 
-  testWidgets('las tres formas de sumar ítems, cada una una sola vez', (
+  testWidgets('las formas de sumar ítems, cada una una sola vez', (
     tester,
   ) async {
     late ProviderContainer container;
@@ -119,8 +119,16 @@ void main() {
     await _settle(tester);
 
     expect(find.text('Agregar alimento'), findsOneWidget);
-    expect(find.text('Escanear un código'), findsOneWidget);
-    expect(find.text('Sacar foto y analizarla con IA'), findsOneWidget);
+    expect(find.text('Sacar foto y analizarla'), findsOneWidget);
+    expect(find.text('Describir lo que comiste'), findsOneWidget);
+
+    // El escáner vive adentro del buscador, y "Agregar alimento" lo abre.
+    // Tenerlo también acá era el mismo camino ofrecido dos veces.
+    expect(find.text('Escanear un código'), findsNothing);
+
+    // Adjuntar una foto a mano es cosa de una comida que ya existe: dando de
+    // alta no está, y competía con el botón que sí analiza.
+    expect(find.text('Agregar una foto'), findsNothing);
 
     // El vacío cuenta qué se puede hacer; los botones lo hacen. Sin acciones
     // propias, no hay dos botones para lo mismo.
@@ -128,7 +136,7 @@ void main() {
     expect(find.text('Agregá el primer alimento'), findsOneWidget);
   });
 
-  testWidgets('con ítems cargados siguen estando las tres, sin repetirse', (
+  testWidgets('con ítems cargados siguen estando, sin repetirse', (
     tester,
   ) async {
     late ProviderContainer container;
@@ -156,8 +164,9 @@ void main() {
     await _settle(tester);
 
     expect(find.text('Milanesa'), findsOneWidget);
-    expect(find.text('Escanear un código'), findsOneWidget);
-    expect(find.text('Sacar foto y analizarla con IA'), findsOneWidget);
+    expect(find.text('Agregar alimento'), findsOneWidget);
+    expect(find.text('Sacar foto y analizarla'), findsOneWidget);
+    expect(find.text('Describir lo que comiste'), findsOneWidget);
     expect(find.text('Agregá el primer alimento'), findsNothing);
   });
 

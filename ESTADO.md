@@ -213,7 +213,11 @@ comparte validación y cuota con la de foto.
 vuelta contra el modelo real nunca se ejecutó. Ver abajo.*
 
 Menú Agregar → "¿Qué como?" pide tres platos que entren en las calorías que
-quedan, cada uno con sus ingredientes, sus macros y su receta. Elegir uno abre el
+quedan, cada uno con sus ingredientes, sus macros y su receta. El presupuesto se
+puede cambiar: "lo que me queda" es la pregunta de la noche, cuando lo que
+importa es no pasarse, pero también se cocina al mediodía con el día entero por
+delante y ahí el número que interesa es el del plato —"algo de 600"— y no el
+saldo. Sin tocar nada sigue preguntando por el saldo. Elegir uno abre el
 formulario de comida con todo puesto, para revisarlo antes de guardar: lo que el
 modelo propuso es un punto de partida, y guardarlo sin mirar sería meter números
 estimados sin que nadie los haya aceptado. Queda como `aiText`, que es lo que es.
@@ -223,9 +227,15 @@ sabés qué comiste, y esta parte de la pregunta anterior.
 
 **Las cuatro formas de armar una comida viven juntas.** Buscar en el catálogo,
 escanear un código, sacar una foto y describirla están las cuatro en la pantalla
-de la comida. El menú "+" ofrece "Agregar comida" y lleva ahí: sacar una foto no
-es una entrada paralela sino una forma de sumar ítems, y tenerla suelta en el
-menú hacía elegir el método antes de empezar.
+de la comida. El menú "+" ofrece "Agregar comida" y lleva ahí: ninguna de las
+cuatro es una entrada paralela —todas son formas de sumar ítems— y tenerlas
+sueltas en el menú obligaba a elegir el método antes de empezar. El subtítulo de
+esa fila las nombra, porque es la única pista de que están adentro.
+
+El escáner no tiene botón propio ahí: vive dentro del buscador, y "Agregar
+alimento" abre el buscador. Y adjuntar una foto a mano —la que no analiza nada—
+es cosa de una comida que ya existe, así que aparece editando y no dando de
+alta: competía con el botón que sí analiza y alargaba el camino corto.
 
 **La foto se puede acompañar con una aclaración.** Entre la cámara y el análisis
 hay un paso con un campo opcional. Es lo único que sube el techo de la foto: una

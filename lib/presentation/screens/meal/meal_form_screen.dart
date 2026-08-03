@@ -296,24 +296,17 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                               context.push('${Routes.foodSearch}?target=meal'),
                         ),
                         const SizedBox(height: NmSpace.s2),
-                        // El escáner solo existía en el menú general de Agregar
-                        // y adentro del buscador. Es la pantalla donde se arma
-                        // la comida, así que es acá donde tiene que estar.
-                        NmButton.secondary(
-                          label: 'Escanear un código',
-                          block: true,
-                          icon: PhosphorIcons.barcode(),
-                          onPressed: () => context.push(Routes.foodScan),
-                        ),
-                        const SizedBox(height: NmSpace.s2),
-                        // La tercera forma de sumar ítems, la que faltaba acá.
+                        // El escáner no está acá: vive adentro del buscador, y
+                        // "Agregar alimento" abre el buscador. Tenerlo también
+                        // afuera era el mismo camino ofrecido dos veces, y dos
+                        // botones que hacen lo mismo hacen dudar de si lo hacen.
                         //
                         // Lo que se estime se agrega a **esta** comida: la
                         // revisión del análisis absorbe el borrador abierto en
                         // vez de empezar uno nuevo, si no lo que ya estaba
                         // cargado se perdía sin decirlo.
                         NmButton.secondary(
-                          label: 'Sacar foto y analizarla con IA',
+                          label: 'Sacar foto y analizarla',
                           block: true,
                           icon: PhosphorIcons.camera(),
                           onPressed: _aiAvailable
@@ -356,12 +349,19 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                             ),
                           ),
                         ],
-                        const SizedBox(height: NmSpace.s8),
-                        const NmSectionHeader(title: 'Foto'),
-                        MealPhotoField(
-                          path: draft.photoPath,
-                          onChanged: controller.setPhoto,
-                        ),
+                        // Adjuntar una foto a mano es cosa de una comida que ya
+                        // existe, no del alta. Crear una comida es buscar,
+                        // cargar y guardar; ofrecer ahí un campo de foto que no
+                        // analiza nada competía con el que sí analiza y alargaba
+                        // el camino corto. Editando la comida sí está.
+                        if (widget.mealId != null) ...<Widget>[
+                          const SizedBox(height: NmSpace.s8),
+                          const NmSectionHeader(title: 'Foto'),
+                          MealPhotoField(
+                            path: draft.photoPath,
+                            onChanged: controller.setPhoto,
+                          ),
+                        ],
                       ],
                     ),
                   ),

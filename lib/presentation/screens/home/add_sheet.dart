@@ -15,7 +15,6 @@ import '../../../domain/enums/enums.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
-import '../photo/photo_screens.dart';
 import '../sleep/sleep_sheet.dart';
 import '../weight/measurement_sheet.dart';
 import '../weight/weight_sheet.dart';
@@ -102,30 +101,23 @@ class _MainPane extends ConsumerWidget {
           ActionRow(
             icon: PhosphorIcons.forkKnife(),
             label: 'Agregar comida',
-            subtitle: 'Buscar alimentos y armar la comida',
+            // El subtítulo nombra los cuatro caminos porque ahora es el único
+            // lugar desde donde se llega a ellos: si dijera solo "buscar
+            // alimentos", sacar una foto quedaría escondida detrás de una
+            // puerta que no la menciona.
+            subtitle: 'Buscar, escanear, sacar una foto o describirla',
             onTap: () => onGo(
               '${Routes.mealNew}?slot=${slot.wire}'
               '&date=${date.toIso8601String().substring(0, 10)}',
             ),
           ),
-          // Estaba solo en el "+" de cada sección de Inicio, así que quien
-          // entraba por acá —el camino obvio— no la encontraba nunca y la
-          // función se vivía como que no existe o no anda.
-          ActionRow(
-            icon: PhosphorIcons.chatText(),
-            label: 'Describir lo que comiste',
-            subtitle: '"dos empanadas de carne y una coca"',
-            enabled:
-                FeatureFlags.aiPhotoAnalysis && SupabaseConfig.isConfigured,
-            disabledNote: 'La estimación con IA necesita servidor configurado',
-            onTap: () {
-              ref.read(photoTargetProvider.notifier).state = null;
-              onGo(Routes.mealDescribe);
-            },
-          ),
-          // Va antes de la foto y de la descripción a propósito: las dos
-          // parten de que ya sabés qué comiste. Esta parte de la pregunta
-          // anterior, que es la que uno se hace parado en la heladera.
+          // Ni "describir" ni "sacar foto" están acá: las dos son formas de
+          // sumar ítems a una comida, y las cuatro viven juntas en la pantalla
+          // de la comida, adonde lleva "Agregar comida". El menú ofrece qué
+          // registrar, no con qué método.
+          //
+          // "¿Qué como?" sí, porque no es un método de carga: parte de la
+          // pregunta anterior, la que uno se hace parado en la heladera.
           ActionRow(
             icon: PhosphorIcons.cookingPot(),
             label: '¿Qué como?',

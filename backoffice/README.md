@@ -74,6 +74,19 @@ npm run typecheck
 npm run build
 ```
 
+⚠️ **No corras `npm run build` con `npm run dev` levantado.** Los dos escriben en
+`.next/`, y el build de producción le pisa los chunks al de desarrollo. El
+síntoma no dice nada de eso: la página muere con un
+`Runtime TypeError: a[d] is not a function` adentro del runtime de webpack, que
+parece un bug del código y no lo es. Si pasa:
+
+```bash
+rm -rf .next && npm run dev
+```
+
+y recargá el navegador **forzado** (`Ctrl+Shift+R`): la pestaña se queda con el
+bundle roto en memoria aunque el servidor ya esté sano.
+
 ### Si entrás y no ves ningún paciente
 
 Es lo esperado hasta que alguien te dé acceso. El circuito completo es:

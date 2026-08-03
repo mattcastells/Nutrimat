@@ -58,17 +58,14 @@ insert into public.water_logs (id, user_id, local_date, glasses)
 values ('dddddddd-0000-0000-0000-000000000004',
         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', current_date, 6);
 
--- Los códigos se copian antes de asumir una identidad: bajo RLS el test ya no
--- puede leer el perfil ajeno, que es justamente lo que se quiere.
-create temporary table codigos on commit drop as
-  select id, care_code from public.profiles;
-grant select on codigos to authenticated;
-
 -- ── El código no existe hasta que alguien lo pide ────────────────────────
 -- Un código que existe es una superficie que se puede adivinar. Las cuentas
 -- que nunca ejercen de profesional no tienen por qué tener uno.
+--
+-- Se lee `profiles` directo porque todavía no se asumió ninguna identidad: acá
+-- el test sigue siendo el dueño de la base.
 select is(
-  (select care_code from codigos
+  (select care_code from public.profiles
     where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   null,
   'Una cuenta nueva no trae código de profesional'
@@ -90,6 +87,22 @@ select is(
     where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   'Pedirlo dos veces devuelve el mismo, no uno nuevo'
 );
+
+-- ── El código, a mano, para poder dictárselo a Ana ───────────────────────
+-- Se copia **acá** y no al principio: a diferencia de `pal_code`, que lo pone
+-- un trigger al crear la cuenta, este no existe hasta que la profesional lo
+-- pide. Copiarlo antes guardaba un null, y Ana terminaba concediendo acceso
+-- "al código null" — que es exactamente lo que hacía fallar la suite.
+--
+-- `reset role` vuelve al dueño de la base para poder crear la temporal; el
+-- `set local role` de abajo retoma la identidad.
+reset role;
+
+create temporary table codigos on commit drop as
+  select id, care_code from public.profiles;
+grant select on codigos to authenticated;
+
+set local role authenticated;
 
 -- ── Sin permiso no ve nada ───────────────────────────────────────────────
 -- El estado inicial y el más importante: tener cuenta y código no abre nada.

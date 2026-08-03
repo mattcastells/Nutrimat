@@ -84,6 +84,9 @@ const Set<String> _noLasEscribeLaApp = <String>{
   'ai_analyses_status',
   'audit_log_action',
   'audit_log_actor',
+  // El estado del acceso profesional lo pone el servidor: la app llama a
+  // `grant_care_access` / `revoke_care_access` y nunca manda el literal.
+  'care_grants_status',
   'duplicate_resolutions_resolution',
   'exercise_templates_intensity',
   'foods_cache_source',

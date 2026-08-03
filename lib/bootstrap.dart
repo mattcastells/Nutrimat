@@ -16,6 +16,7 @@ import 'data/local/health_connect_gateway.dart';
 import 'data/local/home_widget_publisher.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
+import 'data/remote/care_client.dart';
 import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/gemini_analysis_client.dart';
 import 'data/remote/meal_suggestions_client.dart';
@@ -170,6 +171,12 @@ Future<void> bootstrap() async {
       ? PalsClient.fromInstance()
       : null;
 
+  // Sin servidor no hay a quién darle acceso: los datos no salieron del
+  // teléfono, así que la pantalla lo dice y no ofrece nada.
+  final CareClient? careClient = SupabaseConfig.isConfigured
+      ? CareClient.fromInstance()
+      : null;
+
   if (palsClient != null) {
     palPublisher = PalPublisher(
       client: palsClient,
@@ -220,6 +227,7 @@ Future<void> bootstrap() async {
         relationalSyncProvider.overrideWithValue(relationalSync),
       if (photos != null) photoSyncProvider.overrideWithValue(photos),
       if (palsClient != null) palsClientProvider.overrideWithValue(palsClient),
+      if (careClient != null) careClientProvider.overrideWithValue(careClient),
       if (reminderScheduler != null)
         reminderSchedulerProvider.overrideWithValue(reminderScheduler),
     ],

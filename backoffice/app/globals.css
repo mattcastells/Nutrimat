@@ -1,0 +1,251 @@
+/* Los tokens de Nutrimat, portados de docs/handoff/design-tokens.json.
+ *
+ * Se copian en vez de importarse porque el JSON vive en el repo de la app y
+ * este proyecto se despliega solo: una build de Vercel no puede leer un archivo
+ * que no está en su carpeta. Si los tokens cambian, se actualizan acá — y el
+ * comentario de arriba es el aviso de dónde está la fuente.
+ *
+ * El tema canónico es el oscuro, igual que en la app. */
+
+:root {
+  --bg: #161826;
+  --surface: #232532;
+  --surface-raised: #2b2e3d;
+  --text: #e9e9ed;
+  --text-muted: rgba(233, 233, 237, 0.55);
+  --accent: #9184d9;
+  --accent-text: #d2cefd;
+  --divider: rgba(233, 233, 237, 0.16);
+  --success: #6fbf9a;
+  --caution: #d9b46a;
+  --danger: #d97b7b;
+  --info: #7fa8d9;
+
+  --chart-intake: #968ae0;
+  --chart-target: #cfd3e5;
+  --chart-weight: #b5abfc;
+  --chart-trend: #e9e9ed;
+  --chart-protein: #9184d9;
+  --chart-carbs: #7fa8d9;
+  --chart-fat: #d9b46a;
+
+  --skeleton: #3f424d;
+
+  /* Escala de espaciado de la app (tokens.dart · NmSpace). */
+  --s1: 3px;
+  --s2: 6px;
+  --s3: 8px;
+  --s4: 11px;
+  --s5: 16px;
+  --s6: 22px;
+  --s7: 30px;
+  --s8: 44px;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.34);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #f7f7fb;
+    --surface: #ffffff;
+    --surface-raised: #f0f0f6;
+    --text: #1b1c26;
+    --text-muted: rgba(27, 28, 38, 0.58);
+    --accent: #796cbf;
+    --accent-text: #5d5294;
+    --divider: rgba(27, 28, 38, 0.12);
+    --success: #2f8f6a;
+    --caution: #9a7420;
+    --danger: #b04141;
+    --info: #3c6ea8;
+    --chart-trend: #292b31;
+    --skeleton: #e4e7f5;
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* Inter es la tipografía de la app. Se pide la del sistema y se cae a la
+   * pila nativa: cargarla de Google Fonts haría que cada visita al panel le
+   * cuente a un tercero que alguien lo abrió. */
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Números tabulares en todo lo que sea una cifra: una columna de kcal que
+ * baila al cambiar de fila es ruido (tokens.dart · .tnum). */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 26px;
+}
+h2 {
+  font-size: 19px;
+}
+h3 {
+  font-size: 16px;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--s6) var(--s5) var(--s8);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--s5);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.caption {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.section-header {
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: var(--s7) 0 var(--s3);
+}
+
+.divider {
+  height: 1px;
+  background: var(--divider);
+  border: 0;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.grid {
+  display: grid;
+  gap: var(--s4);
+}
+
+.tag {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px var(--s3);
+  border-radius: 999px;
+  border: 1px solid var(--divider);
+  color: var(--text-muted);
+}
+
+.tag--ai {
+  border-color: var(--caution);
+  color: var(--caution);
+}
+
+button,
+.button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-text);
+  padding: var(--s3) var(--s5);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s4);
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Lo estimado por IA se marca con `caution`, igual que en la app: nunca se
+ * presenta una estimación como si fuera una medición. */
+.estimate {
+  color: var(--caution);
+}
+
+/* Cualquier cosa ancha —una tabla, un gráfico— scrollea dentro de su caja.
+ * El cuerpo de la página no scrollea nunca en horizontal. */
+.scroll-x {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding: var(--s2) var(--s3);
+}
+
+td {
+  padding: var(--s3);
+  border-top: 1px solid var(--divider);
+}

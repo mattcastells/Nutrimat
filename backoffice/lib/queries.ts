@@ -100,28 +100,71 @@ export const SLOT_LABEL: Record<string, string> = {
   snack: 'Snacks',
 };
 
+/** Cuántas filas devuelve PostgREST de una: es el `max-rows` de Supabase, y no
+ *  se puede subir desde el cliente —pedir `limit(2000)` igual corta en mil—. */
+const PAGINA = 1000;
+
+/** Tope duro, para que un error de datos no arrastre la página entera.
+ *
+ *  Un año registrando seis comidas por día son 2.190: el techo está bien
+ *  arriba de cualquier uso real y solo existe para que un `local_date` corrupto
+ *  no convierta esto en un bucle que baja la tabla completa. */
+const TOPE_COMIDAS = 6000;
+
+/**
+ * Las comidas del período, **paginadas**.
+ *
+ * Sin las páginas, PostgREST devuelve mil filas y corta: no falla, no avisa y
+ * no hay nada en la respuesta que lo diga. Con 7, 30 o 90 días eso no se
+ * notaba —90 días de cuatro comidas son 360—, pero un año de registro pasa las
+ * dos mil y la ficha habría mostrado medio año largo como si fuera el año
+ * entero, con los promedios y el conteo de días calculados sobre lo que llegó.
+ * Un dato faltante que se ve igual de bien que uno completo es peor que un
+ * error.
+ */
 export async function fetchMeals(
   db: SupabaseClient,
   userId: string,
   from: string,
   to: string,
 ): Promise<Meal[]> {
-  const { data } = await db
-    .from('meals')
-    .select(
-      'id, slot, local_date, logged_at, name, total_kcal, total_protein_g, ' +
-        'total_carbs_g, total_fat_g, source, photo_path, ' +
-        'meal_items(id, name, quantity, unit, kcal, protein_g, carbs_g, ' +
-        'fat_g, ai_confidence)',
-    )
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .gte('local_date', from)
-    .lte('local_date', to)
-    .order('local_date', { ascending: false })
-    .order('logged_at', { ascending: true });
+  const out: Meal[] = [];
 
-  return (data ?? []) as unknown as Meal[];
+  for (let desde = 0; desde < TOPE_COMIDAS; desde += PAGINA) {
+    const { data } = await db
+      .from('meals')
+      .select(
+        'id, slot, local_date, logged_at, name, total_kcal, total_protein_g, ' +
+          'total_carbs_g, total_fat_g, source, photo_path, ' +
+          'meal_items(id, name, quantity, unit, kcal, protein_g, carbs_g, ' +
+          'fat_g, ai_confidence)',
+      )
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .gte('local_date', from)
+      .lte('local_date', to)
+      .order('local_date', { ascending: false })
+      .order('logged_at', { ascending: true })
+      // El orden de arriba es total —fecha y hora— así que las páginas no se
+      // pisan ni se saltean entre sí.
+      .order('id', { ascending: true })
+      .range(desde, desde + PAGINA - 1);
+
+    const lote = (data ?? []) as unknown as Meal[];
+    out.push(...lote);
+    if (lote.length < PAGINA) break;
+  }
+
+  return out;
+}
+
+/** Si los números de esta comida los estimó el modelo y no los cargó alguien.
+ *
+ *  Vive acá y no adentro de una pantalla porque lo preguntan la ficha del día y
+ *  la galería de fotos, y son dos lugares donde la respuesta tiene que ser la
+ *  misma: una estimación nunca se muestra con la misma cara que una medición. */
+export function esEstimacionIA(m: Meal): boolean {
+  return m.source === 'ai_photo' || m.source === 'ai_text';
 }
 
 export async function fetchWeights(
@@ -202,8 +245,14 @@ export async function fetchSleep(
 ): Promise<SleepLog[]> {
   const { data } = await db
     .from('sleep_logs')
+    // La lápida se filtra igual que en el resto de las tablas. Faltaba acá y
+    // solo acá: `sleep_logs` fue la última en tener `deleted_at` —la agregó
+    // `20260801002800_sleep_soft_delete.sql`— y esta consulta quedó de antes,
+    // así que una noche que el paciente borró de la app le seguía apareciendo
+    // a la profesional, con el promedio y el gráfico contándola.
     .select('local_date, minutes, quality')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .gte('local_date', from)
     .lte('local_date', to)
     .order('local_date');
@@ -243,15 +292,26 @@ export async function signPhotos(
   const unique = [...new Set(paths.filter(Boolean))];
   if (unique.length === 0) return {};
 
-  const { data } = await db.storage
-    .from('meal-photos')
-    .createSignedUrls(unique, 60 * 60);
+  // De a 400 y en paralelo: con el período de un año, alguien que fotografía
+  // cada comida junta más de mil rutas, y eso en un solo pedido es un cuerpo
+  // enorme que además tarda todo lo que tarda el más lento. Partido, son varios
+  // pedidos chicos que viajan juntos.
+  const lotes: string[][] = [];
+  for (let i = 0; i < unique.length; i += 400) lotes.push(unique.slice(i, i + 400));
+
+  const respuestas = await Promise.all(
+    lotes.map((lote) =>
+      db.storage.from('meal-photos').createSignedUrls(lote, 60 * 60),
+    ),
+  );
 
   const out: Record<string, string> = {};
-  for (const row of data ?? []) {
-    // `path` viene null si esa foto puntual no se pudo firmar —por ejemplo si
-    // la categoría no está concedida—. Se saltea sin romper el resto.
-    if (row.path && row.signedUrl) out[row.path] = row.signedUrl;
+  for (const { data } of respuestas) {
+    for (const row of data ?? []) {
+      // `path` viene null si esa foto puntual no se pudo firmar —por ejemplo si
+      // la categoría no está concedida—. Se saltea sin romper el resto.
+      if (row.path && row.signedUrl) out[row.path] = row.signedUrl;
+    }
   }
   return out;
 }

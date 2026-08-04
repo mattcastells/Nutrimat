@@ -1,16 +1,28 @@
 'use client';
 
 import { useState } from 'react';
+import { diasEntre, fechaCorta } from '@/lib/format';
+import { ejeLindo, useChartWidth } from '@/lib/chart';
 
 export type Point = { date: string; value: number };
 
 /**
- * Barras por día, una sola serie.
+ * Barras por día, una sola serie, sobre el período completo.
  *
  * Deliberadamente genérico y de una serie: agua, sueño, actividad y cada macro
  * usan este mismo componente. Una sola serie no necesita paleta categórica ni
  * leyenda —el título la nombra— y así ninguno de estos gráficos depende de
  * distinguir dos colores de marca, que es donde la paleta de la app no llega.
+ *
+ * **El eje X es el período elegido arriba, no la lista de días con datos.** Es
+ * la corrección importante: antes cada punto ocupaba una posición y listo, así
+ * que siete días sueltos de un mes se dibujaban pegados, del ancho de la carta
+ * y con las fechas de los extremos abajo. Se leía como una semana de registro
+ * seguido cuando eran siete días desparramados en treinta. Ahora cada barra
+ * cae en su fecha y los días sin registro son huecos.
+ *
+ * El hueco sigue siendo un hueco y no una barra en cero: cero diría que comió
+ * cero, que no es lo que pasó. La diferencia es que ahora el hueco se ve.
  *
  * Las barras nacen en cero. En una magnitud, un eje truncado convierte 1.900
  * contra 2.100 en el doble.
@@ -18,6 +30,8 @@ export type Point = { date: string; value: number };
 export function BarChart({
   points,
   unit,
+  desde,
+  hasta,
   color = 'var(--chart-intake)',
   target,
   targetLabel,
@@ -26,6 +40,10 @@ export function BarChart({
 }: {
   points: Point[];
   unit: string;
+  /** Los extremos del período. Sin ellos se usa el rango de los datos, que es
+   *  lo que hay que evitar salvo que no haya período que respetar. */
+  desde?: string;
+  hasta?: string;
   color?: string;
   target?: number | null;
   targetLabel?: string;
@@ -40,138 +58,180 @@ export function BarChart({
   height?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-
-  if (points.length === 0) {
-    return <p className="muted">Sin registros en este período.</p>;
-  }
+  const [box, ancho] = useChartWidth();
 
   const fmt = (v: number) =>
     decimals === 0
       ? String(Math.round(v))
       : v.toFixed(decimals).replace('.', ',');
-  const W = 720;
+
+  // El eje se escribe sin los decimales que no aportan: con `decimals = 1` las
+  // rayas del sueño salían "0,0 · 5,0 · 10,0", que es ruido en una escala de
+  // horas enteras. El globito sí los mantiene, porque ahí el dato es exacto.
+  const fmtEje = (v: number) => (Number.isInteger(v) ? String(v) : fmt(v));
+
+  // El ancho lo manda la caja: dibujar siempre en 720 y estirar con CSS
+  // escalaba también las etiquetas del eje.
+  const W = Math.max(ancho, 240);
   const H = height;
-  const PAD = { top: 12, right: 12, bottom: 22, left: 44 };
+  const PAD = { top: 10, right: 10, bottom: 20, left: 40 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
-  const max = Math.max(...points.map((p) => p.value), target ?? 0) * 1.1 || 1;
-  const step = innerW / points.length;
-  // 2 px de aire: sin el respiro, dos días seguidos se leen como un bloque.
-  const barW = Math.max(step - 2, 1.5);
+  // Menos rayas en un gráfico bajo: cinco etiquetas en 120 px de alto se tocan.
+  const { max, ticks } = ejeLindo(
+    Math.max(...points.map((p) => p.value), target ?? 0),
+    innerH < 140 ? 3 : 5,
+  );
+
+  const inicio = desde ?? points[0]?.date ?? '';
+  const fin = hasta ?? points[points.length - 1]?.date ?? inicio;
+  const totalDias = Math.max(diasEntre(inicio, fin) + 1, 1);
+
+  const step = innerW / totalDias;
+  // 2 px de aire, un techo de 56 —con 7 días son cinco barras repartiéndose mil
+  // píxeles— y un piso de 1,2 para que un año de registro diario siga dibujando
+  // una línea por día en vez de nada.
+  const barW = Math.min(Math.max(step - 2, 1.2), 56);
+  const x = (fecha: string) =>
+    PAD.left + diasEntre(inicio, fecha) * step + (step - barW) / 2;
   const y = (v: number) => PAD.top + innerH - (v / max) * innerH;
 
   const point = hover === null ? null : points[hover];
 
   return (
-    <div className="scroll-x" style={{ position: 'relative' }}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        style={{ minWidth: 380, display: 'block' }}
-        role="img"
-        aria-label={`Valores por día en ${unit}`}
-        onMouseLeave={() => setHover(null)}
-      >
-        {[0, max].map((v, i) => (
-          <g key={i}>
-            <line
-              x1={PAD.left}
-              x2={W - PAD.right}
-              y1={y(v)}
-              y2={y(v)}
-              stroke="var(--divider)"
-              strokeWidth="1"
+    <div className="scroll-x chart" ref={box} style={{ position: 'relative' }}>
+      {points.length === 0 ? (
+        <p className="muted" style={{ margin: 0 }}>
+          Sin registros en este período.
+        </p>
+      ) : (
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          width={W}
+          height={H}
+          style={{ display: 'block' }}
+          role="img"
+          aria-label={`Valores por día en ${unit}, del ${fechaCorta(inicio)} al ${fechaCorta(fin)}`}
+          onMouseLeave={() => setHover(null)}
+        >
+          {ticks.map((v) => (
+            <g key={v}>
+              <line
+                x1={PAD.left}
+                x2={W - PAD.right}
+                y1={y(v)}
+                y2={y(v)}
+                stroke="var(--divider)"
+                strokeWidth="1"
+              />
+              <text
+                x={PAD.left - 7}
+                y={y(v) + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="var(--text-muted)"
+                className="tnum"
+              >
+                {fmtEje(v)}
+              </text>
+            </g>
+          ))}
+
+          {points.map((p, i) => (
+            <rect
+              key={p.date}
+              x={x(p.date)}
+              y={y(p.value)}
+              width={barW}
+              height={Math.max(innerH - (y(p.value) - PAD.top), 0)}
+              rx={Math.min(3, barW / 2)}
+              fill={color}
+              opacity={hover === null || hover === i ? 1 : 0.45}
             />
-            <text
-              x={PAD.left - 8}
-              y={y(v) + 4}
-              textAnchor="end"
-              fontSize="11"
-              fill="var(--text-muted)"
-              className="tnum"
-            >
-              {fmt(v)}
-            </text>
-          </g>
-        ))}
+          ))}
 
-        {points.map((p, i) => (
-          <rect
-            key={p.date}
-            x={PAD.left + i * step + 1}
-            y={y(p.value)}
-            width={barW}
-            height={Math.max(innerH - (y(p.value) - PAD.top), 0)}
-            rx="3"
-            fill={color}
-            opacity={hover === null || hover === i ? 1 : 0.5}
-            onMouseEnter={() => setHover(i)}
-          />
-        ))}
+          {target != null && target > 0 && (
+            <>
+              <line
+                x1={PAD.left}
+                x2={W - PAD.right}
+                y1={y(target)}
+                y2={y(target)}
+                stroke="var(--chart-target)"
+                strokeWidth="2"
+                strokeDasharray="6 5"
+              />
+              {/* La raya con su nombre: sin la etiqueta hay que ir a leer la
+                  bajada de la sección para saber qué representa, y la bajada
+                  queda arriba y fuera de la vista al scrollear. */}
+              {targetLabel && (
+                <text
+                  x={W - PAD.right}
+                  y={y(target) - 6}
+                  textAnchor="end"
+                  fontSize="11"
+                  fill="var(--text-muted)"
+                  className="tnum"
+                >
+                  {targetLabel}
+                </text>
+              )}
+            </>
+          )}
 
-        {target != null && target > 0 && (
-          <line
-            x1={PAD.left}
-            x2={W - PAD.right}
-            y1={y(target)}
-            y2={y(target)}
-            stroke="var(--chart-target)"
-            strokeWidth="2"
-            strokeDasharray="6 5"
-          />
-        )}
+          {/* Zonas de hover más anchas que las barras: con el eje en días, una
+              barra de un año mide un píxel y medio y apuntarle sería una prueba
+              de puntería, no una interacción. */}
+          {points.map((p, i) => (
+            <rect
+              key={`zona-${p.date}`}
+              x={x(p.date) + barW / 2 - Math.max(step, 8) / 2}
+              y={PAD.top}
+              width={Math.max(step, 8)}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+            />
+          ))}
 
-        <text
-          x={PAD.left}
-          y={H - 6}
-          fontSize="10.5"
-          fill="var(--text-muted)"
-          className="tnum"
-        >
-          {corta(points[0].date)}
-        </text>
-        <text
-          x={W - PAD.right}
-          y={H - 6}
-          textAnchor="end"
-          fontSize="10.5"
-          fill="var(--text-muted)"
-          className="tnum"
-        >
-          {corta(points[points.length - 1].date)}
-        </text>
-      </svg>
+          <text
+            x={PAD.left}
+            y={H - 5}
+            fontSize="10.5"
+            fill="var(--text-muted)"
+            className="tnum"
+          >
+            {fechaCorta(inicio)}
+          </text>
+          <text
+            x={W - PAD.right}
+            y={H - 5}
+            textAnchor="end"
+            fontSize="10.5"
+            fill="var(--text-muted)"
+            className="tnum"
+          >
+            {fechaCorta(fin)}
+          </text>
+        </svg>
+      )}
 
       {point && (
-        <div
-          className="card tnum"
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            padding: 'var(--s2) var(--s3)',
-            pointerEvents: 'none',
-            boxShadow: 'var(--shadow-md)',
-          }}
-        >
-          <div className="caption">{corta(point.date)}</div>
+        <div className="chart-tip tnum">
+          <div className="caption">{fechaCorta(point.date)}</div>
           <div>
             {fmt(point.value)} {unit}
           </div>
-          {target != null && target > 0 && targetLabel && (
-            <div className="caption">{targetLabel}</div>
+          {target != null && target > 0 && (
+            <div className="caption">
+              {point.value >= target
+                ? `${fmt(point.value - target)} por encima`
+                : `${fmt(target - point.value)} por debajo`}
+            </div>
           )}
         </div>
       )}
     </div>
   );
-}
-
-export function corta(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
-    day: 'numeric',
-    month: 'short',
-  });
 }

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { WeightLog } from '@/lib/queries';
+import { conSigno, dec, diasEntre, fechaCorta } from '@/lib/format';
+import { ticksEnRango, useChartWidth } from '@/lib/chart';
 
 /**
  * Peso en el tiempo, con su media móvil.
@@ -11,21 +13,35 @@ import type { WeightLog } from '@/lib/queries';
  * tendencia, que es lo que se mira para decidir; el peso diario sube y baja por
  * agua y por la hora en que uno se pesa, y leer eso como progreso es el error
  * que la media móvil evita.
+ *
+ * **Los puntos van en su fecha, no repartidos parejo.** Con el eje por posición,
+ * cinco pesajes de una semana y uno de un mes después se dibujaban a la misma
+ * distancia entre sí, y la pendiente de la línea —que es todo lo que se mira
+ * acá— salía inventada.
  */
-export function WeightChart({ logs }: { logs: WeightLog[] }) {
+export function WeightChart({
+  logs,
+  desde,
+  hasta,
+}: {
+  logs: WeightLog[];
+  desde?: string;
+  hasta?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
+  const [box, ancho] = useChartWidth();
 
   if (logs.length < 2) {
     return (
-      <p className="muted">
+      <p className="muted" style={{ margin: 0 }}>
         Con menos de dos registros no hay tendencia que mostrar.
       </p>
     );
   }
 
-  const W = 720;
+  const W = Math.max(ancho, 240);
   const H = 240;
-  const PAD = { top: 16, right: 16, bottom: 28, left: 44 };
+  const PAD = { top: 16, right: 16, bottom: 28, left: 46 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
@@ -38,8 +54,12 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
   const lo = min - span * 0.15;
   const hi = max + span * 0.15;
 
+  const inicio = desde ?? logs[0].local_date;
+  const fin = hasta ?? logs[logs.length - 1].local_date;
+  const tramo = Math.max(diasEntre(inicio, fin), 1);
+
   const x = (i: number) =>
-    PAD.left + (logs.length === 1 ? innerW / 2 : (i / (logs.length - 1)) * innerW);
+    PAD.left + (diasEntre(inicio, logs[i].local_date) / tramo) * innerW;
   const y = (v: number) => PAD.top + innerH - ((v - lo) / (hi - lo)) * innerH;
 
   // Media móvil de 7, hacia atrás: es la que usa la app.
@@ -56,17 +76,18 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
   const point = hover === null ? null : logs[hover];
 
   return (
-    <div className="scroll-x" style={{ position: 'relative' }}>
+    <div className="scroll-x chart" ref={box} style={{ position: 'relative' }}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        style={{ minWidth: 420, display: 'block' }}
+        width={W}
+        height={H}
+        style={{ display: 'block' }}
         role="img"
         aria-label={`Peso desde ${logs[0].local_date} hasta ${logs[logs.length - 1].local_date}`}
         onMouseLeave={() => setHover(null)}
       >
-        {[lo, (lo + hi) / 2, hi].map((v, i) => (
-          <g key={i}>
+        {ticksEnRango(lo, hi).map((v) => (
+          <g key={v}>
             <line
               x1={PAD.left}
               x2={W - PAD.right}
@@ -83,7 +104,7 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
               fill="var(--text-muted)"
               className="tnum"
             >
-              {v.toFixed(1)}
+              {dec(v)}
             </text>
           </g>
         ))}
@@ -111,18 +132,25 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
         ))}
 
         {/* Las zonas de hover son más anchas que los puntos: apuntarle a un
-            círculo de 4 px es una prueba de puntería, no una interacción. */}
-        {logs.map((l, i) => (
-          <rect
-            key={`hit-${l.local_date}`}
-            x={x(i) - innerW / logs.length / 2}
-            y={PAD.top}
-            width={innerW / logs.length}
-            height={innerH}
-            fill="transparent"
-            onMouseEnter={() => setHover(i)}
-          />
-        ))}
+            círculo de 4 px es una prueba de puntería, no una interacción. Con
+            los puntos ya ubicados por fecha, cada zona llega hasta la mitad de
+            camino al vecino en vez de medir todas lo mismo. */}
+        {logs.map((l, i) => {
+          const izq = i === 0 ? x(0) - 12 : (x(i - 1) + x(i)) / 2;
+          const der =
+            i === logs.length - 1 ? x(i) + 12 : (x(i) + x(i + 1)) / 2;
+          return (
+            <rect
+              key={`hit-${l.local_date}`}
+              x={izq}
+              y={PAD.top}
+              width={Math.max(der - izq, 6)}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+            />
+          );
+        })}
 
         <text
           x={PAD.left}
@@ -131,7 +159,7 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
           fill="var(--text-muted)"
           className="tnum"
         >
-          {fecha(logs[0].local_date)}
+          {fechaCorta(inicio)}
         </text>
         <text
           x={W - PAD.right}
@@ -141,34 +169,24 @@ export function WeightChart({ logs }: { logs: WeightLog[] }) {
           fill="var(--text-muted)"
           className="tnum"
         >
-          {fecha(logs[logs.length - 1].local_date)}
+          {fechaCorta(fin)}
         </text>
       </svg>
 
       {point && (
-        <div
-          className="card tnum"
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            padding: 'var(--s3) var(--s4)',
-            pointerEvents: 'none',
-            boxShadow: 'var(--shadow-md)',
-          }}
-        >
-          <div className="caption">{fecha(point.local_date)}</div>
-          <div style={{ fontSize: 17 }}>{Number(point.weight_kg).toFixed(1)} kg</div>
+        <div className="chart-tip tnum">
+          <div className="caption">{fechaCorta(point.local_date)}</div>
+          <div style={{ fontSize: 17 }}>{dec(Number(point.weight_kg))} kg</div>
+          {hover !== null && hover > 0 && (
+            <div className="caption">
+              {conSigno(
+                Number(point.weight_kg) - Number(logs[0].weight_kg),
+              )}{' '}
+              kg desde el inicio
+            </div>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-function fecha(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
-    day: 'numeric',
-    month: 'short',
-  });
 }

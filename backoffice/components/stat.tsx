@@ -19,47 +19,31 @@ export function Stat({
   tone?: 'estimate' | 'muted';
 }) {
   return (
-    <div className="card" style={{ padding: 'var(--s4) var(--s5)' }}>
-      <div className="caption">{label}</div>
+    <div className="card stat">
+      <div className="caption stat-label">{label}</div>
       <div
-        className="tnum"
-        style={{
-          fontSize: 24,
-          marginTop: 2,
-          color: tone === 'estimate' ? 'var(--caution)' : 'var(--text)',
-        }}
+        className="tnum stat-value"
+        style={tone === 'estimate' ? { color: 'var(--caution)' } : undefined}
       >
         {value}
-        {unit && (
-          <span
-            className="muted"
-            style={{ fontSize: 14, marginLeft: 4, fontVariantNumeric: 'normal' }}
-          >
-            {unit}
-          </span>
-        )}
+        {unit && <span className="muted stat-unit">{unit}</span>}
       </div>
-      {caption && (
-        <div className="caption" style={{ marginTop: 2 }}>
-          {caption}
-        </div>
-      )}
+      {/* El pie va siempre, aunque esté vacío: sin él las fichas de una fila
+          tienen alturas distintas y los números dejan de estar alineados, que
+          es justo para lo que sirve ponerlos en fila. */}
+      <div className="caption stat-caption">{caption ?? ' '}</div>
     </div>
   );
 }
 
+/** Las fichas en fila, hasta cuatro por línea.
+ *
+ *  El tope de cuatro es lo que evita la huérfana: con `auto-fit` y un mínimo
+ *  chico, en 1080 px entraban seis y la séptima quedaba sola abajo, a un sexto
+ *  de ancho. Cuatro por fila reparte siete en 4 + 3, que se lee como una
+ *  grilla y no como un sobrante. */
 export function StatRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gap: 'var(--s3)',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="stats">{children}</div>;
 }
 
 /** Un encabezado de sección con su bajada, para que cada bloque diga qué es. */
@@ -73,7 +57,7 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section style={{ marginTop: 'var(--s8)' }}>
+    <section className="section">
       <h2>{title}</h2>
       {hint && (
         <p className="caption" style={{ marginTop: 2, marginBottom: 'var(--s4)' }}>

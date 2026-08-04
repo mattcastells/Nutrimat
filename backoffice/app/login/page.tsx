@@ -42,56 +42,59 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page" style={{ maxWidth: 380, paddingTop: 'var(--s8)' }}>
-      <h1>Nutrimat</h1>
-      <p className="muted" style={{ marginTop: 'var(--s2)' }}>
-        Panel de seguimiento
-      </p>
+    <main className="login">
+      <div className="card" style={{ width: '100%', maxWidth: 380 }}>
+        <h1>Nutrimat</h1>
+        <p className="muted" style={{ marginTop: 'var(--s2)' }}>
+          Panel de seguimiento
+        </p>
 
-      <form onSubmit={onSubmit} style={{ marginTop: 'var(--s7)' }}>
-        <label className="grid" style={{ gap: 'var(--s2)' }}>
-          <span className="caption">Correo</span>
-          <input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
+        <form onSubmit={onSubmit} style={{ marginTop: 'var(--s7)' }}>
+          <label className="grid" style={{ gap: 'var(--s2)' }}>
+            <span className="caption">Correo</span>
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
 
-        <label
-          className="grid"
-          style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}
-        >
-          <span className="caption">Contraseña</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
+          <label
+            className="grid"
+            style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}
+          >
+            <span className="caption">Contraseña</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
 
-        {error && (
-          <p style={{ color: 'var(--danger)', marginTop: 'var(--s4)' }}>
-            {error}
-          </p>
-        )}
+          {error && (
+            <p style={{ color: 'var(--danger)', marginTop: 'var(--s4)' }}>
+              {error}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={busy}
-          style={{ marginTop: 'var(--s6)', width: '100%' }}
-        >
-          {busy ? 'Entrando…' : 'Entrar'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            className="button--primary"
+            disabled={busy}
+            style={{ marginTop: 'var(--s6)', width: '100%' }}
+          >
+            {busy ? 'Entrando…' : 'Entrar'}
+          </button>
+        </form>
 
-      <p className="caption" style={{ marginTop: 'var(--s6)' }}>
-        La cuenta se crea desde la app. Acá solo se entra.
-      </p>
+        <p className="caption" style={{ marginTop: 'var(--s6)' }}>
+          La cuenta se crea desde la app. Acá solo se entra.
+        </p>
+      </div>
     </main>
   );
 }

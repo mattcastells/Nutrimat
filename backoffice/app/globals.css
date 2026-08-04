@@ -28,6 +28,7 @@
   --chart-protein: #9184d9;
   --chart-carbs: #7fa8d9;
   --chart-fat: #d9b46a;
+  --chart-walking: #9184d9;
 
   --skeleton: #3f424d;
 
@@ -202,6 +203,21 @@ button:disabled {
   cursor: default;
 }
 
+/* La acción principal de una pantalla que tiene una sola.
+ *
+ * Es el mismo botón con un fondo teñido y no uno relleno de acento: el acento
+ * en claro (`#796cbf`) no llega a 4,5:1 ni con texto blanco ni con texto
+ * oscuro, así que un botón relleno pediría un color que no está en los tokens.
+ * El texto sigue siendo `accent-text`, que es el que ya está validado contra la
+ * carta en los dos temas. */
+.button--primary {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
 input,
 select {
   font: inherit;
@@ -248,4 +264,952 @@ th {
 td {
   padding: var(--s3);
   border-top: 1px solid var(--divider);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * El chrome del panel: cabecera fija, pestañas, colapsables.
+ *
+ * Nada de acá inventa un color: todo sale de los tokens de arriba con
+ * `color-mix`, así que si un token cambia esto lo sigue solo y no hay una
+ * segunda paleta que mantener sincronizada a mano.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --hairline: color-mix(in srgb, var(--text) 9%, transparent);
+  --hover: color-mix(in srgb, var(--text) 6%, transparent);
+  --topbar-bg: color-mix(in srgb, var(--bg) 86%, transparent);
+
+  /* El día que se pasó del objetivo. Sale de `caution` y no es un color nuevo,
+   * pero en claro el token está elegido para que un texto tenga contraste sobre
+   * blanco: como relleno de una barra, ese mostaza oscuro pesa el doble que el
+   * violeta de al lado y exagera el día que se pasó. Aclarado contra la carta,
+   * las dos barras tienen el mismo peso y solo cambia el tono. */
+  --chart-over: var(--caution);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --chart-over: color-mix(in srgb, var(--caution) 45%, var(--surface));
+  }
+}
+
+/* ── Cabecera fija ──────────────────────────────────────────────────────── */
+
+/* Se queda arriba porque el día a día es largo: leyendo el 12 de julio hay que
+ * poder seguir viendo de quién es la ficha y qué período está puesto, que es
+ * justo lo que se perdía cuando el encabezado se iba con el scroll. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--topbar-bg);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-bottom: 1px solid var(--divider);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .topbar {
+    background: var(--bg);
+  }
+}
+
+.topbar-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--s4) var(--s5) 0;
+}
+
+/* Sin pestañas debajo, la cabecera cierra ella misma el aire de abajo. */
+.topbar-inner--plain {
+  padding-bottom: var(--s4);
+}
+
+.topbar-id {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding-bottom: var(--s3);
+}
+
+/* Al bajar, la cabecera se achica: el nombre baja a tamaño de subtítulo y la
+ * línea de contexto se va. Con 90 días abiertos, 96 px fijos de cabecera son
+ * una franja que se lleva un séptimo de la pantalla para repetir un dato que
+ * ya se leyó. */
+.topbar-id h1 {
+  transition: font-size 0.18s ease;
+}
+
+.topbar.is-compact .topbar-id {
+  align-items: center;
+  padding-bottom: var(--s2);
+}
+
+.topbar.is-compact .topbar-id h1 {
+  font-size: 18px;
+}
+
+.topbar.is-compact .topbar-back,
+.topbar.is-compact .topbar-sub {
+  display: none;
+}
+
+/* Lo que la cabecera achica se le devuelve al contenido de abajo, para que el
+ * documento mida siempre lo mismo.
+ *
+ * Sin esto la página **se come el scroll**: la cabecera es `sticky`, o sea que
+ * ocupa lugar en el flujo, y al compactarse el documento entero se acortaba 45
+ * px. En una pestaña apenas más alta que la pantalla eso alcanzaba para que no
+ * quedara nada que scrollear —medido: documento 619, pantalla 561, y el máximo
+ * de scroll pasaba de 58 px a 13 en cuanto uno empezaba a bajar—.
+ *
+ * Va acá y no en un efecto de React porque tiene que resolverse en el **mismo**
+ * cálculo de layout que el cambio de clase: si el documento llega a medirse más
+ * corto, el navegador ya recortó la posición del scroll, y devolverle el alto
+ * después no devuelve la posición.
+ *
+ * El relleno queda arriba de todo, así que al estar mirando algo de más abajo
+ * ya salió de la pantalla: la franja de viewport que libera la cabecera
+ * compacta se gana igual. Lo único que no cambia es el alto del documento.
+ *
+ * `--topbar-delta` lo mide `components/tabs.tsx` al montar y en cada cambio de
+ * ancho; sin JavaScript vale 0 y tampoco hay compactado que compensar. */
+.topbar.is-compact + .page {
+  padding-top: calc(var(--s6) + var(--topbar-delta, 0px));
+}
+
+.topbar-back {
+  margin: 0 0 var(--s2);
+}
+
+.topbar-sub {
+  margin: var(--s1) 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-id h1 {
+    transition: none;
+  }
+}
+
+/* ── Pestañas ───────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: var(--s6);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: var(--s3) 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+
+/* El punto de "esta categoría no está compartida". La pestaña no se esconde a
+ * propósito: que exista y esté apagada es un dato, y una pestaña ausente se
+ * lee como "esto no existe" en vez de "esto no me lo dieron". */
+.tab-off {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--caution);
+  flex: none;
+}
+
+/* ── Entrar ─────────────────────────────────────────────────────────────── */
+
+.login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--s6) var(--s5);
+}
+
+/* ── Segmentado (el período) ────────────────────────────────────────────── */
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+}
+
+.seg > a {
+  padding: 2px var(--s4);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.seg > a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.seg > a[aria-current='true'] {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+/* ── Cartas y grillas ───────────────────────────────────────────────────── */
+
+/* En oscuro una sombra casi no dibuja un borde: la línea de pelo es la que
+ * separa la carta del fondo. */
+.card {
+  border: 1px solid var(--hairline);
+}
+
+/* 360 px y no menos: los gráficos tienen 320 px de ancho mínimo, así que una
+ * tercera columna los mandaría a scrollear adentro de su propia carta. Con este
+ * piso son dos columnas en 1080 y una sola en pantalla angosta. */
+.grid--auto {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+/* Tres columnas donde hay tres cosas —hábitos, medidas—. Con el piso de 360 de
+ * arriba entraban dos y la tercera quedaba sola, con medio ancho de carta vacío
+ * al lado. */
+.grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+}
+
+/* ── Fichas de número ───────────────────────────────────────────────────── */
+
+.stats {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 620px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 880px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  padding: var(--s4) var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-label {
+  /* Una etiqueta larga —"Días dentro del objetivo"— no puede empujar la ficha
+   * ni cortarse en dos alturas distintas según la fila. */
+  min-height: 2.2em;
+}
+
+.stat-value {
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.stat-unit {
+  font-size: 14px;
+  margin-left: 4px;
+  font-variant-numeric: normal;
+}
+
+.stat-caption {
+  margin-top: auto;
+  padding-top: var(--s1);
+  min-height: 1.4em;
+}
+
+/* Una carta que es un enlace: hereda el color del texto —si no, el nombre del
+ * paciente sale en violeta de link— y avisa que se puede tocar con el borde. */
+.card-link {
+  display: block;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card-link:hover {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-link {
+    transition: none;
+  }
+}
+
+.section + .section {
+  margin-top: var(--s7);
+}
+
+.panel > .section:first-child {
+  margin-top: var(--s5);
+}
+
+/* ── Colapsables ────────────────────────────────────────────────────────── */
+
+/* `<details>` nativo y no un estado de React: abre y cierra sin JavaScript,
+ * el teclado y el lector de pantalla ya saben qué es, y el buscador del
+ * navegador (Ctrl+F) entra igual en lo cerrado. */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chev {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 0.18s ease;
+}
+
+details[open] > summary .chev {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    transition: none;
+  }
+}
+
+/* ── El día, colapsado y abierto ────────────────────────────────────────── */
+
+.day {
+  padding: 0;
+  overflow: hidden;
+}
+
+.day + .day {
+  margin-top: var(--s3);
+}
+
+.day > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
+}
+
+.day > summary:hover {
+  background: var(--hover);
+}
+
+.day-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Las fichas de los momentos son lo primero que se sacrifica cuando la fila no
+ * entra: adentro del día está la misma información, y en pantalla angosta el
+ * número de calorías importa más.
+ *
+ * Van con las dos clases —`.chips.day-chips`— y no con `.day-chips` sola: si no,
+ * el `display: flex` de `.chips`, que está más abajo en este archivo, gana por
+ * orden y las fichas no se esconden nunca. */
+.chips.day-chips {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .chips.day-chips {
+    display: flex;
+  }
+}
+
+.day-kcal {
+  flex: none;
+  text-align: right;
+}
+
+.meal-kcal {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.day-body {
+  padding: 0 var(--s5) var(--s5);
+}
+
+.slot {
+  margin-top: var(--s5);
+}
+
+.slot-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--divider);
+}
+
+.meal > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  flex-wrap: wrap;
+}
+
+.meal > summary:hover {
+  color: var(--accent-text);
+}
+
+.meal + .meal {
+  border-top: 1px solid var(--divider);
+}
+
+.meal-body {
+  padding: 0 0 var(--s4) var(--s5);
+}
+
+/* ── Fichas chicas ──────────────────────────────────────────────────────── */
+
+.chips {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 11.5px;
+  line-height: 1.7;
+  padding: 0 var(--s3);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chip--on {
+  color: var(--text);
+}
+
+/* ── Calendario de adherencia ───────────────────────────────────────────── */
+
+/* El cuadrado lo calcula el componente y entra por `--cell`: treinta días con
+ * el tamaño de noventa serían una estampilla en una carta de 1080 px. */
+.cal {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, var(--cell));
+  gap: 3px;
+  width: max-content;
+}
+
+.cal-cell {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 3px;
+  /* El día sin registro es gris y opaco, no un contorno: un borde de un píxel
+   * al 9 % desaparece, y el hueco es justamente lo que hay que ver. */
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+}
+
+.cal-cell[data-on='1'] {
+  border-color: transparent;
+}
+
+.cal-days {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  gap: 3px;
+  margin-right: var(--s2);
+  font-size: 10.5px;
+  line-height: var(--cell);
+  color: var(--text-muted);
+}
+
+/* El calendario ocupa un tercio de la carta y antes el resto quedaba en blanco.
+ * La fila son tres bloques: el calendario, lo que explica cómo leerlo y lo
+ * mismo contado en números —la franja de los sábados se ve, pero "nueve días
+ * seguidos" hay que contarlo con el dedo—. */
+.cal-layout {
+  display: flex;
+  gap: var(--s6);
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.cal-legend {
+  flex: 1 1 200px;
+  max-width: 32ch;
+  margin: 0;
+  align-self: center;
+}
+
+/* Dos columnas y no cuatro en fila: cuatro datos repartidos en 700 px quedan
+ * tan separados entre sí que dejan de leerse como un bloque. */
+.cal-facts {
+  flex: 1 1 260px;
+  display: grid;
+  gap: var(--s5) var(--s6);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  margin: 0;
+  padding-left: var(--s6);
+  border-left: 1px solid var(--divider);
+}
+
+.cal-fact dd {
+  margin: 0;
+}
+
+.cal-fact dd:first-of-type {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+/* En pantalla angosta los tres bloques se apilan y la raya vertical, que
+ * separaba columnas, pasa a cortar el bloque al medio. */
+@media (max-width: 900px) {
+  .cal-facts {
+    padding-left: 0;
+    border-left: 0;
+    padding-top: var(--s5);
+    border-top: 1px solid var(--divider);
+  }
+}
+
+/* ── Barra de reparto ───────────────────────────────────────────────────── */
+
+/* La barra crece con la carta, pero la carta vive en media columna: estirada a
+ * 1080 px, un 18 % son 190 px de línea fina con el número a medio metro y hay
+ * que barrer la fila con la vista para saber de qué comida era. */
+.split-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s4);
+}
+
+.split-row + .split-row {
+  margin-top: var(--s4);
+}
+
+.split-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.split-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--chart-intake);
+  min-width: 2px;
+}
+
+/* ── Macros ─────────────────────────────────────────────────────────────── */
+
+/* Dos filas por macro: arriba el nombre, la barra hasta el objetivo y los
+ * gramos; abajo, alineado con la barra, contra qué se está midiendo. */
+.macro-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+}
+
+.macro-row + .macro-row {
+  margin-top: var(--s5);
+}
+
+.macro-name {
+  grid-column: 1;
+}
+
+.macro-bar {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.macro-bar > .split-track {
+  flex: 1 1 auto;
+}
+
+.macro-over {
+  flex: none;
+  color: var(--caution);
+}
+
+.macro-value {
+  grid-column: 3;
+  white-space: nowrap;
+}
+
+.macro-goal {
+  grid-column: 2 / -1;
+}
+
+/* ── Ficha de la lista ──────────────────────────────────────────────────── */
+
+/* Las fichas de la lista tienen alturas distintas —hay quien comparte cuatro
+ * categorías y quien comparte una—, así que el aire se reparte por dentro y no
+ * con márgenes sueltos: dos fichas de la misma fila terminan parejas. */
+.plist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.plist-week {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.week-dots {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+
+.week-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+}
+
+.week-dot[data-on='1'] {
+  background: var(--chart-intake);
+  border-color: transparent;
+}
+
+/* ── Galería de fotos ───────────────────────────────────────────────────── */
+
+.gal-group + .gal-group {
+  margin-top: var(--s7);
+}
+
+/* Cuadraditos parejos y chicos: la grilla está para comparar veintiocho
+ * desayunos de un vistazo, y para eso importa que estén todos a la vista y
+ * recortados igual, no que cada uno se vea grande. El grande está en el modal. */
+.gal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.gal-item {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-raised);
+  aspect-ratio: 1;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.gal-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.gal-item img {
+  width: 100%;
+  height: 100%;
+  /* `cover` y no `contain`: una grilla de fotos con proporciones distintas
+   * deja franjas de fondo de distinto grosor en cada celda, y el ojo lee esas
+   * franjas antes que la comida. Recortadas, lo único que varía es el plato. */
+  object-fit: cover;
+  display: block;
+}
+
+/* La fecha va encima de la foto y no debajo: abajo, cada celda mediría el alto
+ * de la imagen más una línea de texto, y la grilla dejaría de ser cuadrada. */
+.gal-date {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--s4) var(--s2) 3px;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), transparent);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gal-item {
+    transition: none;
+  }
+  .gal-item:hover {
+    transform: none;
+  }
+}
+
+/* ── El modal de una foto ───────────────────────────────────────────────── */
+
+/* `<dialog>` nativo: Escape, el foco atrapado adentro y el fondo inerte ya
+ * vienen resueltos, y hechos a mano son tres de los cuatro errores clásicos de
+ * accesibilidad de un modal. */
+.modal {
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  max-width: min(920px, 94vw);
+  max-height: 92vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.modal-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-height: 92vh;
+  overflow: auto;
+}
+
+@media (min-width: 760px) {
+  .modal-box {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+.modal-photo {
+  position: relative;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+
+.modal-photo img {
+  width: 100%;
+  max-height: 60vh;
+  /* Acá sí `contain`: es la foto que se está mirando, y recortarla escondería
+   * justo lo que hay en el borde del plato. */
+  object-fit: contain;
+  display: block;
+}
+
+.modal-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  backdrop-filter: blur(6px);
+}
+
+.modal-nav--prev {
+  left: var(--s3);
+}
+
+.modal-nav--next {
+  right: var(--s3);
+}
+
+.modal-data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s5);
+  min-width: 0;
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.modal-close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: var(--divider);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.modal-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+  padding: var(--s4) 0;
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
+}
+
+.modal-total-value {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.modal-total-unit {
+  font-size: 12px;
+  margin-left: 3px;
+  font-variant-numeric: normal;
+}
+
+.modal-pos {
+  margin: auto 0 0;
+}
+
+/* ── Hábitos ────────────────────────────────────────────────────────────── */
+
+/* La carta es una columna: título, bajada, gráfico y el pie con los números que
+ * el gráfico no da. `space-between` no serviría —estiraría los huecos de las
+ * cartas cortas— así que lo que se estira es el gráfico y el pie queda abajo. */
+.habito {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.habito > .chart {
+  margin-top: var(--s2);
+}
+
+.habito-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s5);
+  margin: auto 0 0;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--divider);
+}
+
+.habito-pie dt {
+  margin: 0;
+}
+
+.habito-pie dd {
+  margin: 0;
+}
+
+/* ── Medidas corporales ─────────────────────────────────────────────────── */
+
+.measure-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.measure-value {
+  font-size: 28px;
+  line-height: 1.15;
+  margin-top: var(--s2);
+}
+
+.measure-unit {
+  font-size: 14px;
+  margin-left: 4px;
+  font-variant-numeric: normal;
+}
+
+.measure-spark {
+  margin-top: var(--s3);
+  min-height: 56px;
+}
+
+.measure-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--divider);
+}
+
+/* ── Gráficos ───────────────────────────────────────────────────────────── */
+
+/* El SVG se dibuja al ancho real de esta caja, así que la caja no puede tener
+ * ancho intrínseco: sin el `min-width: 0` una grilla la agranda hasta el
+ * contenido y el gráfico no vuelve a achicarse nunca. */
+.chart {
+  min-width: 0;
+}
+
+/* El globito del hover. Va arriba a la derecha y no siguiendo al puntero: en un
+ * gráfico de treinta barras, un globo que persigue el mouse tapa justamente las
+ * barras vecinas, que son con las que uno está comparando. */
+.chart-tip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: var(--s2) var(--s4);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
 }

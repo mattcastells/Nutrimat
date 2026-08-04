@@ -273,12 +273,24 @@ class LocalRepository
   /// falló: peso, sueño y medidas conservan el id de la fila existente y los
   /// suyos nunca chocaron. Cambiarles el id sin necesidad crearía filas
   /// huérfanas en el servidor a cambio de nada.
+  ///
+  /// 3. **Dos registros para el mismo día**, en agua y en sueño. Es el estado
+  ///    que dejaba el error `duplicate key value violates unique constraint
+  ///    "water_logs_one_per_day"`: la reconciliación une las listas **por id**,
+  ///    así que cuando la fila del servidor y la local tenían ids distintos
+  ///    para el mismo día, las dos quedaban en el documento. No es solo un
+  ///    problema al subir —`glassesOn` y `sleepOn` devuelven la primera que
+  ///    encuentran, o sea que la app podía estar mostrando la vieja—. Se
+  ///    conserva la de marca de tiempo más reciente, que es la última que la
+  ///    persona vio en pantalla.
   Future<void> repararRegistrosViejos() async {
     final objetivos = store.goals
         .where((g) => g.endsOn == null || !g.endsOn!.isBefore(g.startsOn))
         .toList();
 
-    final agua = <WaterLog>[
+    // El renombrado va antes de juntar los duplicados: si no, se elegiría una
+    // de las dos filas y después se le cambiaría el id igual.
+    final aguaRenombrada = <WaterLog>[
       for (final w in store.waterLogs)
         if (w.id == _dailyId('water', w.localDate))
           w
@@ -292,14 +304,52 @@ class LocalRepository
           ),
     ];
 
+    final agua = _unaPorDia<WaterLog>(
+      aguaRenombrada,
+      (w) => w.localDate,
+      (w) => w.updatedAt,
+    );
+    final sueno = _unaPorDia<SleepLog>(
+      store.sleepLogs,
+      (s) => s.localDate,
+      (s) => s.loggedAt,
+    );
+
     final cambio =
         objetivos.length != store.goals.length ||
+        agua.length != store.waterLogs.length ||
+        sueno.length != store.sleepLogs.length ||
         agua.indexed.any((e) => e.$2.id != store.waterLogs[e.$1].id);
     if (!cambio) return;
 
     store.goals = objetivos;
     store.waterLogs = agua;
+    store.sleepLogs = sueno;
     await _commit();
+  }
+
+  /// Un registro por día, el más reciente, conservando el orden de aparición.
+  ///
+  /// Devuelve una lista nueva siempre; quien llama compara los largos para
+  /// saber si hubo algo que juntar.
+  List<T> _unaPorDia<T>(
+    List<T> items,
+    DateTime Function(T) dia,
+    DateTime Function(T) marca,
+  ) {
+    final indicePorDia = <String, int>{};
+    final salida = <T>[];
+    for (final item in items) {
+      final clave = isoDate(dia(item));
+      final i = indicePorDia[clave];
+      if (i == null) {
+        indicePorDia[clave] = salida.length;
+        salida.add(item);
+      } else if (marca(item).isAfter(marca(salida[i]))) {
+        salida[i] = item;
+      }
+    }
+    return salida;
   }
 
   @override

@@ -15,7 +15,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(7);
+select plan(11);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -125,6 +125,70 @@ select is(
     where id = 'eeee0003-0000-4000-8000-000000000003'),
   1,
   'Y deja la que se borró hace dos: la ventana de deshacer es de 30 días'
+);
+
+-- ── El día manda, no el id ──────────────────────────────────────────────
+--
+-- `water_logs` y `sleep_logs` tienen **dos** claves únicas: la primary key y
+-- una por día (`user_id, local_date`). El push resolvía el upsert contra la
+-- primary key, y eso alcanza solo mientras el id sea la única forma de que dos
+-- filas se pisen.
+--
+-- Deja de alcanzar en cuanto el id local y el del servidor se separan para el
+-- mismo día — pasa al iniciar sesión, porque el id se deriva de la identidad de
+-- la cuenta, y pasó a propósito cuando `repararRegistrosViejos` regeneró los
+-- del agua—. Ahí el upsert por id no encuentra contra qué chocar, intenta
+-- insertar, y la clave del día lo rechaza:
+--
+--   duplicate key value violates unique constraint "water_logs_one_per_day"
+--
+-- Una tabla que el servidor rechaza no sube **ninguna** de sus filas, así que
+-- el síntoma era el respaldo trabado con un error permanente en pantalla.
+--
+-- Lo que se prueba es el contrato del que depende el arreglo: que resolviendo
+-- contra la clave del día, una fila con **otro** id actualiza la que ya está en
+-- vez de chocar. Que el id termine siendo el del teléfono es lo que hace que
+-- las dos puntas converjan y el problema no se repita.
+insert into public.water_logs (id, user_id, local_date, glasses)
+values ('eeee0004-0000-4000-8000-000000000004',
+        '77777777-7777-7777-7777-777777777777', current_date - 5, 3);
+
+insert into public.water_logs (id, user_id, local_date, glasses)
+values ('eeee0005-0000-4000-8000-000000000005',
+        '77777777-7777-7777-7777-777777777777', current_date - 5, 8)
+on conflict (user_id, local_date) do update
+  set id = excluded.id, glasses = excluded.glasses;
+
+select is(
+  (select count(*)::int from public.water_logs
+    where user_id = '77777777-7777-7777-7777-777777777777'
+      and local_date = current_date - 5),
+  1,
+  'Un día sigue teniendo una sola fila de agua después del upsert por día'
+);
+
+select is(
+  (select glasses::int from public.water_logs
+    where user_id = '77777777-7777-7777-7777-777777777777'
+      and local_date = current_date - 5),
+  8,
+  'Y se queda con el valor del teléfono, no con el que ya estaba'
+);
+
+select is(
+  (select id::text from public.water_logs
+    where user_id = '77777777-7777-7777-7777-777777777777'
+      and local_date = current_date - 5),
+  'eeee0005-0000-4000-8000-000000000005',
+  'El id converge al del teléfono, así que la próxima vuelta ya no diverge'
+);
+
+-- Y el contrato tiene que existir: sin la clave única por día, `on conflict
+-- (user_id, local_date)` es un error de sintaxis en tiempo de ejecución y todo
+-- lo de arriba dejaría de proteger nada.
+select col_is_unique(
+  'public', 'sleep_logs', array['user_id', 'local_date'],
+  'sleep_logs sigue teniendo una fila por día, que es contra lo que se upserta'
 );
 
 select * from finish();

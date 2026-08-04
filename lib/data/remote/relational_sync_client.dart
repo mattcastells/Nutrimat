@@ -95,13 +95,24 @@ class RelationalSyncClient {
     ///
     /// Ahora cada tabla se juega su suerte sola. Al final se lanza igual, con
     /// los nombres de las que fallaron, pero lo que sí entró queda escrito.
-    Future<void> subir(String tabla, List<Map<String, dynamic>> filas) async {
+    ///
+    /// [onConflict] nombra la clave contra la que se resuelve el choque. Sin
+    /// él, el upsert resuelve **contra la primary key**, y eso alcanza solo
+    /// mientras el id sea la única forma de que dos filas se pisen.
+    Future<void> subir(
+      String tabla,
+      List<Map<String, dynamic>> filas, {
+      String? onConflict,
+    }) async {
       if (filas.isEmpty) {
         escritas[tabla] = 0;
         return;
       }
       try {
-        await _db.from(tabla).upsert(filas).timeout(timeout);
+        await _db
+            .from(tabla)
+            .upsert(filas, onConflict: onConflict)
+            .timeout(timeout);
         escritas[tabla] = filas.length;
       } on PostgrestException catch (error) {
         escritas[tabla] = 0;
@@ -204,29 +215,48 @@ class RelationalSyncClient {
           },
       ]);
 
-      await subir('water_logs', <Map<String, dynamic>>[
-        for (final w in store.waterLogs)
-          <String, dynamic>{
-            'id': w.id,
-            'user_id': userId,
-            'local_date': isoDate(w.localDate),
-            'glasses': w.glasses,
-          },
-      ]);
+      // El agua y el sueño **no se resuelven por id**: ver `_unaPorDia` y el
+      // comentario de `onConflict` de arriba. Las dos tablas tienen una segunda
+      // clave única `(user_id, local_date)`, y esa es la que manda.
+      await subir(
+        'water_logs',
+        <Map<String, dynamic>>[
+          for (final w in _unaPorDia(
+            store.waterLogs,
+            (w) => w.localDate,
+            (w) => w.updatedAt,
+          ))
+            <String, dynamic>{
+              'id': w.id,
+              'user_id': userId,
+              'local_date': isoDate(w.localDate),
+              'glasses': w.glasses,
+            },
+        ],
+        onConflict: 'user_id,local_date',
+      );
 
-      await subir('sleep_logs', <Map<String, dynamic>>[
-        for (final s in store.sleepLogs)
-          <String, dynamic>{
-            'id': s.id,
-            'user_id': userId,
-            'local_date': isoDate(s.localDate),
-            'minutes': s.minutes,
-            'quality': s.quality.wire,
-            'logged_at': s.loggedAt.toUtc().toIso8601String(),
-            'notes': s.notes,
-            'deleted_at': s.deletedAt?.toUtc().toIso8601String(),
-          },
-      ]);
+      await subir(
+        'sleep_logs',
+        <Map<String, dynamic>>[
+          for (final s in _unaPorDia(
+            store.sleepLogs,
+            (s) => s.localDate,
+            (s) => s.loggedAt,
+          ))
+            <String, dynamic>{
+              'id': s.id,
+              'user_id': userId,
+              'local_date': isoDate(s.localDate),
+              'minutes': s.minutes,
+              'quality': s.quality.wire,
+              'logged_at': s.loggedAt.toUtc().toIso8601String(),
+              'notes': s.notes,
+              'deleted_at': s.deletedAt?.toUtc().toIso8601String(),
+            },
+        ],
+        onConflict: 'user_id,local_date',
+      );
 
       await subir('activity_goals', <Map<String, dynamic>>[
         for (final g in store.activityGoals)
@@ -766,4 +796,38 @@ class RelationalSyncClient {
   // `counts` se fue junto con el botón de Comparar que lo usaba: nueve
   // consultas contra el servidor cuyo único destino era una pantalla que le
   // pedía a quien usa la app que interpretara dos columnas de números.
+}
+
+/// Un solo registro por día, el más reciente.
+///
+/// `water_logs` y `sleep_logs` son las dos tablas con una segunda clave única
+/// —`(user_id, local_date)`— además de la primary key, y con `onConflict`
+/// apuntando a esa clave **mandar dos filas del mismo día rompe el upsert
+/// entero**: Postgres contesta "ON CONFLICT DO UPDATE command cannot affect row
+/// a second time".
+///
+/// Y el mismo día con dos filas es un estado que ocurre de verdad, no una
+/// hipótesis: la reconciliación (`document_merge.dart`) une las listas **por
+/// id**, así que si la fila del servidor y la local tienen ids distintos para
+/// el mismo día, las dos sobreviven. Que los ids difieran tampoco es raro:
+/// `_dailyId` los deriva de la identidad de la cuenta, que cambia al iniciar
+/// sesión, y `repararRegistrosViejos` regeneró a propósito los del agua.
+///
+/// Se queda con el más reciente porque es el que la persona vio último en la
+/// pantalla. Esto no arregla el documento local —de eso se ocupa la reparación
+/// del repositorio—, solo evita que un duplicado tire abajo la subida.
+Iterable<T> _unaPorDia<T>(
+  Iterable<T> items,
+  DateTime Function(T) dia,
+  DateTime Function(T) marca,
+) {
+  final porDia = <String, T>{};
+  for (final item in items) {
+    final clave = isoDate(dia(item));
+    final actual = porDia[clave];
+    if (actual == null || marca(item).isAfter(marca(actual))) {
+      porDia[clave] = item;
+    }
+  }
+  return porDia.values;
 }

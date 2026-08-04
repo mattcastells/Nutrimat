@@ -82,4 +82,64 @@ void main() {
     expect(repo.store.waterLogs, hasLength(1));
     expect(repo.store.waterLogs.first.glasses, 5);
   });
+
+  // ── Dos filas para el mismo día ────────────────────────────────────────
+  //
+  // El estado que producía `duplicate key value violates unique constraint
+  // "water_logs_one_per_day"`. No lo arma la app sola: la reconciliación une
+  // las listas **por id**, así que cuando la fila del servidor y la local
+  // tenían ids distintos para el mismo día, las dos quedaban en el documento.
+  // Y no era solo un problema al subir — `glassesOn` devuelve la primera que
+  // encuentra, o sea que la app podía estar mostrando la vieja.
+  group('un día con dos registros', () {
+    void sembrarDuplicado() {
+      repo.store.waterLogs = <WaterLog>[
+        WaterLog(
+          id: 'id-del-servidor',
+          localDate: hoy,
+          glasses: 2,
+          updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
+        ),
+        WaterLog(
+          id: 'id-local',
+          localDate: hoy,
+          glasses: 7,
+          updatedAt: DateTime.now(),
+        ),
+      ];
+    }
+
+    test('la reparación deja uno solo y se queda con el más reciente', () async {
+      sembrarDuplicado();
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.waterLogs, hasLength(1));
+      expect(repo.store.waterLogs.single.glasses, 7);
+      expect(repo.glassesOn(hoy), 7);
+    });
+
+    test('correrla dos veces deja lo mismo que una', () async {
+      sembrarDuplicado();
+      await repo.repararRegistrosViejos();
+      final despuesDeUna = repo.store.waterLogs.single;
+
+      await repo.repararRegistrosViejos();
+      expect(repo.store.waterLogs, hasLength(1));
+      expect(repo.store.waterLogs.single.id, despuesDeUna.id);
+      expect(repo.store.waterLogs.single.glasses, despuesDeUna.glasses);
+    });
+
+    test('días distintos no se juntan', () async {
+      final ayer = hoy.subtract(const Duration(days: 1));
+      repo.store.waterLogs = <WaterLog>[
+        WaterLog(id: 'a', localDate: ayer, glasses: 3, updatedAt: DateTime.now()),
+        WaterLog(id: 'b', localDate: hoy, glasses: 5, updatedAt: DateTime.now()),
+      ];
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.waterLogs, hasLength(2));
+      expect(repo.glassesOn(ayer), 3);
+      expect(repo.glassesOn(hoy), 5);
+    });
+  });
 }

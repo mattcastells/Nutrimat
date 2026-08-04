@@ -94,4 +94,51 @@ void main() {
     repo.store.restoreDocument(document);
     expect(repo.sleepLogs, isEmpty);
   });
+
+  // ── Dos noches para el mismo día ───────────────────────────────────────
+  //
+  // `sleep_logs` tiene la misma clave única por día que `water_logs`, y la
+  // reconciliación une por id: dos ids distintos para la misma noche dejan las
+  // dos filas en el documento y el servidor rechaza la subida entera.
+  //
+  // La migración del borrado suave daba por sentado que esto no podía pasar
+  // —"`logSleep` reutiliza el id de la noche que ya existe"—, y es cierto
+  // mientras la fila esté en este teléfono. Deja de serlo cuando la que existe
+  // está en el servidor con otro id.
+  group('un día con dos noches', () {
+    test('la reparación deja una sola, la de carga más reciente', () async {
+      repo.store.sleepLogs = <SleepLog>[
+        SleepLog(
+          id: 'id-del-servidor',
+          localDate: hoy,
+          minutes: 300,
+          quality: SleepQuality.poor,
+          loggedAt: DateTime.now().subtract(const Duration(hours: 5)),
+        ),
+        SleepLog(
+          id: 'id-local',
+          localDate: hoy,
+          minutes: 465,
+          quality: SleepQuality.great,
+          loggedAt: DateTime.now(),
+        ),
+      ];
+
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.sleepLogs, hasLength(1));
+      expect(repo.sleepOn(hoy)!.minutes, 465);
+      expect(repo.sleepOn(hoy)!.quality, SleepQuality.great);
+    });
+
+    test('una sola noche por día no se toca', () async {
+      await repo.logSleep(date: hoy, minutes: 420, quality: SleepQuality.ok);
+      final antes = repo.store.sleepLogs.single.id;
+
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.sleepLogs, hasLength(1));
+      expect(repo.store.sleepLogs.single.id, antes);
+    });
+  });
 }

@@ -264,15 +264,36 @@ class LocalRepository
   /// 1. **Objetivos con las fechas al revés** (`ends_on < starts_on`). Se
   ///    descartan: no gobernaron ni un día, así que no son historial. Es la
   ///    misma decisión que toma `saveGoal`.
-  /// 2. **Ids de agua derivados del literal `'local'`**, que colisionaban entre
-  ///    cuentas. Se regeneran con la identidad de esta instalación. Solo se
-  ///    tocan los que **no** coinciden con el id esperado, así que lo que ya
-  ///    estaba bien se queda como está.
+  /// 2. **Ids derivados del literal `'local'`**, en agua y en sueño, que
+  ///    colisionaban entre cuentas. Se regeneran con la identidad de esta
+  ///    instalación. Solo se tocan los que **no** coinciden con el id esperado,
+  ///    así que lo que ya estaba bien se queda como está.
   ///
-  /// El agua es la única colección que se re-identifica porque es la única que
-  /// falló: peso, sueño y medidas conservan el id de la fila existente y los
-  /// suyos nunca chocaron. Cambiarles el id sin necesidad crearía filas
-  /// huérfanas en el servidor a cambio de nada.
+  /// El sueño entró acá después que el agua, y por un choque distinto:
+  ///
+  ///     duplicate key value violates unique constraint "sleep_logs_pkey"
+  ///
+  /// No es la clave del día, es la **primary key**. Desde que el upsert resuelve
+  /// contra `(user_id, local_date)`, un id que ya existe en la fila de **otra
+  /// persona** dejó de dar un error de RLS y pasa a dar uno de clave primaria:
+  /// el `ON CONFLICT` del día no encuentra esa fila —no es de esta cuenta—, así
+  /// que Postgres intenta insertar y el índice de la primary key, que no sabe de
+  /// RLS, la rechaza. Con eso, la tabla entera deja de subir.
+  ///
+  /// Que dos personas compartan un id es exactamente lo que dejó la versión del
+  /// literal `'local'` (ver `_dailyId`): el mismo uuid para el mismo día en dos
+  /// teléfonos distintos, y la primera cuenta que sincronizó se quedó con él.
+  ///
+  /// Derivar el id de esta identidad y de este día lo cierra por los dos lados:
+  /// no puede ser de otra persona —el sufijo es la cuenta— ni de otro día —la
+  /// fecha va adentro—. Y no deja huérfanos, que era el motivo para no tocar los
+  /// ids: como el upsert resuelve por día, la fila que ya está en el servidor se
+  /// actualiza y su id converge, en vez de aparecer una segunda al lado.
+  ///
+  /// El peso y las medidas siguen sin re-identificarse: su upsert resuelve por
+  /// id, así que cambiárselo dejaría la fila vieja viva del otro lado. Las
+  /// medidas tienen su propia reparación —`_collapseMeasurements` adopta el id
+  /// que el servidor ya conoce—, que es la misma idea al revés.
   ///
   /// 3. **Dos registros para el mismo día**, en agua y en sueño. Es el estado
   ///    que dejaba el error `duplicate key value violates unique constraint
@@ -304,22 +325,45 @@ class LocalRepository
           ),
     ];
 
+    // La lápida viaja en la copia: sin ella, regenerar el id de una noche
+    // borrada la revive. El upsert resuelve por día, así que el `deleted_at`
+    // llega igual a la fila que el servidor ya tiene para ese día.
+    final suenoRenombrado = <SleepLog>[
+      for (final s in store.sleepLogs)
+        if (s.id == _dailyId('sleep', s.localDate))
+          s
+        else
+          SleepLog(
+            id: _dailyId('sleep', s.localDate),
+            localDate: s.localDate,
+            minutes: s.minutes,
+            quality: s.quality,
+            loggedAt: s.loggedAt,
+            notes: s.notes,
+            syncStatus: SyncStatus.pending,
+            deletedAt: s.deletedAt,
+          ),
+    ];
+
     final agua = _unaPorDia<WaterLog>(
       aguaRenombrada,
       (w) => w.localDate,
       (w) => w.updatedAt,
     );
     final sueno = _unaPorDia<SleepLog>(
-      store.sleepLogs,
+      suenoRenombrado,
       (s) => s.localDate,
       (s) => s.loggedAt,
     );
 
+    // Los dos `indexed` van al final a propósito: comparan por posición, y solo
+    // son válidos si antes se descartó que los largos difieran. `||` corta.
     final cambio =
         objetivos.length != store.goals.length ||
         agua.length != store.waterLogs.length ||
         sueno.length != store.sleepLogs.length ||
-        agua.indexed.any((e) => e.$2.id != store.waterLogs[e.$1].id);
+        agua.indexed.any((e) => e.$2.id != store.waterLogs[e.$1].id) ||
+        sueno.indexed.any((e) => e.$2.id != store.sleepLogs[e.$1].id);
     if (!cambio) return;
 
     store.goals = objetivos;

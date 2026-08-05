@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimat/core/utils/dates.dart';
 import 'package:nutrimat/data/local/local_store.dart';
 import 'package:nutrimat/data/repositories/local_repository.dart';
+import 'package:nutrimat/domain/enums/enums.dart';
 import 'package:nutrimat/domain/models/sleep.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -139,6 +140,102 @@ void main() {
 
       expect(repo.store.sleepLogs, hasLength(1));
       expect(repo.store.sleepLogs.single.id, antes);
+    });
+  });
+
+  // ── Una noche con un id que no es de esta cuenta ───────────────────────
+  //
+  // La versión del literal `'local'` generaba el **mismo** uuid para el mismo
+  // día en dos teléfonos distintos, y la primera cuenta que sincronizó se quedó
+  // con él. Desde que el upsert resuelve por día, esa fila ajena ya no da un
+  // error de RLS sino uno de clave primaria:
+  //
+  //   duplicate key value violates unique constraint "sleep_logs_pkey"
+  //
+  // El `ON CONFLICT (user_id, local_date)` no la encuentra —no es de esta
+  // cuenta—, así que Postgres intenta insertar y la primary key, que no sabe de
+  // RLS, lo rechaza. Y una tabla que el servidor rechaza no sube **ninguna** de
+  // sus filas: el respaldo queda trabado con el error en pantalla.
+  group('un id que no deriva de esta cuenta', () {
+    // El id esperado no se puede escribir en el test: sale de `_dailyId`, que es
+    // privado. Se lo pide a `logSleep`, que es quien lo genera de verdad.
+    Future<String> idDelDia(DateTime dia) async {
+      await repo.logSleep(date: dia, minutes: 420, quality: SleepQuality.ok);
+      final id = repo.store.sleepLogs.single.id;
+      repo.store.sleepLogs = <SleepLog>[];
+      return id;
+    }
+
+    test('la reparación lo regenera a partir del día', () async {
+      final esperado = await idDelDia(hoy);
+      repo.store.sleepLogs = <SleepLog>[
+        SleepLog(
+          id: '0eb1f4c2-0000-4000-8000-000000000000',
+          localDate: hoy,
+          minutes: 420,
+          quality: SleepQuality.ok,
+          loggedAt: DateTime.now(),
+        ),
+      ];
+
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.sleepLogs.single.id, esperado);
+    });
+
+    test('regenerar el id conserva la noche entera, lápida incluida', () async {
+      await idDelDia(hoy);
+      repo.store.sleepLogs = <SleepLog>[
+        SleepLog(
+          id: '0eb1f4c2-0000-4000-8000-000000000000',
+          localDate: hoy,
+          minutes: 400,
+          quality: SleepQuality.good,
+          loggedAt: DateTime.now(),
+          notes: 'me desperté dos veces',
+          deletedAt: DateTime.now(),
+        ),
+      ];
+
+      await repo.repararRegistrosViejos();
+
+      final fila = repo.store.sleepLogs.single;
+      expect(fila.id, isNot('0eb1f4c2-0000-4000-8000-000000000000'));
+      expect(fila.minutes, 400);
+      expect(fila.quality, SleepQuality.good);
+      expect(fila.notes, 'me desperté dos veces');
+      // Sin esto, regenerar el id revive una noche borrada: la lápida se
+      // quedaría en la fila vieja y el servidor nunca se enteraría.
+      expect(fila.isDeleted, isTrue);
+      // Y tiene que volver a salir: el id cambió, así que la fila del servidor
+      // todavía no sabe nada de esto.
+      expect(fila.syncStatus, SyncStatus.pending);
+    });
+
+    test('dos noches ajenas del mismo día terminan en una sola', () async {
+      final esperado = await idDelDia(hoy);
+      repo.store.sleepLogs = <SleepLog>[
+        SleepLog(
+          id: '0eb1f4c2-0000-4000-8000-000000000000',
+          localDate: hoy,
+          minutes: 300,
+          quality: SleepQuality.poor,
+          loggedAt: DateTime.now().subtract(const Duration(hours: 5)),
+        ),
+        SleepLog(
+          id: '0eb1f4c2-0000-4000-8000-000000000001',
+          localDate: hoy,
+          minutes: 465,
+          quality: SleepQuality.great,
+          loggedAt: DateTime.now(),
+        ),
+      ];
+
+      await repo.repararRegistrosViejos();
+
+      expect(repo.store.sleepLogs, hasLength(1));
+      expect(repo.store.sleepLogs.single.id, esperado);
+      expect(repo.sleepOn(hoy)!.minutes, 465);
     });
   });
 }

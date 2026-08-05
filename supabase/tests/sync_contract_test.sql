@@ -15,7 +15,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(11);
+select plan(14);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -189,6 +189,72 @@ select is(
 select col_is_unique(
   'public', 'sleep_logs', array['user_id', 'local_date'],
   'sleep_logs sigue teniendo una fila por día, que es contra lo que se upserta'
+);
+
+-- ── Resolver por día no salva de un id que ya es de otra persona ─────────
+--
+-- La otra mitad de la misma moneda, y el error que quedó después del arreglo
+-- anterior:
+--
+--   duplicate key value violates unique constraint "sleep_logs_pkey"
+--
+-- Resolver contra `(user_id, local_date)` arregla el choque **dentro** de la
+-- cuenta, pero la primary key sigue siendo global. Si el uuid que manda el
+-- teléfono ya está en la fila de otra persona, el `ON CONFLICT` del día no la
+-- encuentra —no es de esta cuenta—, Postgres intenta insertar, y el índice de
+-- la primary key, que no sabe de RLS, la rechaza.
+--
+-- Eso deja de ser hipotético mirando de dónde salían los ids: la versión en la
+-- que el sufijo de identidad era el literal `'local'` generaba el **mismo**
+-- uuid para el mismo día en dos teléfonos distintos, y la primera cuenta que
+-- sincronizó se quedó con él. Antes el síntoma era un error de RLS; desde que
+-- se resuelve por día, es este.
+--
+-- Por eso `repararRegistrosViejos` regenera los ids del sueño con la identidad
+-- de la cuenta: es lo único que hace que el uuid no pueda ser de otra persona.
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at
+)
+values ('88888888-8888-8888-8888-888888888888',
+        '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+        't@nutrimat.test', crypt('secreto-t', gen_salt('bf')), now(), now(), now());
+
+insert into public.sleep_logs (id, user_id, local_date, minutes)
+values ('eeee0006-0000-4000-8000-000000000006',
+        '88888888-8888-8888-8888-888888888888', current_date - 6, 420);
+
+select throws_ok(
+  $$insert into public.sleep_logs (id, user_id, local_date, minutes)
+    values ('eeee0006-0000-4000-8000-000000000006',
+            '77777777-7777-7777-7777-777777777777', current_date - 6, 480)
+    on conflict (user_id, local_date) do update
+      set id = excluded.id, minutes = excluded.minutes$$,
+  '23505',
+  'duplicate key value violates unique constraint "sleep_logs_pkey"',
+  'Un id que ya es de otra cuenta choca contra la primary key, no contra el día'
+);
+
+-- Con un id propio —el que sale de derivar cuenta y día— la misma noche entra.
+insert into public.sleep_logs (id, user_id, local_date, minutes)
+values ('eeee0007-0000-4000-8000-000000000007',
+        '77777777-7777-7777-7777-777777777777', current_date - 6, 480)
+on conflict (user_id, local_date) do update
+  set id = excluded.id, minutes = excluded.minutes;
+
+select is(
+  (select minutes::int from public.sleep_logs
+    where user_id = '77777777-7777-7777-7777-777777777777'
+      and local_date = current_date - 6),
+  480,
+  'Con un id derivado de la cuenta, la misma noche entra sin chocar'
+);
+
+select is(
+  (select minutes::int from public.sleep_logs
+    where id = 'eeee0006-0000-4000-8000-000000000006'),
+  420,
+  'Y la noche de la otra persona queda como estaba'
 );
 
 select * from finish();

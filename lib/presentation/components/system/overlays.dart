@@ -371,6 +371,10 @@ Future<bool> confirmDelete(
 }
 
 /// Mensajes al pie. Con "Deshacer" duran 8 s (RN-16); si no, 3,6 s.
+///
+/// [duration] es para los pocos avisos que no entran en ninguna de las dos
+/// medidas —el de versión nueva, que trae una acción que conviene no perderse—.
+/// Sin él manda [undo], que es lo que decide en el resto de la app.
 abstract final class NmSnackbar {
   static void show(
     BuildContext context,
@@ -378,6 +382,7 @@ abstract final class NmSnackbar {
     String? actionLabel,
     VoidCallback? onAction,
     bool undo = false,
+    Duration? duration,
   }) {
     final nm = context.nm;
     final messenger = ScaffoldMessenger.of(context);
@@ -389,7 +394,7 @@ abstract final class NmSnackbar {
             message,
             style: NmTextStyles.from(NmType.bodySm, color: nm.text),
           ),
-          duration: Duration(milliseconds: undo ? 8000 : 3600),
+          duration: duration ?? Duration(milliseconds: undo ? 8000 : 3600),
           backgroundColor: nm.surfaceRaised,
           action: actionLabel == null
               ? null

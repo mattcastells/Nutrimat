@@ -91,5 +91,8 @@ class UpdateService {
     await _installer.install(path);
   }
 
-  Uri releasePage(AppRelease release) => _client.releasePage(release);
+  // `releasePage` se fue con el botón de "Ver en GitHub". Mandaba a la página
+  // del tag, que es el changelog de commits que la pantalla de actualizaciones
+  // ya no muestra: quien entra ahí quiere actualizar, no leer el historial del
+  // repositorio.
 }

@@ -1,23 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../core/router/routes.dart';
-import '../../../data/local/update_prompt_store.dart';
 import '../../../domain/models/app_release.dart';
-import '../../components/system/buttons.dart';
 import '../../components/system/overlays.dart';
 import '../../providers/update_providers.dart';
+import 'update_dialog.dart';
 
-/// Se sobrescribe en los tests. Sin esto, cualquier prueba que monte el shell
-/// saldría a la API de GitHub.
-final updatePromptStoreProvider = FutureProvider<UpdatePromptStore>(
-  (ref) => UpdatePromptStore.open(),
-);
-
-/// Busca si hay una versión nueva al abrir la app y, si la hay, la ofrece.
+/// Busca si hay una versión nueva al abrir la app y, si la hay, avisa.
 ///
 /// Nutrimat se distribuye por fuera de Play Store: nadie le avisa a nadie que
 /// salió una versión. Mientras la comprobación fue solo manual —Configuración →
@@ -27,71 +16,43 @@ final updatePromptStoreProvider = FutureProvider<UpdatePromptStore>(
 ///
 /// Lo que se hace sin permiso es **preguntar**, no bajar: la consulta es un JSON
 /// de unos kilobytes contra la API de releases. Los 25 MB del APK siguen
-/// necesitando que alguien lo pida, y siguen bajando por la misma pantalla de
-/// siempre, con su permiso de instalación y su barra de progreso.
+/// necesitando que alguien los pida, ahora desde el mismo aviso
+/// ([showUpdateDialog]).
 ///
-/// Tres frenos, para que esto no se vuelva ruido:
+/// El aviso es un toast y no un diálogo, y eso es la diferencia entre avisar e
+/// interrumpir: no tapa la pantalla, no hay que contestarle nada y se va solo.
+/// Por eso tampoco hace falta acordarse de a quién ya se le preguntó — antes
+/// había un intervalo de seis horas y un "ahora no" por versión, que existían
+/// para que un diálogo en cada arranque no se volviera algo que se aprende a
+/// descartar sin leer. Un toast no tiene ese problema.
 ///
-/// - se consulta como mucho cada [UpdatePromptStore.checkInterval];
-/// - "Ahora no" calla el aviso **de esa versión**, no de todas;
-/// - si la consulta falla, no pasa nada y no se dice nada: no lo pidió nadie.
+/// Si la consulta falla —sin conexión, con la API caída, en una plataforma sin
+/// `package_info`— no se dice nada: esto es un extra silencioso, no una función
+/// que pueda fallar a la vista.
 Future<void> maybePromptForUpdate(BuildContext context, WidgetRef ref) async {
-  final UpdatePromptStore store;
-  try {
-    store = await ref.read(updatePromptStoreProvider.future);
-  } on Object {
-    return;
-  }
-  if (!store.shouldCheck()) return;
-
-  // Se anota antes de salir a la red y no después: si la consulta se cuelga o
-  // falla, no queremos reintentar en cada arranque contra un servidor que no
-  // está respondiendo.
-  await store.markChecked();
-
-  UpdateStatus? status;
+  final UpdateStatus status;
   try {
     final current = await ref.read(installedVersionProvider.future);
     status = await ref.read(updateServiceProvider).check(current: current);
   } on Object {
-    // Sin conexión, con la API caída o en una plataforma sin `package_info`:
-    // esto es un extra silencioso, no una función que pueda fallar a la vista.
     return;
   }
 
+  if (status is! UpdateAvailable) return;
+  // En una variable propia y no `status` a secas: la promoción de tipo de una
+  // local asignada dentro de un `try` no entra a la clausura de abajo.
   final available = status;
-  if (available is! UpdateAvailable) return;
-  final version = available.release.version.toString();
-  if (store.isPostponed(version)) return;
   if (!context.mounted) return;
 
-  final accepted = await showNmDialog<bool>(
-    context: context,
-    builder: (context) => NmDialog(
-      title: 'Hay una versión nueva',
-      body:
-          'Tenés la ${available.current} y está publicada la $version '
-          '(${available.release.apkSizeLabel}). La descarga la hacés vos desde '
-          'Actualizaciones, con Wi-Fi si preferís.',
-      actions: <Widget>[
-        NmButton.ghost(
-          label: 'Ahora no',
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        NmButton(
-          label: 'Ver qué cambió',
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-    ),
+  NmSnackbar.show(
+    context,
+    'Hay una versión nueva: ${available.release.version}',
+    actionLabel: 'Actualizar',
+    // Más que los 3,6 s de un aviso corriente: si el toast se va antes de que
+    // alguien levante la vista del teléfono, el aviso no existió.
+    duration: const Duration(seconds: 8),
+    onAction: () {
+      if (context.mounted) showUpdateDialog(context, available);
+    },
   );
-
-  // Cerrar tocando afuera no es decir que no: ahí el aviso vuelve en la próxima
-  // ventana de consulta. Solo el "Ahora no" explícito calla esta versión.
-  if (accepted == false) {
-    await store.postpone(version);
-    return;
-  }
-  if (accepted != true || !context.mounted) return;
-  unawaited(context.push(Routes.updates));
 }

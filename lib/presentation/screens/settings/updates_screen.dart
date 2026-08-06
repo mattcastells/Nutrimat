@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/error/app_error.dart';
 import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
-import '../../../core/utils/dates.dart';
 import '../../../domain/models/app_release.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/update_providers.dart';
+import 'update_dialog.dart';
 
 /// Buscar actualizaciones (Configuración → Actualizaciones).
 ///
@@ -21,10 +20,16 @@ import '../../providers/update_providers.dart';
 /// nueva lo da la app: consulta los releases del repositorio, y si hay una
 /// posterior a la instalada ofrece bajarla e instalarla.
 ///
-/// Al abrir la app se consulta sola cada tanto y, si hay algo nuevo, lo ofrece
+/// Al abrir la app se consulta sola y, si hay algo nuevo, avisa con un toast
 /// (`update_prompt.dart`); acá se puede comprobar cuando se quiera. Lo que
 /// **nunca** arranca solo es la descarga: bajar 25 MB con datos móviles sin
 /// haberlo pedido no es una decisión que le toque tomar al software.
+///
+/// Esta pantalla no baja nada por sí sola: de eso se ocupa [showUpdateDialog],
+/// el mismo que abre el aviso del arranque. Acá quedó lo que es propio de la
+/// pantalla —qué versión hay instalada y el botón de comprobar—, y se fueron el
+/// changelog del release y el enlace a GitHub. Eran la lista de commits del tag
+/// puesta delante de alguien que ya decidió actualizar o no.
 class UpdatesScreen extends ConsumerStatefulWidget {
   const UpdatesScreen({super.key});
 
@@ -32,14 +37,13 @@ class UpdatesScreen extends ConsumerStatefulWidget {
   ConsumerState<UpdatesScreen> createState() => _UpdatesScreenState();
 }
 
-enum _Phase { idle, checking, checked, downloading, installing }
+enum _Phase { idle, checking, checked }
 
 class _UpdatesScreenState extends ConsumerState<UpdatesScreen>
     with WidgetsBindingObserver {
   _Phase _phase = _Phase.idle;
   UpdateStatus? _status;
   AppError? _error;
-  double _progress = 0;
 
   /// `null` mientras no se sabe. Se consulta al entrar y cada vez que la app
   /// vuelve del frente, que es justo cuando se vuelve de Ajustes.
@@ -110,46 +114,12 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen>
     }
   }
 
-  Future<void> _install(AppRelease release) async {
-    // Bajar 25 MB para chocar contra un permiso que se podía pedir antes es
-    // gastarle los datos a alguien al pedo.
-    if (_canInstall == false) {
-      await _grant();
-      return;
-    }
-
-    setState(() {
-      _phase = _Phase.downloading;
-      _error = null;
-      _progress = 0;
-    });
-
-    try {
-      await ref
-          .read(updateServiceProvider)
-          .downloadAndInstall(
-            release,
-            onProgress: (value) {
-              if (!mounted) return;
-              setState(() => _progress = value);
-            },
-          );
-      if (!mounted) return;
-      // A partir de acá manda el diálogo de Android; la app queda esperando.
-      setState(() => _phase = _Phase.installing);
-    } on AppError catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error;
-        _phase = _Phase.checked;
-        if (error.code == ApiErrorCode.permissionDenied) _canInstall = false;
-      });
-    }
-  }
-
-  Future<void> _openReleasePage(AppRelease release) async {
-    final uri = ref.read(updateServiceProvider).releasePage(release);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  /// El diálogo se ocupa de bajar e instalar, y también del permiso: es el
+  /// mismo que abre el aviso del arranque, así que la parte que puede fallar
+  /// tiene una sola versión.
+  Future<void> _install(UpdateAvailable available) async {
+    await showUpdateDialog(context, available);
+    if (mounted) await _refreshPermission();
   }
 
   @override
@@ -204,18 +174,11 @@ class _UpdatesScreenState extends ConsumerState<UpdatesScreen>
 
           switch (_phase) {
             _Phase.checking => const _Busy(label: 'Buscando actualizaciones…'),
-            _Phase.downloading => _Downloading(progress: _progress),
-            _Phase.installing => const InfoNote(
-              text:
-                  'Android está instalando. Cuando termine, volvé a abrir la app.',
-              tone: NmNoteTone.success,
-            ),
             _ => _Result(
               status: _status,
               canInstall: _canInstall != false,
               onCheck: _check,
               onInstall: _install,
-              onOpenPage: _openReleasePage,
             ),
           },
 
@@ -250,54 +213,18 @@ class _Busy extends StatelessWidget {
   );
 }
 
-class _Downloading extends StatelessWidget {
-  const _Downloading({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final nm = context.nm;
-    final percent = (progress * 100).round();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Semantics(
-          value: '$percent por ciento',
-          child: ClipRRect(
-            borderRadius: NmRadius.brSm,
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: nm.surfaceRaised,
-              valueColor: AlwaysStoppedAnimation<Color>(nm.accent),
-            ),
-          ),
-        ),
-        const SizedBox(height: NmSpace.s2),
-        Text(
-          'Descargando… $percent %',
-          style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
-        ),
-      ],
-    );
-  }
-}
-
 class _Result extends StatelessWidget {
   const _Result({
     required this.status,
     required this.canInstall,
     required this.onCheck,
     required this.onInstall,
-    required this.onOpenPage,
   });
 
   final UpdateStatus? status;
   final bool canInstall;
   final VoidCallback onCheck;
-  final void Function(AppRelease) onInstall;
-  final void Function(AppRelease) onOpenPage;
+  final void Function(UpdateAvailable) onInstall;
 
   @override
   Widget build(BuildContext context) {
@@ -337,24 +264,27 @@ class _Result extends StatelessWidget {
         available: available,
         canInstall: canInstall,
         onInstall: onInstall,
-        onOpenPage: onOpenPage,
       ),
     };
   }
 }
 
+/// Hay versión nueva: qué versión, cuánto pesa y el botón.
+///
+/// Nada más. Acá estuvieron la fecha de publicación, el cuerpo del release —la
+/// lista de commits del tag— y un enlace a GitHub, y ninguna de las tres ayuda
+/// a decidir: quien entra a esta pantalla ya sabe si quiere actualizar. Lo que
+/// necesita saber es qué le va a bajar y cuánto va a ocupar.
 class _Available extends StatelessWidget {
   const _Available({
     required this.available,
     required this.canInstall,
     required this.onInstall,
-    required this.onOpenPage,
   });
 
   final UpdateAvailable available;
   final bool canInstall;
-  final void Function(AppRelease) onInstall;
-  final void Function(AppRelease) onOpenPage;
+  final void Function(UpdateAvailable) onInstall;
 
   @override
   Widget build(BuildContext context) {
@@ -376,33 +306,14 @@ class _Available extends StatelessWidget {
         ),
         const SizedBox(height: NmSpace.s3),
         Text(
-          'Publicada el ${longDay(release.publishedAt)} · '
-          '${release.apkSizeLabel}',
+          release.apkSizeLabel,
           style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
         ),
-
-        if (release.notes.isNotEmpty) ...<Widget>[
-          const SizedBox(height: NmSpace.s4),
-          const NmSectionHeader(title: 'Qué cambió'),
-          NmCard(
-            child: Text(
-              release.notes,
-              style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
-            ),
-          ),
-        ],
-
         const SizedBox(height: NmSpace.s5),
         NmButton(
-          label: canInstall
-              ? 'Descargar e instalar'
-              : 'Habilitar la instalación',
-          onPressed: () => onInstall(release),
-        ),
-        const SizedBox(height: NmSpace.s2),
-        NmButton.ghost(
-          label: 'Ver en GitHub',
-          onPressed: () => onOpenPage(release),
+          label: canInstall ? 'Actualizar' : 'Habilitar la instalación',
+          icon: PhosphorIcons.downloadSimple(),
+          onPressed: () => onInstall(available),
         ),
       ],
     );

@@ -297,7 +297,7 @@ class GithubReleasesClient {
     }
   }
 
-  /// Página del release en GitHub, para quien prefiera bajarlo a mano.
-  Uri releasePage(AppRelease release) =>
-      Uri.https('github.com', '/$owner/$repo/releases/tag/${release.tag}');
+  // `releasePage` se fue con el botón que la abría: la página del tag es el
+  // changelog de commits, y la actualización se resuelve entera adentro de la
+  // app (`update_dialog.dart`).
 }

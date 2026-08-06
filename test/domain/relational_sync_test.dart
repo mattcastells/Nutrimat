@@ -399,4 +399,74 @@ void main() {
       service.dispose();
     });
   });
+
+  // Reconstruir una comida desde sus filas.
+  //
+  // Acá vivió el bug de la comida clonada: recalcular con IA le pone ids nuevos
+  // a todos los ítems, el push escribía la generación nueva al lado de la vieja
+  // —un upsert no borra— y el pull rearmaba la comida con las dos. Borrar los
+  // duplicados en el teléfono no tocaba la tabla, así que volvían en el
+  // arranque siguiente, y en el siguiente.
+  group('los ítems de una comida', () {
+    Map<String, dynamic> fila(String id, int posicion, String nombre) =>
+        <String, dynamic>{'id': id, 'position': posicion, 'name': nombre};
+
+    test('se ordenan por posición, no por lo que devuelva la base', () {
+      final salida = itemsDeLaComida(<Map<String, dynamic>>[
+        fila('c', 2, 'Postre'),
+        fila('a', 0, 'Risotto'),
+        fila('b', 1, 'Chocolate blanco'),
+      ]);
+
+      expect(
+        salida.map((i) => i['name']),
+        <String>['Risotto', 'Chocolate blanco', 'Postre'],
+      );
+    });
+
+    test('dos generaciones de ítems dejan una sola, la más reciente', () {
+      // Como vienen ordenadas por `updated_at`, la vieja va primero y la
+      // recalculada después. Gana la que se tocó último, que es la corregida.
+      final salida = itemsDeLaComida(<Map<String, dynamic>>[
+        fila('vieja-0', 0, 'Risotto 150 g'),
+        fila('vieja-1', 1, 'Chocolate blanco'),
+        fila('nueva-0', 0, 'Risotto 250 g'),
+        fila('nueva-1', 1, 'Chocolate blanco'),
+      ]);
+
+      expect(salida, hasLength(2));
+      expect(salida.map((i) => i['id']), <String>['nueva-0', 'nueva-1']);
+    });
+
+    test('un recálculo que agrega un ítem no lo pierde', () {
+      final salida = itemsDeLaComida(<Map<String, dynamic>>[
+        fila('vieja-0', 0, 'Risotto'),
+        fila('nueva-0', 0, 'Risotto'),
+        fila('nueva-1', 1, 'Chocolate aireado'),
+      ]);
+
+      expect(salida.map((i) => i['id']), <String>['nueva-0', 'nueva-1']);
+    });
+
+    test('dos ítems distintos con posiciones distintas no se tocan', () {
+      // Comer dos veces lo mismo es legal y tiene que sobrevivir: lo que se
+      // colapsa es la posición repetida, no el nombre repetido.
+      final salida = itemsDeLaComida(<Map<String, dynamic>>[
+        fila('a', 0, 'Chocolate aireado'),
+        fila('b', 1, 'Chocolate aireado'),
+      ]);
+
+      expect(salida, hasLength(2));
+    });
+
+    test('una fila sin posición legible se conserva', () {
+      final salida = itemsDeLaComida(<Map<String, dynamic>>[
+        fila('a', 0, 'Risotto'),
+        <String, dynamic>{'id': 'rara', 'position': null, 'name': 'Postre'},
+      ]);
+
+      expect(salida, hasLength(2));
+      expect(salida.last['id'], 'rara');
+    });
+  });
 }

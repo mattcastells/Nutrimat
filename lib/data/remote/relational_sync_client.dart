@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/error/app_error.dart';
@@ -352,6 +353,19 @@ class RelationalSyncClient {
               },
       ]);
 
+      // Y ahora lo que el upsert no puede hacer: **borrar los ítems que ya no
+      // están**. Ver `_podarItemsDeComidas`: no es un detalle de higiene, es la
+      // diferencia entre editar una comida y clonarla.
+      try {
+        await _podarItemsDeComidas(store);
+      } on PostgrestException catch (error) {
+        fallaron['meal_items (limpieza)'] = error.message;
+      } on TimeoutException {
+        fallaron['meal_items (limpieza)'] = 'tardó demasiado';
+      } on Exception catch (error) {
+        fallaron['meal_items (limpieza)'] = error.toString();
+      }
+
       // Las actividades al final: necesitan el mapa de tipos.
       final tipos = await _activityTypeIds();
       final custom = tipos['custom'];
@@ -447,6 +461,93 @@ class RelationalSyncClient {
     }
   }
 
+  /// Borra los `meal_items` de la base que ya no están en el teléfono.
+  ///
+  /// ## El agujero que tapa
+  ///
+  /// El push es un upsert, y un upsert **agrega y actualiza, nunca borra**. Con
+  /// el resto de las tablas eso alcanza porque los borrados viajan como lápida
+  /// (`deleted_at`), pero los ítems de una comida no tienen lápida: la comida es
+  /// la unidad, y su lista de ítems se reescribe entera en cada guardado.
+  ///
+  /// El resultado era que cada ítem que dejaba de existir en el teléfono seguía
+  /// vivo en la tabla para siempre. Y como el pull reconstruye la comida con
+  /// **todas** las filas que tengan su `meal_id`, esos ítems volvían:
+  ///
+  ///   1. Recalcular una comida con IA le pone ids nuevos a todos sus ítems
+  ///      (`recalculate_sheet.dart`), así que el push escribía la generación
+  ///      nueva al lado de la vieja: seis filas para una comida de tres ítems.
+  ///   2. El pull traía las seis y la comida aparecía duplicada.
+  ///   3. Borrar los duplicados en el teléfono no borraba nada del otro lado, y
+  ///      el trigger `recalc_meal_totals` le movía `updated_at` a la comida en
+  ///      cada escritura de ítems — así que la copia del servidor le ganaba el
+  ///      desempate a la local y **la duplicación volvía en cada arranque**.
+  ///
+  /// Ese bucle es exactamente lo que se reportó: borrar, subir, reabrir y
+  /// encontrarla otra vez duplicada. Sacar el ítem del teléfono sin sacarlo de
+  /// la tabla no es borrarlo, es esconderlo hasta la próxima reconciliación.
+  ///
+  /// ## Qué borra y qué no
+  ///
+  /// Solo filas de comidas que este push **acaba de escribir con sus ítems**:
+  /// una comida borrada (que no sube ítems) o una que quedó sin ninguno no entra
+  /// en el conjunto, así que sus filas se quedan donde están. De las que sí
+  /// entran, se borra lo que no está en el documento local, que es la lista
+  /// completa y autoritativa de esa comida.
+  ///
+  /// Se leen los ids antes de borrar en vez de mandar un `delete ... not in
+  /// (...)`: PostgREST codifica el `in` en el **query string**, y con un año de
+  /// historial esa URL pasa los 50 kB que aceptan los proxies — el mismo motivo
+  /// por el que el pull pide los ítems de a tandas. Leer ids es barato al lado
+  /// de lo que este push ya subió, y casi siempre no hay nada que borrar.
+  Future<void> _podarItemsDeComidas(LocalStore store) async {
+    final vivos = <String>{};
+    final comidas = <String>{};
+    for (final meal in store.meals) {
+      if (meal.isDeleted || meal.items.isEmpty) continue;
+      comidas.add(meal.id);
+      for (final item in meal.items) {
+        vivos.add(item.id);
+      }
+    }
+    if (comidas.isEmpty) return;
+
+    // Sin filtro por comida: la RLS de `meal_items` ya resuelve la pertenencia
+    // por la comida padre, así que esto devuelve los del usuario y nada más.
+    // El orden por `id` es lo que hace que paginar sea correcto.
+    const tamano = 500;
+    final sobran = <String>[];
+    for (var desde = 0; ; desde += tamano) {
+      final pagina = await _db
+          .from('meal_items')
+          .select('id, meal_id')
+          .order('id')
+          .range(desde, desde + tamano - 1)
+          .timeout(timeout);
+      for (final fila in pagina) {
+        final id = fila['id'];
+        final mealId = fila['meal_id'];
+        if (id is! String || mealId is! String) continue;
+        if (comidas.contains(mealId) && !vivos.contains(id)) sobran.add(id);
+      }
+      if (pagina.length < tamano) break;
+    }
+
+    if (sobran.isEmpty) return;
+
+    // De a cien: los ids del `in` viajan en la URL, y cien uuids son unos 4 kB.
+    const porTanda = 100;
+    for (var i = 0; i < sobran.length; i += porTanda) {
+      final tanda = sobran.sublist(
+        i,
+        i + porTanda > sobran.length ? sobran.length : i + porTanda,
+      );
+      await _db.from('meal_items').delete().inFilter('id', tanda).timeout(
+        timeout,
+      );
+    }
+  }
+
   /// Trae todo lo del usuario **desde las tablas** y lo devuelve con la forma
   /// del documento local.
   ///
@@ -537,10 +638,20 @@ class RelationalSyncClient {
           i,
           i + porTanda > idsDeComidas.length ? idsDeComidas.length : i + porTanda,
         );
+        // El orden importa y no es cosmético: `itemsDeLaComida` resuelve las
+        // posiciones repetidas quedándose con la última fila, y "la última" solo
+        // quiere decir algo si vienen de la más vieja a la más nueva.
+        //
+        // ⚠️ `ascending: true` explícito: `order` de postgrest-dart ordena
+        // **descendente por omisión**. Sin esto la generación vieja quedaría
+        // última, ganaría el desempate, y la poda del push borraría del servidor
+        // justo la corregida — el bug al revés y sin vuelta atrás.
         final items = await _db
             .from('meal_items')
             .select()
             .inFilter('meal_id', tanda)
+            .order('updated_at', ascending: true)
+            .order('id', ascending: true)
             .timeout(timeout);
         for (final item in items) {
           (itemsPorComida[item['meal_id'] as String] ??=
@@ -634,8 +745,9 @@ class RelationalSyncClient {
                   ? null
                   : isoOf(m['deleted_at']),
               'items': <Map<String, dynamic>>[
-                for (final i
-                    in (itemsPorComida[m['id']] ?? const <Map<String, dynamic>>[]))
+                for (final i in itemsDeLaComida(
+                  itemsPorComida[m['id']] ?? const <Map<String, dynamic>>[],
+                ))
                   <String, dynamic>{
                     'id': i['id'],
                     'name': i['name'],
@@ -796,6 +908,49 @@ class RelationalSyncClient {
   // `counts` se fue junto con el botón de Comparar que lo usaba: nueve
   // consultas contra el servidor cuyo único destino era una pantalla que le
   // pedía a quien usa la app que interpretara dos columnas de números.
+}
+
+/// Los ítems de una comida, ordenados y **sin la generación vieja**.
+///
+/// Dos cosas, y las dos por el mismo motivo.
+///
+/// **Ordena por posición**, que es lo que la lista del documento significa: las
+/// filas volvían en el orden en que las devolviera la base, así que una comida
+/// reconstruida podía mostrar el postre antes del plato.
+///
+/// **Y se queda con una sola fila por posición.** Dos ítems con la misma
+/// posición es un estado que la app no puede generar —`MealDraft.toMeal` y
+/// `replaceAnalysis` las renumeran 0..n-1 en cada guardado—, así que solo sale
+/// de tener dos generaciones de ítems conviviendo en la tabla: lo que dejaba el
+/// push cuando todavía no borraba lo que sobraba (ver `_podarItemsDeComidas`).
+/// Gana la última, y como las filas vienen ordenadas por `updated_at` esa es la
+/// que se tocó más recientemente — la corregida, no la que se corrigió.
+///
+/// Las dos mitades del arreglo se necesitan: sin podar, esto esconde el
+/// duplicado y vuelve a aparecer; sin esto, una cuenta que ya quedó con las dos
+/// generaciones adentro se queda así hasta que alguien las borre a mano. Con las
+/// dos, el pull elige y el push siguiente borra del servidor la que perdió.
+@visibleForTesting
+List<Map<String, dynamic>> itemsDeLaComida(List<Map<String, dynamic>> filas) {
+  final porPosicion = <int, Map<String, dynamic>>{};
+  // Una fila sin posición legible no se puede aparear con nada. Se conserva:
+  // descartarla sería perder un ítem por venir mal formada.
+  final sinPosicion = <Map<String, dynamic>>[];
+
+  for (final fila in filas) {
+    final posicion = fila['position'];
+    if (posicion is int) {
+      porPosicion[posicion] = fila;
+    } else {
+      sinPosicion.add(fila);
+    }
+  }
+
+  final posiciones = porPosicion.keys.toList()..sort();
+  return <Map<String, dynamic>>[
+    for (final p in posiciones) porPosicion[p]!,
+    ...sinPosicion,
+  ];
 }
 
 /// Un solo registro por día, el más reciente.

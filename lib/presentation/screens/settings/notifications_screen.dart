@@ -62,7 +62,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final nm = context.nm;
     final scheduler = ref.watch(reminderSchedulerProvider);
     final granted = ref.watch(notificationPermissionProvider).valueOrNull;
     final repo = ref.watch(repositoryProvider);
@@ -110,12 +109,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
             const SizedBox(height: NmSpace.s6),
           ],
-
-          Text(
-            'Los recordatorios suenan en este teléfono, sin conexión. Nutrimat '
-            'no manda notificaciones de marketing.',
-            style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
-          ),
         ],
       ),
     );

@@ -406,6 +406,26 @@ abstract interface class AiPhotoRepository {
   /// diaria con el análisis por foto: las dos gastan lo mismo del proveedor.
   Future<AiAnalysis> analyzeText({required String description});
 
+  /// Vuelve a estimar una comida **que ya existe**, con lo que tiene cargado
+  /// más una corrección escrita.
+  ///
+  /// Es lo que faltaba para poder corregir sin empezar de nuevo: cambiar un
+  /// peso mal estimado obligaba a sacar la foto otra vez y rehacer la comida
+  /// entera. [items] es lo que hay hoy, [instruction] lo que la persona quiere
+  /// cambiar ("le falta el pan", "la milanesa pesaba 200 g"), y [photoPath] la
+  /// foto de la comida —la que ya tenía o una nueva—. Sin foto se estima solo
+  /// con la lista y la corrección.
+  ///
+  /// Devuelve la comida **completa** ya corregida: lo que la corrección no
+  /// toca vuelve igual. Comparte la misma cuota diaria.
+  Future<AiAnalysis> recalculate({
+    required List<MealItem> items,
+    required String instruction,
+    String? photoPath,
+    void Function(AnalysisStage stage)? onStage,
+    void Function(String remotePath)? onUploaded,
+  });
+
   /// Tres comidas que entran en las calorías que quedan del día.
   ///
   /// Al revés que las otras dos: acá el modelo **propone** en vez de reconocer.

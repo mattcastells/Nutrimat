@@ -2050,6 +2050,52 @@ class LocalRepository
     );
   }
 
+  @override
+  Future<AiAnalysis> recalculate({
+    required List<MealItem> items,
+    required String instruction,
+    String? photoPath,
+    void Function(AnalysisStage stage)? onStage,
+    void Function(String remotePath)? onUploaded,
+  }) async {
+    final client = aiAnalysis;
+    if (client == null) {
+      throw const AppError(
+        code: ApiErrorCode.providerUnavailable,
+        message: 'Esta compilación no tiene servidor: recalcular con IA '
+            'necesita cuenta.',
+      );
+    }
+
+    // La foto que ya está en el bucket no se vuelve a subir: `ensureUploaded`
+    // la reconoce y la devuelve igual. Solo sube la que la persona acaba de
+    // sacar, y ahí sí avisa la ruta nueva — si el recálculo falla después,
+    // quien llama necesita esa ruta para borrar la copia que quedó suelta.
+    String? remotePath;
+    if (photoPath != null && photoPath.isNotEmpty) {
+      onStage?.call(AnalysisStage.preparing);
+      onStage?.call(AnalysisStage.uploading);
+      remotePath =
+          await photos?.ensureUploaded(
+            bucket: PhotoBucket.meal,
+            recordId: _uuid.v4(),
+            localPath: photoPath,
+            rethrowOnFailure: true,
+          ) ??
+          photoPath;
+      if (remotePath != photoPath) onUploaded?.call(remotePath);
+    }
+
+    onStage?.call(AnalysisStage.analyzing);
+    final analysis = await client.recalculate(
+      items: items,
+      instruction: instruction,
+      photoPath: remotePath,
+    );
+    _quotaUsed++;
+    return analysis;
+  }
+
   // ── Respaldo ───────────────────────────────────────────────────────────
 
   // Vive en el store: es la condición que decide si se puede pisar el

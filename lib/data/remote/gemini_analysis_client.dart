@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/error/app_error.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/ai_analysis.dart';
+import '../../domain/models/meal.dart';
 
 /// Llama a la Edge Function `analyze-meal-photo`.
 ///
@@ -37,31 +38,63 @@ class GeminiAnalysisClient {
   /// Es lo que el catálogo de productos envasados no puede contestar: "dos
   /// empanadas de carne" no tiene código de barras.
   Future<AiAnalysis> analyzeText({required String description}) async {
-    final FunctionResponse response;
-    try {
-      response = await _functions
-          .invoke(
-            textFunctionName,
-            body: <String, dynamic>{'description': description},
-          )
-          .timeout(timeout);
-    } on FunctionException catch (error) {
-      throw _translate(error);
-    } on TimeoutException {
-      throw const AppError(
-        code: ApiErrorCode.upstreamTimeout,
-        message:
-            'La estimación tardó demasiado. Probá de nuevo o cargá la comida '
-            'a mano.',
-      );
-    } on Exception {
-      throw const AppError(
-        code: ApiErrorCode.offline,
-        message: 'No pudimos estimar la comida: revisá tu conexión.',
-      );
-    }
-
+    final response = await _invoke(
+      textFunctionName,
+      <String, dynamic>{'description': description},
+      timeoutMessage:
+          'La estimación tardó demasiado. Probá de nuevo o cargá la comida '
+          'a mano.',
+      offlineMessage: 'No pudimos estimar la comida: revisá tu conexión.',
+    );
     return _toAnalysis(response.data, photoPath: null);
+  }
+
+  /// Vuelve a estimar una comida **que ya existe**, a partir de lo que tiene
+  /// cargado y de una corrección escrita.
+  ///
+  /// Es la diferencia entre corregir y empezar de nuevo: hasta ahora, cambiar
+  /// un peso que la IA estimó mal obligaba a sacar la foto otra vez y rehacer
+  /// la comida entera. Acá van los ítems actuales, la foto —la que ya tenía o
+  /// una nueva— y la frase de la persona ("le falta el pan", "la milanesa
+  /// pesaba 200 g"), y vuelve la comida completa ya corregida.
+  ///
+  /// Sin [photoPath] pregunta por texto: una comida cargada a mano también se
+  /// puede corregir así.
+  Future<AiAnalysis> recalculate({
+    required List<MealItem> items,
+    required String instruction,
+    String? photoPath,
+  }) async {
+    final hint = instruction.trim();
+    final byPhoto = photoPath != null && photoPath.isNotEmpty;
+
+    final response = await _invoke(
+      byPhoto ? functionName : textFunctionName,
+      <String, dynamic>{
+        if (byPhoto) 'photoPath': photoPath,
+        if (hint.isNotEmpty) 'description': hint,
+        'currentItems': <Map<String, dynamic>>[
+          for (final item in items)
+            <String, dynamic>{
+              'name': item.name,
+              'quantity': item.quantity,
+              'unit': item.unit,
+              'kcal': item.kcal,
+              'proteinG': item.proteinG,
+              'carbsG': item.carbsG,
+              'fatG': item.fatG,
+            },
+        ],
+      },
+      timeoutMessage:
+          'El recálculo tardó demasiado. La comida quedó como estaba: probá '
+          'de nuevo.',
+      offlineMessage:
+          'No pudimos recalcular la comida: revisá tu conexión. La comida '
+          'quedó como estaba.',
+    );
+
+    return _toAnalysis(response.data, photoPath: byPhoto ? photoPath : null);
   }
 
   /// Analiza una foto **ya subida al bucket**.
@@ -74,36 +107,47 @@ class GeminiAnalysisClient {
     String? description,
   }) async {
     final hint = description?.trim() ?? '';
-    final FunctionResponse response;
+    final response = await _invoke(
+      functionName,
+      <String, dynamic>{
+        'photoPath': photoPath,
+        if (hint.isNotEmpty) 'description': hint,
+      },
+      timeoutMessage:
+          'El análisis tardó demasiado. La foto quedó guardada: cargá la '
+          'comida a mano o probá de nuevo.',
+      offlineMessage:
+          'No pudimos analizar la foto: revisá tu conexión. La foto ya está '
+          'guardada, podés cargar la comida a mano.',
+    );
+
+    return _toAnalysis(response.data, photoPath: photoPath);
+  }
+
+  /// La llamada, con el mismo tratamiento de fallos para las tres puertas.
+  ///
+  /// Lo único que cambia entre analizar, describir y recalcular es qué decirle
+  /// a la persona cuando se cae: el resto —el timeout propio, la traducción
+  /// del error de la función, la red— tiene que ser idéntico, y la forma de
+  /// que siga siéndolo es que sea el mismo código.
+  Future<FunctionResponse> _invoke(
+    String name,
+    Map<String, dynamic> body, {
+    required String timeoutMessage,
+    required String offlineMessage,
+  }) async {
     try {
-      response = await _functions
-          .invoke(
-            functionName,
-            body: <String, dynamic>{
-              'photoPath': photoPath,
-              if (hint.isNotEmpty) 'description': hint,
-            },
-          )
-          .timeout(timeout);
+      return await _functions.invoke(name, body: body).timeout(timeout);
     } on FunctionException catch (error) {
       throw _translate(error);
     } on TimeoutException {
-      throw const AppError(
+      throw AppError(
         code: ApiErrorCode.upstreamTimeout,
-        message:
-            'El análisis tardó demasiado. La foto quedó guardada: cargá la '
-            'comida a mano o probá de nuevo.',
+        message: timeoutMessage,
       );
     } on Exception {
-      throw const AppError(
-        code: ApiErrorCode.offline,
-        message:
-            'No pudimos analizar la foto: revisá tu conexión. La foto ya está '
-            'guardada, podés cargar la comida a mano.',
-      );
+      throw AppError(code: ApiErrorCode.offline, message: offlineMessage);
     }
-
-    return _toAnalysis(response.data, photoPath: photoPath);
   }
 
   /// Misma forma de respuesta para foto y texto: una sola lectura.

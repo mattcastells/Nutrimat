@@ -806,19 +806,11 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   /// Un ítem estimado por la IA se distingue de uno elegido del catálogo por
   /// tener [MealItem.aiConfidence]. No es un detalle: el badge de confianza
   /// dice cuánta duda tiene el modelo, y ponerle uno a un alimento del catálogo
-  /// sería presentar un dato verificado como si fuera una estimación.
-  static MealItem _toMealItem(AiAnalysisItem item, int position) => MealItem(
-    id: _uuid.v4(),
-    name: item.name,
-    quantity: item.quantity,
-    unit: item.unit,
-    kcal: item.kcal,
-    proteinG: item.proteinG,
-    carbsG: item.carbsG,
-    fatG: item.fatG,
-    aiConfidence: item.confidence,
-    position: position,
-  );
+  /// sería presentar un dato verificado como si fuera una estimación. La
+  /// conversión vive en el modelo porque el recálculo hace exactamente la
+  /// misma, y dos copias se separan.
+  static MealItem _toMealItem(AiAnalysisItem item, int position) =>
+      MealItem.fromAnalysis(item, id: _uuid.v4(), position: position);
 
   /// Se va sin guardar: el borrador vuelve a como estaba antes de entrar.
   ///

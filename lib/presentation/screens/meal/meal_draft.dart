@@ -162,6 +162,36 @@ class MealDraftController extends Notifier<MealDraft?> {
     );
   }
 
+  /// Reemplaza los ítems por los que devolvió un recálculo.
+  ///
+  /// Al revés que [appendAnalysis], que suma: el recálculo devuelve la comida
+  /// **entera** ya corregida —lo que la corrección no toca vuelve igual—, así
+  /// que sumarla dejaría todo por duplicado. La identidad de la comida no se
+  /// toca: mismo id, mismo momento del día y misma fecha, porque lo que se
+  /// está corrigiendo son los números, no la comida.
+  void replaceAnalysis({
+    required MealSource source,
+    required List<MealItem> items,
+    String? photoPath,
+    String? aiAnalysisId,
+  }) {
+    final current = state;
+    if (current == null) return;
+    state = MealDraft(
+      id: current.id,
+      slot: current.slot,
+      date: current.date,
+      loggedAt: current.loggedAt,
+      items: <MealItem>[
+        for (var i = 0; i < items.length; i++) items[i].copyWith(position: i),
+      ],
+      source: source,
+      editingMealId: current.editingMealId,
+      photoPath: photoPath ?? current.photoPath,
+      aiAnalysisId: aiAnalysisId ?? current.aiAnalysisId,
+    );
+  }
+
   /// Devuelve el borrador a un estado anterior, o lo cierra si no había ninguno.
   ///
   /// Se usa al descartar un análisis: quien lo abrió puede haber estado armando

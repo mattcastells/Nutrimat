@@ -22,6 +22,7 @@ import {
   rateLimitedResponse,
   validate,
 } from '../_shared/estimation.ts';
+import { parseCurrentItems, recalculatedFrom } from '../_shared/recalc.ts';
 
 /** Una descripción más larga que esto no es una comida, es un relato. */
 const MAX_DESCRIPTION = 400;
@@ -53,14 +54,23 @@ Deno.serve(async (req) => {
   if (userError || !user) return fail('ERR_UNAUTHENTICATED', 'Tu sesión venció.', 401);
 
   let description: string;
+  // Los ítems que la comida ya tiene. Cuando vienen, esto es el recálculo de
+  // una comida sin foto y `description` es la corrección, no el plato entero.
+  let currentItems: ReturnType<typeof parseCurrentItems> = [];
   try {
     const body = await req.json();
     description = String(body.description ?? '').trim();
+    currentItems = parseCurrentItems(body.currentItems);
   } catch {
     return fail('ERR_VALIDATION', 'Falta la descripción.');
   }
   if (description.length < 3) {
-    return fail('ERR_VALIDATION', 'Contanos qué comiste, con un poco más de detalle.');
+    return fail(
+      'ERR_VALIDATION',
+      currentItems.length > 0
+        ? 'Contanos qué hay que corregir, con un poco más de detalle.'
+        : 'Contanos qué comiste, con un poco más de detalle.',
+    );
   }
   if (description.length > MAX_DESCRIPTION) {
     description = description.slice(0, MAX_DESCRIPTION);
@@ -93,7 +103,13 @@ Deno.serve(async (req) => {
   // ── Gemini ─────────────────────────────────────────────────────────────
   const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
     geminiKey,
-    [{ text: `${PROMPT_TEXT_V1}\n\nDescripción: ${description}` }],
+    [{
+      text: currentItems.length > 0
+        ? `${PROMPT_TEXT_V1}\n${recalculatedFrom(currentItems, description, {
+          withPhoto: false,
+        })}`
+        : `${PROMPT_TEXT_V1}\n\nDescripción: ${description}`,
+    }],
   );
 
   // `insert` no lanza: devuelve `{ error }`. Ignorarlo fue cómo esta función
@@ -133,8 +149,10 @@ Deno.serve(async (req) => {
   if (items.length === 0) {
     return fail(
       'ERR_AI_NO_FOOD',
-      'No reconocimos ninguna comida en esa descripción. Probá nombrando los ' +
-        'alimentos y las cantidades: "dos empanadas de carne, un vaso de coca".',
+      currentItems.length > 0
+        ? 'El recálculo se quedó sin ítems. Revisá lo que escribiste y probá de nuevo.'
+        : 'No reconocimos ninguna comida en esa descripción. Probá nombrando los ' +
+          'alimentos y las cantidades: "dos empanadas de carne, un vaso de coca".',
       422,
     );
   }

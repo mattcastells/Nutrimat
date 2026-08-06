@@ -23,6 +23,7 @@ import '../../providers/app_providers.dart';
 import '../photo/photo_screens.dart';
 import 'edit_portion_sheet.dart';
 import 'meal_draft.dart';
+import 'recalculate_sheet.dart';
 
 /// S-15 · Nueva comida. Compone una comida a partir de ítems.
 class MealFormScreen extends ConsumerStatefulWidget {
@@ -107,6 +108,12 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
       actionLabel: 'Ver',
       onAction: () => context.push(Routes.meal(meal.id)),
     );
+  }
+
+  Future<void> _recalculate() async {
+    final done = await showRecalculateSheet(context);
+    if (done != true || !mounted) return;
+    NmSnackbar.show(context, 'Ítems recalculados. Revisalos y guardá.');
   }
 
   Future<void> _discard() async {
@@ -347,6 +354,25 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                               NmType.caption,
                               color: nm.caution,
                             ),
+                          ),
+                        ],
+                        // Corregir lo que la IA estimó mal, sin empezar de
+                        // nuevo. Antes había que sacar la foto otra vez y
+                        // rearmar la comida entera para cambiar un peso: el
+                        // recálculo parte de lo que ya está cargado, así que lo
+                        // que la corrección no toca queda como estaba.
+                        //
+                        // Solo editando: en el alta no hay comida que
+                        // recalcular todavía.
+                        if (widget.mealId != null) ...<Widget>[
+                          const SizedBox(height: NmSpace.s2),
+                          NmButton.secondary(
+                            label: 'Recalcular con IA',
+                            block: true,
+                            icon: PhosphorIcons.sparkle(),
+                            onPressed: _aiAvailable && !draft.isEmpty
+                                ? _recalculate
+                                : null,
                           ),
                         ],
                         // Adjuntar una foto a mano es cosa de una comida que ya

@@ -25,6 +25,7 @@ import {
   rateLimitedResponse,
   validate,
 } from '../_shared/estimation.ts';
+import { parseCurrentItems, recalculatedFrom } from '../_shared/recalc.ts';
 
 /** Mismo techo que `analyze-meal-text`: más que esto no es una aclaración. */
 const MAX_DESCRIPTION = 400;
@@ -65,10 +66,14 @@ Deno.serve(async (req) => {
   // Lo que la persona escribió sobre la foto, si escribió algo. Es opcional a
   // propósito: la foto sola tiene que seguir andando igual que antes.
   let description = '';
+  // Los ítems que la comida ya tiene. Cuando vienen, esto no es un análisis
+  // nuevo sino un recálculo, y `description` pasa a ser la corrección.
+  let currentItems: ReturnType<typeof parseCurrentItems> = [];
   try {
     const body = await req.json();
     photoPath = String(body.photoPath ?? '');
     description = String(body.description ?? '').trim().slice(0, MAX_DESCRIPTION);
+    currentItems = parseCurrentItems(body.currentItems);
   } catch {
     return fail('ERR_VALIDATION', 'Falta indicar la foto.');
   }
@@ -115,12 +120,21 @@ Deno.serve(async (req) => {
   // ve, no un pedido suelto. Al modelo se le explica cómo tratarla en
   // `describedBy` — es contexto que la foto no puede dar (el relleno de una
   // empanada), no permiso para agregar lo que no está.
+  //
+  // Con `currentItems` la comida ya existe y lo escrito es una corrección
+  // ("le falta el pan", "la milanesa pesaba 200 g"): ahí manda el bloque de
+  // recálculo, que pide devolver la comida entera ya corregida en vez de una
+  // lectura nueva de la foto. Sin ellos, todo sigue igual que antes.
   const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
     geminiKey,
     [
       { text: PROMPT_V3 },
       { inlineData: { mimeType: 'image/jpeg', data: base64 } },
-      ...(description ? [{ text: describedBy(description) }] : []),
+      ...(currentItems.length > 0
+        ? [{ text: recalculatedFrom(currentItems, description, { withPhoto: true }) }]
+        : description
+        ? [{ text: describedBy(description) }]
+        : []),
     ],
   );
 
@@ -161,7 +175,9 @@ Deno.serve(async (req) => {
   if (items.length === 0) {
     return fail(
       'ERR_AI_NO_FOOD',
-      'No vimos comida en la foto. Probá con otra o cargala a mano.',
+      currentItems.length > 0
+        ? 'El recálculo se quedó sin ítems. Revisá lo que escribiste y probá de nuevo.'
+        : 'No vimos comida en la foto. Probá con otra o cargala a mano.',
       422,
     );
   }

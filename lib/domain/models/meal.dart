@@ -1,5 +1,6 @@
 import '../../core/utils/dates.dart';
 import '../enums/enums.dart';
+import 'ai_analysis.dart';
 
 /// Un ítem dentro de una comida. El nombre es un **snapshot**: no cambia si el
 /// alimento de origen se edita después (10-types §MealItem).
@@ -81,6 +82,29 @@ class MealItem {
     'wasAiCorrected': wasAiCorrected,
     'position': position,
   };
+
+  /// Un ítem estimado por la IA, listo para entrar en una comida.
+  ///
+  /// Se conserva [AiAnalysisItem.confidence] en [aiConfidence] y ahí está todo
+  /// el asunto: es lo que distingue un número estimado de uno del catálogo, y
+  /// lo que hace que el badge de confianza diga la verdad. Lo usan la revisión
+  /// del análisis y el recálculo, que tienen que convertir igual.
+  static MealItem fromAnalysis(
+    AiAnalysisItem item, {
+    required String id,
+    required int position,
+  }) => MealItem(
+    id: id,
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    kcal: item.kcal,
+    proteinG: item.proteinG,
+    carbsG: item.carbsG,
+    fatG: item.fatG,
+    aiConfidence: item.confidence,
+    position: position,
+  );
 
   static MealItem fromJson(Map<String, dynamic> j) => MealItem(
     id: j['id'] as String,

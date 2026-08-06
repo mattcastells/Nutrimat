@@ -22,6 +22,8 @@ class MealPhotoField extends StatefulWidget {
   const MealPhotoField({
     required this.path,
     required this.onChanged,
+    this.emptyLabel = 'Agregar una foto',
+    this.caption = 'La foto se guarda con la comida. No cambia las calorías.',
     super.key,
   });
 
@@ -29,6 +31,14 @@ class MealPhotoField extends StatefulWidget {
 
   /// `null` cuando se quita la foto.
   final void Function(String? path) onChanged;
+
+  /// Qué dice el botón cuando todavía no hay foto.
+  final String emptyLabel;
+
+  /// La aclaración de abajo, o `null` para no mostrar ninguna. El texto por
+  /// omisión es cierto acá y **falso** al recalcular, donde la foto sí cambia
+  /// los números: por eso se puede reemplazar.
+  final String? caption;
 
   @override
   State<MealPhotoField> createState() => _MealPhotoFieldState();
@@ -97,7 +107,7 @@ class _MealPhotoFieldState extends State<MealPhotoField> {
 
     if (path == null || path.isEmpty) {
       return NmButton.secondary(
-        label: 'Agregar una foto',
+        label: widget.emptyLabel,
         block: true,
         icon: PhosphorIcons.camera(),
         loading: _busy,
@@ -136,10 +146,11 @@ class _MealPhotoFieldState extends State<MealPhotoField> {
             ),
           ],
         ),
-        Text(
-          'La foto se guarda con la comida. No cambia las calorías.',
-          style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
-        ),
+        if (widget.caption != null)
+          Text(
+            widget.caption!,
+            style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
+          ),
       ],
     );
   }

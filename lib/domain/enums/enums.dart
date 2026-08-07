@@ -92,11 +92,22 @@ enum GoalType {
 
 enum TargetMethod {
   calculated('calculated', 'Calculado'),
-  manual('manual', 'Ingresado a mano');
+  manual('manual', 'Ingresado a mano'),
+
+  /// Propuesto por la IA a partir de los datos del perfil, y aceptado.
+  ///
+  /// No es `calculated`: no salió de Mifflin-St Jeor sino de un modelo, y de
+  /// dónde viene un número es parte del número (RN-03). Tampoco es `manual`:
+  /// nadie lo escribió, y confundirlos borraría la única pista de por qué el
+  /// objetivo no coincide con la fórmula.
+  ai('ai', 'Propuesto por la IA');
 
   const TargetMethod(this.wire, this.label);
   final String wire;
   final String label;
+
+  static TargetMethod fromWire(String w) =>
+      values.firstWhere((e) => e.wire == w, orElse: () => manual);
 }
 
 enum MealSlot {

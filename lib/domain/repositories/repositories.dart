@@ -4,6 +4,7 @@ import '../calculations/duplicate_score.dart';
 import '../enums/enums.dart';
 import '../models/activity.dart';
 import '../models/ai_analysis.dart';
+import '../models/ai_calorie_target.dart';
 import '../models/analysis_stage.dart';
 import '../models/body.dart';
 import '../models/food.dart';
@@ -439,6 +440,26 @@ abstract interface class AiPhotoRepository {
     required int remainingKcal,
     MealSlot? slot,
     int? remainingProteinG,
+  });
+
+  /// Si hay a quién preguntarle. Sin servidor no hay Edge Function, y ofrecer
+  /// un botón que siempre falla es peor que no ofrecerlo.
+  bool get canProposeCalorieTarget;
+
+  /// Le pide a la IA un objetivo calórico para el perfil cargado, con su
+  /// explicación (S-05).
+  ///
+  /// Es una **propuesta**, no un resultado: se muestra al lado del número de la
+  /// fórmula y no reemplaza nada hasta que la persona la acepta. Lo que
+  /// devuelve ya viene acotado por el servidor contra el gasto que él mismo
+  /// recalcula — nunca por debajo del mínimo de RN-12 ni fuera de la banda que
+  /// permite ese gasto—, así que acá no hace falta volver a topearlo.
+  ///
+  /// Comparte la cuota diaria con las estimaciones y las sugerencias.
+  Future<AiCalorieTarget> proposeCalorieTarget({
+    required double weightKg,
+    required GoalType goalType,
+    required int formulaTarget,
   });
 }
 

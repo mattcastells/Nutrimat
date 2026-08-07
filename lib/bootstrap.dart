@@ -16,6 +16,7 @@ import 'data/local/health_connect_gateway.dart';
 import 'data/local/home_widget_publisher.dart';
 import 'data/local/local_auth_gateway.dart';
 import 'data/local/local_store.dart';
+import 'data/remote/calorie_target_client.dart';
 import 'data/remote/care_client.dart';
 import 'data/remote/cloud_backup_client.dart';
 import 'data/remote/gemini_analysis_client.dart';
@@ -129,6 +130,12 @@ Future<void> bootstrap() async {
     // detrás, misma cuota diaria: la clave del modelo no baja al teléfono.
     suggestions: SupabaseConfig.isConfigured
         ? MealSuggestionsClient.fromInstance()
+        : null,
+    // La propuesta de objetivo calórico del alta guiada. Misma cuota que las
+    // otras tres, y la misma razón para estar del lado del servidor: acá,
+    // además, es él quien rehace la cuenta con la que acota al modelo.
+    calorieTargets: SupabaseConfig.isConfigured
+        ? CalorieTargetClient.fromInstance()
         : null,
     // Alimentos genéricos por Edge Function: la clave de USDA no baja al
     // teléfono. Sin servidor, la búsqueda sigue con Open Food Facts y con la

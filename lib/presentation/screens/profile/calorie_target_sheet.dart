@@ -91,14 +91,22 @@ class _CalorieTargetSheetState extends ConsumerState<_CalorieTargetSheet> {
       ageYears: ageFromBirthDate(profile.birthDate!),
       sex: profile.biologicalSex,
     );
-    return calorieTarget(
-      tdee: tdee(bmr: bmrValue, activityLevel: profile.activityLevel),
+    final tdeeValue = tdee(bmr: bmrValue, activityLevel: profile.activityLevel);
+    return calorieTargetForPace(
+      tdee: tdeeValue,
       goalType: goal.goalType,
-      rateKgPerWeek: goal.goalType == GoalType.maintain
+      // El ritmo guardado son kilos por semana; la regla ahora es una fracción
+      // del gasto. Se traduce en vez de recalcularse desde un ritmo por
+      // defecto: acá no se elige nada, se muestra lo que daría el objetivo que
+      // ya está puesto.
+      fractionOfTdee: goal.goalType == GoalType.maintain
           ? 0
-          : goal.rateKgPerWeek,
+          : fractionOfTdeeForRate(
+              rateKgPerWeek: goal.rateKgPerWeek,
+              tdee: tdeeValue,
+            ),
       sex: profile.biologicalSex,
-    ).target;
+    ).target.target;
   }
 
   Future<void> _save({required bool backToCalculated}) async {

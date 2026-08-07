@@ -281,9 +281,37 @@ perímetros en cm, pliegues cutáneos en mm y bioimpedancia. Se cargan todos
 juntos por fecha, no de a uno. El peso y la altura quedan afuera a propósito:
 tienen su propio registro y alimentan el cálculo de BMR.
 
-**Alta guiada, obligatoria.** Crear la cuenta lleva a cuatro pasos: sexo y fecha
-de nacimiento, altura y peso, nivel de actividad, y objetivo. Recién después se
-entra a Inicio.
+**Alta guiada, obligatoria.** Crear la cuenta lleva a cinco pasos: sexo y fecha
+de nacimiento, altura y peso, nivel de actividad, objetivo, y las calorías por
+día. Recién después se entra a Inicio.
+
+El quinto es el que cierra, y existe porque los cuatro anteriores no alcanzaban:
+elegir "Bajar de peso" dejaba a la persona en Inicio con un objetivo que nunca
+había visto, calculado con un ritmo de 0,5 kg por semana que tampoco había
+elegido. Ahí se ve el número, se elige a qué ritmo ir —cada opción muestra las
+calorías que deja, que es la única diferencia real entre ellas— y se puede
+escribir otro para quien sigue un plan de un profesional. Un objetivo que no se
+confirmó no es un objetivo: es una suposición con forma de cuenta.
+
+**El ritmo es una fracción del gasto, no una cantidad de kilos.** Medio kilo por
+semana son 550 kcal para cualquiera, y 550 kcal son el 21 % del gasto de una
+persona de 2.600 y el 35 % del de una de 1.550: el mismo rótulo escondía dos
+esfuerzos que no se parecen, y el segundo es el que hacía que la app le diera muy
+poco a los cuerpos más chicos. Ahora se elige entre "un 10 % menos que tu gasto"
+y "un 25 % menos", y los kilos por semana salen de ahí y se muestran como la
+consecuencia que son. Como el gasto es metabolismo basal × nivel de actividad, la
+fracción ya está leyendo el cuerpo y la semana de quien elige. El tope de 1 kg
+por semana sigue mandando sobre los gastos más grandes.
+
+**El objetivo lo puede proponer la IA.** En el mismo paso, al lado del número
+calculado, con su explicación y un botón para usarlo. No se pide solo: gastar una
+consulta de la cuota de alguien que iba a aceptar el calculado es cobrarle por
+algo que no pidió. La Edge Function `suggest-calorie-target` **rehace la cuenta**
+—metabolismo basal y gasto— con los datos crudos que recibe, y acota contra su
+propio número lo que devuelve el modelo; si el techo viniera del teléfono, la
+validación no estaría validando nada. Lo aceptado se guarda con `target_method =
+'ai'`, que no es ni `calculated` ni `manual`: de dónde viene un número es parte
+del número.
 
 Antes se entraba directo y el resto se cargaba desde Perfil cuando se quisiera,
 y así el primer número que veía alguien —"te quedan 1.096 kcal"— salía de un

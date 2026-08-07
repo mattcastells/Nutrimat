@@ -220,7 +220,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('Empecemos por vos'), findsOneWidget);
-    expect(find.text('Paso 1 de 4'), findsOneWidget);
+    expect(find.text('Paso 1 de 5'), findsOneWidget);
     expect(find.byType(CalorieRing), findsNothing);
     // Y no hay forma de saltearlo: el único camino que no es completarlo es
     // salir de la cuenta.

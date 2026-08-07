@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/error/app_error.dart';
 import '../../core/utils/dates.dart';
+import '../../domain/calculations/bmr.dart';
 import '../../domain/calculations/duplicate_score.dart';
 import '../../domain/calculations/exercise_credit.dart';
 import '../../domain/calculations/met_calories.dart';
@@ -14,6 +15,7 @@ import '../../domain/calculations/pace_met.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
 import '../../domain/models/ai_analysis.dart';
+import '../../domain/models/ai_calorie_target.dart';
 import '../../domain/models/analysis_stage.dart';
 import '../../domain/models/body.dart';
 import '../../domain/models/food.dart';
@@ -31,6 +33,7 @@ import '../../domain/services/photo_sync_service.dart';
 import '../../domain/services/summary_builder.dart';
 import '../local/health_connect_gateway.dart';
 import '../local/local_store.dart';
+import '../remote/calorie_target_client.dart';
 import '../remote/gemini_analysis_client.dart';
 import '../remote/meal_suggestions_client.dart';
 import '../remote/open_food_facts_client.dart';
@@ -68,6 +71,7 @@ class LocalRepository
     this.photos,
     this.aiAnalysis,
     this.suggestions,
+    this.calorieTargets,
     this.usdaFoods,
     this.health,
   }) : _foodCatalog = foodCatalog ?? OpenFoodFactsClient();
@@ -85,6 +89,10 @@ class LocalRepository
   /// Sugerencias de comida para lo que queda del día. Null sin servidor: la
   /// función es la que habla con el modelo.
   final MealSuggestionsClient? suggestions;
+
+  /// La propuesta de objetivo calórico del alta guiada. Null sin servidor: es
+  /// la función la que habla con el modelo, y la que acota lo que devuelve.
+  final CalorieTargetClient? calorieTargets;
 
   /// Health Connect, el almacén de salud del teléfono: de ahí salen el peso, la
   /// grasa corporal y el sueño que miden la balanza y el reloj. Null en los
@@ -1954,6 +1962,48 @@ class LocalRepository
     );
     _quotaUsed++;
     return options;
+  }
+
+  @override
+  bool get canProposeCalorieTarget => calorieTargets != null;
+
+  @override
+  Future<AiCalorieTarget> proposeCalorieTarget({
+    required double weightKg,
+    required GoalType goalType,
+    required int formulaTarget,
+  }) async {
+    final client = calorieTargets;
+    if (client == null) {
+      throw const AppError(
+        code: ApiErrorCode.providerUnavailable,
+        message: 'Esta compilación no tiene servidor: calcularlo con IA '
+            'necesita cuenta.',
+      );
+    }
+
+    // Los mismos datos con los que la app calcula, y ninguno más. El servidor
+    // rehace la cuenta con ellos: acá no se manda un gasto ya masticado
+    // justamente para que el techo de la validación no salga del teléfono.
+    final current = profile;
+    if (!current.hasBodyData) {
+      throw const AppError(
+        code: ApiErrorCode.validation,
+        message: 'Faltan tu altura y tu fecha de nacimiento para calcularlo.',
+      );
+    }
+
+    final proposal = await client.propose(
+      sex: current.biologicalSex,
+      ageYears: ageFromBirthDate(current.birthDate!),
+      heightCm: current.heightCm!,
+      weightKg: weightKg,
+      activityLevel: current.activityLevel,
+      goalType: goalType,
+      formulaTarget: formulaTarget,
+    );
+    _quotaUsed++;
+    return proposal;
   }
 
   @override

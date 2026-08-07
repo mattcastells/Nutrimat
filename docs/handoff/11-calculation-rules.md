@@ -86,6 +86,62 @@ objetivoBase(maintain) = tdee
 - **Superávit al 50 %:** ganar peso a 0,25 kg/sem sobre TDEE 2600 → 2600 + 137,5 = **2738**.
   Se usa la mitad porque un superávit completo se traduce mayormente en grasa (D-04).
 
+### 3.b. El ritmo se elige como fracción del gasto (RN-19)
+
+Lo de arriba sigue siendo la fórmula, pero **ya no es así como se elige el
+ritmo**. Un ajuste fijo en kilos por semana esconde dos esfuerzos que no se
+parecen: 550 kcal son el 21 % del gasto de una persona de 2.600 y el 35 % del de
+una de 1.550, y el piso de RN-12 no alcanza para notarlo — actúa recién en 1.200
+kcal, cuando el desbalance ya pasó. Es lo que hacía que la app le diera muy poco
+a los cuerpos más chicos.
+
+Las pantallas ofrecen una fracción del TDEE (`GoalPace`) y los kilos por semana
+salen como consecuencia:
+
+```
+ajusteDiario     = tdee × fraccion
+ritmoKgPorSemana = redondear2(ajusteDiario × 7 ÷ 7700), topeado en 1 (RN-13)
+ajusteDiario     = (ritmoKgPorSemana × 7700) ÷ 7      ← se rehace desde el ritmo ya redondeado
+```
+
+El ajuste se recalcula desde el ritmo redondeado porque es ese valor el que se
+guarda (`goals.rate_kg_per_week` es `numeric(3,2)`): si el objetivo saliera de la
+fracción sin redondear, el número mostrado y el guardado se separarían.
+
+| Ritmo | lose | gain_muscle | gain |
+| --- | --- | --- | --- |
+| De a poco | 10 % | 5 % | 2,5 % |
+| Sostenido *(por defecto)* | 15 % | 10 % | 5 % |
+| Más firme | 20 % | 15 % | 7,5 % |
+| Al máximo | 25 % | 20 % | 10 % |
+
+- **Techo:** 30 % del gasto. Un ritmo guardado que lo supere —los hay, de antes
+  de esta regla— se recorta al releerlo en vez de romper la pantalla.
+- **D-04 sigue vivo, pero visible:** las fracciones de `gain` son la mitad de las
+  de `gain_muscle`. El camino relativo **no** vuelve a multiplicar por 0,5; si lo
+  hiciera, el superávit quedaría en un cuarto.
+- **Ejemplo:** TDEE 2417, bajar, "Sostenido" → 2417 × 0,15 = 362,55 → ritmo 0,33
+  kg/sem → ajuste 363 → **2054**.
+- **Ejemplo del tope:** TDEE 6000, bajar, "Al máximo" → 0,25 daría 1,36 kg/sem,
+  se topea en 1,00 → **4900**.
+
+### 3.c. Objetivo propuesto por la IA (RN-20)
+
+El alta guiada (S-05) ofrece que el objetivo lo proponga un modelo, al lado del
+que da la fórmula. Se guarda con `target_method = 'ai'`: no es `calculated` —no
+salió de Mifflin-St Jeor— ni `manual` —nadie lo escribió—.
+
+La Edge Function `suggest-calorie-target` **recalcula el BMR y el TDEE con estas
+mismas fórmulas** a partir de los datos crudos que recibe, y acota lo que
+devuelve el modelo contra su propio número: nunca más de un 30 % de déficit ni de
+un 25 % de superávit, nunca fuera de 800–6000, y el mínimo de RN-12 lo sube y lo
+dice. Fuera de esa banda la respuesta se descarta entera en vez de recortarse: un
+número tan lejos del gasto significa que el modelo no entendió el pedido, y su
+explicación —que es la mitad del valor de esto— hablaría de otro número.
+
+No se le pasa un TDEE ya calculado a propósito. Si el techo de la validación
+viniera de quien llama, la validación no estaría validando nada.
+
 ## 4. Calorías por gramos de macronutriente
 
 ```

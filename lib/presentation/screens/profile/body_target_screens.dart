@@ -269,7 +269,7 @@ class TargetScreen extends ConsumerStatefulWidget {
 
 class _TargetScreenState extends ConsumerState<TargetScreen> {
   GoalType? _goalType;
-  double? _rate;
+  GoalPace? _pace;
   bool _manual = false;
   late final TextEditingController _manualValue = TextEditingController();
   bool _saving = false;
@@ -295,12 +295,15 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
     }
 
     final goalType = _goalType ?? goal.goalType;
-    final rate = _rate ?? goal.rateKgPerWeek;
 
     int? bmrValue;
     int? tdeeValue;
     var target = goal.baseCalorieTarget;
     var clamped = false;
+    // El ritmo guardado son kilos por semana; el que se elige es una fracción
+    // del gasto. Sin gasto no hay conversión posible y queda el de referencia.
+    var pace = _pace ?? GoalPace.steady;
+    var rate = goal.rateKgPerWeek;
 
     if (profile.birthDate != null && profile.heightCm != null) {
       bmrValue = bmrMifflinStJeor(
@@ -310,15 +313,23 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
         sex: profile.biologicalSex,
       );
       tdeeValue = tdee(bmr: bmrValue, activityLevel: profile.activityLevel);
-      final result = calorieTarget(
+      pace =
+          _pace ??
+          GoalPace.nearestForRate(
+            rateKgPerWeek: goal.rateKgPerWeek,
+            goalType: goalType,
+            tdee: tdeeValue,
+          );
+      final planned = calorieTargetForPace(
         tdee: tdeeValue,
         goalType: goalType,
-        rateKgPerWeek: goalType == GoalType.maintain ? 0 : rate,
+        fractionOfTdee: pace.fractionFor(goalType),
         sex: profile.biologicalSex,
       );
+      rate = planned.rateKgPerWeek;
       if (!_manual) {
-        target = result.target;
-        clamped = result.clamped;
+        target = planned.target.target;
+        clamped = planned.target.clamped;
       }
     }
     if (_manual) {
@@ -349,6 +360,7 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
         goalType != goal.goalType ||
         rate != goal.rateKgPerWeek ||
         method != goal.targetMethod;
+    final effectiveRate = goalType == GoalType.maintain ? 0.0 : rate;
 
     return NmScreen(
       title: 'Objetivo y macros',
@@ -391,16 +403,15 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                   ValueRow(label: 'Gasto diario', value: Fmt.kcal(tdeeValue!)),
                   if (goalType != GoalType.maintain)
                     ValueRow(
-                      label: switch (goalType) {
-                        GoalType.lose => '− déficit',
-                        GoalType.gain => '+ superávit (al 50 %)',
-                        GoalType.gainMuscle => '+ superávit',
-                        GoalType.maintain => '',
-                      },
+                      label: goalType == GoalType.lose
+                          ? '− déficit'
+                          : '+ superávit',
+                      caption: '${pace.shareLabelFor(goalType)} · '
+                          '≈ ${Fmt.decimal2(effectiveRate)} kg/semana',
                       value: Fmt.kcal(
-                        (CalorieTargetRules.dailyAdjustment(rate) *
-                                (goalType == GoalType.gain ? 0.5 : 1))
-                            .round(),
+                        CalorieTargetRules.dailyAdjustment(
+                          effectiveRate,
+                        ).round(),
                       ),
                     ),
                   const NmDivider(),
@@ -439,10 +450,10 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                   semanticsInRadioGroup: true,
                   onTap: () => setState(() {
                     _goalType = type;
-                    // Cada objetivo trae su ritmo de referencia; conservar el
-                    // del objetivo anterior daba combinaciones raras, como
-                    // ganar músculo a 1 kg por semana.
-                    _rate = GoalPreset.of(type).rateKgPerWeek;
+                    // Cada objetivo arranca en su ritmo de referencia;
+                    // conservar el del objetivo anterior daba combinaciones
+                    // raras, como ganar músculo al ritmo más exigente.
+                    _pace = GoalPreset.of(type).defaultPace;
                   }),
                 ),
             ],
@@ -450,19 +461,40 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
           if (goalType != GoalType.maintain) ...<Widget>[
             const SizedBox(height: NmSpace.s6),
             const NmSectionHeader(title: 'Ritmo'),
-            Wrap(
-              spacing: NmSpace.s2,
-              runSpacing: NmSpace.s2,
-              children: <Widget>[
-                for (final option in const <double>[0.25, 0.5, 0.75, 1.0])
-                  NmChip(
-                    label: '${Fmt.decimal2(option)} kg / semana',
-                    selected: rate == option,
-                    semanticsInRadioGroup: true,
-                    onTap: () => setState(() => _rate = option),
-                  ),
-              ],
-            ),
+            // El ritmo es una fracción de **tu** gasto, no una cantidad fija
+            // de kilos: los kilos por semana son la consecuencia y se muestran
+            // como tal.
+            for (final option in GoalPace.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: NmSpace.s2),
+                child: NmRadioRow<GoalPace>(
+                  title: option.label,
+                  subtitle: tdeeValue == null
+                      ? option.detailFor(goalType)
+                      : '${option.shareLabelFor(goalType)} · ≈ '
+                            '${Fmt.decimal2(_rateOf(option, goalType, tdeeValue))}'
+                            ' kg/semana',
+                  value: option,
+                  groupValue: pace,
+                  onChanged: (v) => setState(() => _pace = v),
+                  trailing: tdeeValue == null
+                      ? null
+                      : Text(
+                          Fmt.kcal(
+                            _targetOf(
+                              option,
+                              goalType,
+                              tdeeValue,
+                              profile.biologicalSex,
+                            ),
+                          ),
+                          style: NmTextStyles.from(
+                            NmType.bodySm,
+                            color: context.nm.textMuted,
+                          ).tnum,
+                        ),
+                ),
+              ),
             const SizedBox(height: NmSpace.s2),
             const InfoNote(text: 'El tope es 1 kg por semana.'),
           ],
@@ -577,7 +609,7 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
                       Goal(
                         id: _uuid.v4(),
                         goalType: goalType,
-                        rateKgPerWeek: goalType == GoalType.maintain ? 0 : rate,
+                        rateKgPerWeek: effectiveRate,
                         targetWeightKg: goal.targetWeightKg,
                         baseCalorieTarget: target,
                         targetMethod: _manual
@@ -607,6 +639,29 @@ class _TargetScreenState extends ConsumerState<TargetScreen> {
 
   String _formatDate(DateTime date) =>
       '${date.day}/${date.month}/${date.year}';
+
+  /// Los kilos por semana que le tocan a [pace] con este gasto.
+  double _rateOf(GoalPace pace, GoalType goalType, int tdeeValue) =>
+      calorieTargetForPace(
+        tdee: tdeeValue,
+        goalType: goalType,
+        fractionOfTdee: pace.fractionFor(goalType),
+        sex: ref.read(profileProvider).biologicalSex,
+      ).rateKgPerWeek;
+
+  /// El objetivo que dejaría [pace]. Va al lado de cada opción: es la única
+  /// diferencia real entre ellas.
+  int _targetOf(
+    GoalPace pace,
+    GoalType goalType,
+    int tdeeValue,
+    BiologicalSex sex,
+  ) => calorieTargetForPace(
+    tdee: tdeeValue,
+    goalType: goalType,
+    fractionOfTdee: pace.fractionFor(goalType),
+    sex: sex,
+  ).target.target;
 }
 
 /// S-34 · Mis alimentos, actividades, plantillas y favoritos.

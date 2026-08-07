@@ -26,13 +26,37 @@ abstract final class GoalPlanner {
   /// Sin ellos no hay fórmula posible: se conserva el número que ya había y se
   /// marca `manual`, porque presentar un valor inventado como si fuera el
   /// resultado de un cálculo es exactamente lo que el producto no hace (RN-03).
+  ///
+  /// [pace] pisa el ritmo del preset. El preset es el punto de partida, no la
+  /// única opción: quien eligió "De a poco" en el alta tiene que terminar con
+  /// ese ritmo guardado y no con el "Sostenido" de la tarjeta.
+  ///
+  /// El ritmo es una fracción del gasto, así que los kilos por semana que
+  /// quedan guardados **salen de los datos de la persona**: el mismo "De a
+  /// poco" es 0,22 kg/semana para un gasto de 2.400 y 0,14 para uno de 1.550.
+  /// Sin datos corporales no hay gasto del que sacar una fracción, y ahí el
+  /// único ritmo posible es el de referencia del preset.
+  ///
+  /// [manualTarget] pisa el resultado de la fórmula. El BMR y el TDEE se
+  /// guardan igual: son hechos que salen de los datos del cuerpo, y sirven para
+  /// explicar después de dónde se apartó el número elegido. [manualMethod]
+  /// distingue quién lo escribió — la persona o la IA (S-05).
   static Goal build({
     required GoalPreset preset,
     required UserProfile profile,
     required double? weightKg,
     required Goal? current,
+    GoalPace? pace,
+    int? manualTarget,
+    TargetMethod manualMethod = TargetMethod.manual,
   }) {
     final canCalculate = profile.hasBodyData && weightKg != null;
+
+    // Mantener no tiene ritmo. Aceptar uno acá dejaría un objetivo que dice
+    // "mantener" y resta calorías.
+    var rate = preset.goalType == GoalType.maintain
+        ? 0.0
+        : preset.rateKgPerWeek;
 
     int? bmrValue;
     int? tdeeValue;
@@ -47,13 +71,22 @@ abstract final class GoalPlanner {
         sex: profile.biologicalSex,
       );
       tdeeValue = tdee(bmr: bmrValue, activityLevel: profile.activityLevel);
-      target = calorieTarget(
+      final planned = calorieTargetForPace(
         tdee: tdeeValue,
         goalType: preset.goalType,
-        rateKgPerWeek: preset.rateKgPerWeek,
+        fractionOfTdee: (pace ?? preset.defaultPace).fractionFor(
+          preset.goalType,
+        ),
         sex: profile.biologicalSex,
-      ).target;
+      );
+      target = planned.target.target;
+      rate = planned.rateKgPerWeek;
       method = TargetMethod.calculated;
+    }
+
+    if (manualTarget != null) {
+      target = manualTarget;
+      method = manualMethod;
     }
 
     // Los macros necesitan un peso; sin registro se usa el de referencia solo
@@ -67,7 +100,7 @@ abstract final class GoalPlanner {
     return Goal(
       id: _uuid.v4(),
       goalType: preset.goalType,
-      rateKgPerWeek: preset.rateKgPerWeek,
+      rateKgPerWeek: rate,
       targetWeightKg: current?.targetWeightKg,
       baseCalorieTarget: target,
       targetMethod: method,

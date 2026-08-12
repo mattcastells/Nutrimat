@@ -1631,6 +1631,32 @@ class LocalRepository
         .map((a) => isoDate(a.localDate)),
   };
 
+  /// El primer día del que hay algo cargado.
+  ///
+  /// Entran comidas, actividades y pesos: el peso porque el alta guiada lo
+  /// registra antes que cualquier otra cosa, así que para casi todo el mundo es
+  /// el primero de los tres. Se ignoran agua y sueño a propósito — se pueden
+  /// cargar hacia atrás y no marcan cuándo empezó nadie.
+  @override
+  DateTime? get trackingSince {
+    DateTime? first;
+    void ver(DateTime date) {
+      final day = dateOnly(date);
+      if (first == null || day.isBefore(first!)) first = day;
+    }
+
+    for (final m in store.meals) {
+      if (!m.isDeleted) ver(m.localDate);
+    }
+    for (final a in store.activities) {
+      if (!a.isDeleted) ver(a.localDate);
+    }
+    for (final w in store.weightLogs) {
+      if (!w.isDeleted) ver(w.localDate);
+    }
+    return first;
+  }
+
   // ── Salud ──────────────────────────────────────────────────────────────
 
   @override

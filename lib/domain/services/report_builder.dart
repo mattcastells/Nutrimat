@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import '../../core/utils/dates.dart';
 import '../calculations/rounding.dart';
 import '../enums/enums.dart';
@@ -75,8 +73,10 @@ class NutritionReport {
     required this.name,
     required this.from,
     required this.to,
+    required this.trackingSince,
     required this.generatedAt,
     required this.daysWithRecords,
+    required this.daysNotOver,
     required this.goal,
     required this.calories,
     required this.exerciseCalories,
@@ -84,7 +84,9 @@ class NutritionReport {
     required this.nutrients,
     required this.weight,
     required this.water,
+    required this.waterByDay,
     required this.sleepMinutes,
+    required this.sleepByDay,
     required this.measurements,
     required this.dietaryLabels,
   });
@@ -92,11 +94,28 @@ class NutritionReport {
   final String name;
   final DateTime from;
   final DateTime to;
+
+  /// Desde cuándo esta persona usa la app, si empezó **dentro** del período.
+  ///
+  /// Es lo que evita el "16 de 30 · 53 %" de alguien que instaló la app hace
+  /// dos semanas: esos catorce días de antes no son huecos en su registro, son
+  /// días en los que no tenía la app. `null` cuando ya venía usándola desde
+  /// antes, que es el caso en que el período entero sí es comparable.
+  final DateTime? trackingSince;
   final DateTime generatedAt;
 
   /// Días con al menos una comida o una actividad. Es el denominador honesto
   /// de todo lo demás.
   final int daysWithRecords;
+
+  /// De los días registrados, en cuántos no se pasó del objetivo.
+  ///
+  /// Es la misma regla que usa el Historial (`HistoryDay.isWithinTarget`):
+  /// consumido ≤ objetivo del día, con el ejercicio aplicado si corresponde.
+  /// Antes acá se contaban los días **dentro de una banda de ±10 %**, que es
+  /// otra cosa: comer 1.400 con un objetivo de 2.000 no contaba, y para quien
+  /// mira su informe eso es exactamente un día en el que no se pasó.
+  final int daysNotOver;
 
   final Goal? goal;
 
@@ -113,7 +132,15 @@ class NutritionReport {
   final ReportDelta? weight;
 
   final ReportAverage water;
+
+  /// Vasos por día, solo los días que tienen registro. Es lo que dibuja el
+  /// gráfico: un día sin cargar no es un día sin tomar agua.
+  final List<ChartPoint> waterByDay;
+
   final ReportAverage sleepMinutes;
+
+  /// Minutos dormidos por noche, solo las noches registradas.
+  final List<ChartPoint> sleepByDay;
 
   /// Las medidas corporales que se movieron en el período.
   final List<ReportDelta> measurements;
@@ -122,9 +149,22 @@ class NutritionReport {
   /// comió. Vacío si no hay ninguna.
   final List<String> dietaryLabels;
 
-  int get totalDays => daysBetween(from, to) + 1;
+  /// Los días del período que efectivamente se podían registrar.
+  ///
+  /// Arranca cuando arrancó la persona, no cuando arranca la ventana elegida.
+  int get totalDays => daysBetween(countingFrom, to) + 1;
 
-  /// Qué proporción de los días del período tienen algo registrado. Es lo que
+  /// El primer día que cuenta: el del período, o el primero de la persona si
+  /// empezó más tarde.
+  DateTime get countingFrom =>
+      trackingSince != null && trackingSince!.isAfter(from)
+      ? trackingSince!
+      : from;
+
+  /// Si la ventana elegida es más larga que el tiempo que lleva usando la app.
+  bool get startedMidPeriod => countingFrom.isAfter(from);
+
+  /// Qué proporción de los días que se podían registrar tienen algo. Es lo que
   /// permite leer el resto con la desconfianza que corresponda.
   int get coveragePct =>
       totalDays <= 0 ? 0 : roundHalfUp(daysWithRecords / totalDays * 100);
@@ -148,6 +188,7 @@ abstract final class ReportBuilder {
     required int? Function(DateTime) sleepMinutesOn,
     required List<BodyMeasurement> Function(MeasurementMetric) measurementsOf,
     required DateTime generatedAt,
+    DateTime? trackingSince,
   }) {
     final conRegistro = days.where((d) => d.hasRecords).toList();
 
@@ -186,13 +227,25 @@ abstract final class ReportBuilder {
     // sobre los que tienen comida: alguien puede registrar todas sus comidas y
     // el agua solo los días que se acuerda, y contar los otros como cero diría
     // que toma la mitad de lo que toma.
-    final vasos = <double>[];
-    final sueno = <double>[];
+    final vasos = <ChartPoint>[];
+    final sueno = <ChartPoint>[];
     for (final day in days) {
       final glasses = glassesOn(day.date);
-      if (glasses > 0) vasos.add(glasses.toDouble());
+      if (glasses > 0) {
+        vasos.add(ChartPoint(day.date, glasses.toDouble()));
+      }
       final minutes = sleepMinutesOn(day.date);
-      if (minutes != null && minutes > 0) sueno.add(minutes.toDouble());
+      if (minutes != null && minutes > 0) {
+        sueno.add(ChartPoint(day.date, minutes.toDouble()));
+      }
+    }
+
+    // Los días en que no se pasó, con la misma regla que el Historial: el
+    // objetivo del día más lo que sumó el ejercicio, si es que suma.
+    var sinPasarse = 0;
+    for (final day in conRegistro) {
+      if (day.consumedKcal <= 0) continue;
+      if (day.consumedKcal <= day.adjustedTarget) sinPasarse++;
     }
 
     return NutritionReport(
@@ -201,16 +254,22 @@ abstract final class ReportBuilder {
           : 'Tu informe',
       from: progress.from,
       to: progress.to,
+      trackingSince: trackingSince == null
+          ? null
+          : dateOnly(trackingSince),
       generatedAt: generatedAt,
       daysWithRecords: conRegistro.length,
+      daysNotOver: sinPasarse,
       goal: goal,
       calories: calories,
       exerciseCalories: exercise,
       progress: progress,
       nutrients: nutrients,
       weight: _weightDelta(progress),
-      water: _average(vasos),
-      sleepMinutes: _average(sueno),
+      water: _average(vasos.map((p) => p.value)),
+      waterByDay: vasos,
+      sleepMinutes: _average(sueno.map((p) => p.value)),
+      sleepByDay: sueno,
       measurements: _measurementDeltas(
         measurementsOf: measurementsOf,
         from: progress.from,
@@ -304,6 +363,16 @@ abstract final class ReportBuilder {
     return null;
   }
 
+  /// Cuánto se comió de más o de menos por día, contra el objetivo.
+  ///
+  /// `null` sin objetivo o sin días con registro. Es el número que dice si el
+  /// promedio de arriba está lejos o cerca, sin obligar a restar de cabeza.
+  static int? averageVsTarget(NutritionReport report) {
+    final target = report.goal?.baseCalorieTarget ?? 0;
+    if (target <= 0 || !report.calories.hasData) return null;
+    return roundHalfUp(report.calories.value - target);
+  }
+
   static String _kg(double value) =>
       '${value.toStringAsFixed(1).replaceAll('.', ',')} kg';
 
@@ -322,17 +391,16 @@ abstract final class ReportBuilder {
     return (min, max);
   }
 
-  /// Cuántos días del período estuvieron dentro del objetivo, con margen.
-  ///
-  /// El margen es el mismo que usa la adherencia del resto de la app: no se
-  /// trata de acertar el número exacto, se trata de estar cerca.
-  static int daysWithinTarget(NutritionReport report, {double tolerance = 0.1}) {
-    var count = 0;
-    for (final day in report.progress.calorieDays) {
-      if (day.consumed <= 0 || day.target <= 0) continue;
-      final margen = day.target * tolerance;
-      if ((day.consumed - day.target).abs() <= math.max(margen, 50)) count++;
+  /// El día con más y con menos de una serie. `null` con menos de dos puntos:
+  /// con uno solo no hay extremos, hay un dato.
+  static (ChartPoint, ChartPoint)? extremes(List<ChartPoint> points) {
+    if (points.length < 2) return null;
+    var min = points.first;
+    var max = points.first;
+    for (final p in points) {
+      if (p.value < min.value) min = p;
+      if (p.value > max.value) max = p;
     }
-    return count;
+    return (min, max);
   }
 }

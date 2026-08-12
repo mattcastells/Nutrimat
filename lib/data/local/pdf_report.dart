@@ -17,7 +17,7 @@ import '../../domain/services/report_builder.dart';
 /// Se dibuja con los mismos tokens que la app —los colores salen de
 /// `NmColors`, la tipografía es la misma Inter que viaja en el APK— porque un
 /// informe que no se parece a la app se lee como si lo hubiera hecho otro. El
-/// tema es el que la persona tiene puesta: si usa Nutrimat en claro, su informe
+/// tema es el que la persona tiene puesto: si usa Nutrimat en claro, su informe
 /// sale en claro.
 ///
 /// Lo que **no** hay acá es una sola cifra que la app no pueda mostrar en
@@ -36,6 +36,9 @@ class PdfReport {
   static const double _margin = 32;
 
   static double get _contentWidth => PdfPageFormat.a4.width - _margin * 2;
+
+  /// El ancho que le queda a un gráfico adentro de una tarjeta.
+  static double get _chartWidth => _contentWidth - 24;
 
   Future<Uint8List> build() async {
     final palette = _Palette(dark: dark);
@@ -73,12 +76,13 @@ class PdfReport {
         footer: (context) => _footer(context, palette, fonts),
         build: (context) => <pw.Widget>[
           _cover(palette, fonts),
-          ..._resumen(palette, fonts),
-          ..._peso(palette, fonts),
-          ..._calorias(palette, fonts),
-          ..._nutrientes(palette, fonts),
-          ..._actividad(palette, fonts),
-          ..._descanso(palette, fonts),
+          _resumen(palette, fonts),
+          _peso(palette, fonts),
+          _calorias(palette, fonts),
+          _nutrientes(palette, fonts),
+          _actividad(palette, fonts),
+          _agua(palette, fonts),
+          _sueno(palette, fonts),
           ..._medidas(palette, fonts),
           _cierre(palette, fonts),
         ],
@@ -146,9 +150,37 @@ class PdfReport {
               borderRadius: pw.BorderRadius.circular(8),
               border: pw.Border.all(color: p.divider, width: 0.5),
             ),
-            child: pw.Text(
-              headline,
-              style: pw.TextStyle(font: f.medium, fontSize: 13, color: p.text),
+            // La barra de acento va **adentro** y no como borde izquierdo: el
+            // paquete no admite un borde de ancho distinto por lado junto con
+            // esquinas redondeadas, y el borde de un solo lado en una tarjeta
+            // redondeada dispara una aserción al pintar.
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: <pw.Widget>[
+                // Alto fijo y no `stretch`: en un `Row` estirado, un hijo sin
+                // altura propia puede crecer sin techo, y la tarjeta pasaba a
+                // ser más alta que una página — `MultiPage` entonces abre hojas
+                // nuevas para siempre buscando dónde ponerla.
+                pw.Container(
+                  width: 3,
+                  height: 17,
+                  decoration: pw.BoxDecoration(
+                    color: p.accent,
+                    borderRadius: pw.BorderRadius.circular(2),
+                  ),
+                ),
+                pw.SizedBox(width: 10),
+                pw.Expanded(
+                  child: pw.Text(
+                    headline,
+                    style: pw.TextStyle(
+                      font: f.medium,
+                      fontSize: 13,
+                      color: p.text,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         pw.SizedBox(height: 16),
@@ -158,90 +190,117 @@ class PdfReport {
 
   // ── Resumen ──────────────────────────────────────────────────────────────
 
-  List<pw.Widget> _resumen(_Palette p, _Fonts f) {
+  pw.Widget _resumen(_Palette p, _Fonts f) {
     final goal = report.goal;
-    final dentro = ReportBuilder.daysWithinTarget(report);
 
-    return <pw.Widget>[
-      _sectionTitle('El período de un vistazo', p, f),
-      pw.Row(
+    return _section(
+      'El período de un vistazo',
+      p.accent,
+      p,
+      f,
+      body: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: <pw.Widget>[
-          _tile(
-            label: 'Días registrados',
-            value: '${report.daysWithRecords}',
-            caption: 'de ${report.totalDays} · ${report.coveragePct} %',
-            p: p,
-            f: f,
+          pw.Row(
+            children: <pw.Widget>[
+              _tile(
+                label: 'Días registrados',
+                value: '${report.daysWithRecords}',
+                caption: 'de ${report.totalDays} · ${report.coveragePct} %',
+                color: p.accent,
+                p: p,
+                f: f,
+              ),
+              pw.SizedBox(width: 8),
+              _tile(
+                label: 'Comiste por día',
+                value: report.calories.hasData
+                    ? Fmt.integer(report.calories.value)
+                    : '—',
+                caption: report.calories.hasData
+                    ? 'kcal en promedio'
+                    : 'sin datos',
+                color: p.intake,
+                p: p,
+                f: f,
+              ),
+              pw.SizedBox(width: 8),
+              _tile(
+                label: 'Tu objetivo',
+                value: goal == null ? '—' : Fmt.integer(goal.baseCalorieTarget),
+                caption: goal == null ? 'sin definir' : 'kcal por día',
+                color: p.target,
+                p: p,
+                f: f,
+              ),
+              pw.SizedBox(width: 8),
+              // "Días sin pasarte" y no "días en el objetivo": lo segundo
+              // contaba una banda de ±10 % alrededor del número, así que un día
+              // de 1.400 con objetivo 2.000 quedaba afuera — y para quien mira
+              // su informe ese es exactamente un día en el que no se pasó.
+              _tile(
+                label: 'Días sin pasarte',
+                value: '${report.daysNotOver}',
+                caption: 'de ${report.daysWithRecords} registrados',
+                color: p.success,
+                p: p,
+                f: f,
+              ),
+            ],
           ),
-          pw.SizedBox(width: 8),
-          _tile(
-            label: 'Comiste por día',
-            value: report.calories.hasData
-                ? Fmt.integer(report.calories.value)
-                : '—',
-            caption: report.calories.hasData ? 'kcal en promedio' : 'sin datos',
-            p: p,
-            f: f,
-          ),
-          pw.SizedBox(width: 8),
-          _tile(
-            label: 'Tu objetivo',
-            value: goal == null ? '—' : Fmt.integer(goal.baseCalorieTarget),
-            caption: goal == null ? 'sin definir' : 'kcal por día',
-            p: p,
-            f: f,
-          ),
-          pw.SizedBox(width: 8),
-          _tile(
-            label: 'Días en el objetivo',
-            value: '$dentro',
-            caption: 'con 10 % de margen',
-            p: p,
-            f: f,
-          ),
+          if (report.startedMidPeriod) ...<pw.Widget>[
+            pw.SizedBox(height: 8),
+            _note(
+              'Se cuentan los días desde que empezaste a registrar '
+              '(${longDay(report.countingFrom)}), no desde el principio del '
+              'período.',
+              p,
+              f,
+            ),
+          ],
+          if (!report.hasEnoughData) ...<pw.Widget>[
+            pw.SizedBox(height: 8),
+            _note(
+              'Con ${report.daysWithRecords} '
+              '${report.daysWithRecords == 1 ? 'día registrado' : 'días registrados'} '
+              'los promedios son orientativos. Se vuelven confiables cuando hay '
+              'unas cuantas semanas.',
+              p,
+              f,
+            ),
+          ],
+          if (report.dietaryLabels.isNotEmpty) ...<pw.Widget>[
+            pw.SizedBox(height: 8),
+            _note('Tenés cargado: ${report.dietaryLabels.join(', ')}.', p, f),
+          ],
         ],
       ),
-      if (!report.hasEnoughData) ...<pw.Widget>[
-        pw.SizedBox(height: 8),
-        _note(
-          'Con ${report.daysWithRecords} '
-          '${report.daysWithRecords == 1 ? 'día registrado' : 'días registrados'} '
-          'los promedios son orientativos. Se vuelven confiables cuando hay '
-          'unas cuantas semanas.',
-          p,
-          f,
-        ),
-      ],
-      if (report.dietaryLabels.isNotEmpty) ...<pw.Widget>[
-        pw.SizedBox(height: 8),
-        _note(
-          'Tenés cargado: ${report.dietaryLabels.join(', ')}.',
-          p,
-          f,
-        ),
-      ],
-      pw.SizedBox(height: 18),
-    ];
+    );
   }
 
   // ── Peso ─────────────────────────────────────────────────────────────────
 
-  List<pw.Widget> _peso(_Palette p, _Fonts f) {
+  pw.Widget _peso(_Palette p, _Fonts f) {
     final weight = report.weight;
     final progress = report.progress;
     if (weight == null) {
-      return <pw.Widget>[
-        _sectionTitle('Peso', p, f),
-        _empty('No registraste ningún peso en este período.', p, f),
-        pw.SizedBox(height: 18),
-      ];
+      return _section(
+        'Peso',
+        p.weight,
+        p,
+        f,
+        body: _empty('No registraste ningún peso en este período.', p, f),
+      );
     }
 
     final trend = progress.trendKgPerWeek;
 
-    return <pw.Widget>[
-      _sectionTitle('Peso', p, f),
-      _card(
+    return _section(
+      'Peso',
+      p.weight,
+      p,
+      f,
+      body: _card(
         p,
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -249,12 +308,7 @@ class PdfReport {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: <pw.Widget>[
-                _inlineStat(
-                  'Al empezar',
-                  '${_decimal(weight.first)} kg',
-                  p,
-                  f,
-                ),
+                _inlineStat('Al empezar', '${_decimal(weight.first)} kg', p, f),
                 _inlineStat('Hoy', '${_decimal(weight.last)} kg', p, f),
                 _inlineStat(
                   'Diferencia',
@@ -279,7 +333,7 @@ class PdfReport {
               pw.SizedBox(height: 12),
               _legend(
                 <(_LegendMark, String)>[
-                  (_LegendMark(p.weight, dashed: false), 'Cada registro'),
+                  (_LegendMark(p.weight), 'Cada registro'),
                   (_LegendMark(p.trend, dashed: true), 'Promedio de 7 días'),
                 ],
                 p,
@@ -287,7 +341,7 @@ class PdfReport {
               ),
               pw.SizedBox(height: 6),
               pw.CustomPaint(
-                size: PdfPoint(_contentWidth - 24, 130),
+                size: PdfPoint(_chartWidth, 130),
                 painter: (canvas, size) => _paintWeight(
                   canvas: canvas,
                   size: size,
@@ -305,31 +359,27 @@ class PdfReport {
               ),
             ] else ...<pw.Widget>[
               pw.SizedBox(height: 8),
-              pw.Text(
-                'Con un solo registro no hay curva que dibujar.',
-                style: pw.TextStyle(
-                  font: f.regular,
-                  fontSize: 9,
-                  color: p.textMuted,
-                ),
-              ),
+              _note('Con un solo registro no hay curva que dibujar.', p, f),
             ],
           ],
         ),
       ),
-      pw.SizedBox(height: 18),
-    ];
+    );
   }
 
   // ── Calorías ─────────────────────────────────────────────────────────────
 
-  List<pw.Widget> _calorias(_Palette p, _Fonts f) {
+  pw.Widget _calorias(_Palette p, _Fonts f) {
     final days = report.progress.calorieDays;
     final extremes = ReportBuilder.calorieExtremes(report);
+    final vsTarget = ReportBuilder.averageVsTarget(report);
 
-    return <pw.Widget>[
-      _sectionTitle('Calorías por día', p, f),
-      _card(
+    return _section(
+      'Calorías por día',
+      p.intake,
+      p,
+      f,
+      body: _card(
         p,
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -357,11 +407,14 @@ class PdfReport {
                   p,
                   f,
                 ),
+                // Contra el objetivo, en vez de la adherencia: el porcentaje
+                // decía qué tan cerca del número estuviste sin decir de qué
+                // lado, y de los dos datos este es el que se puede usar.
                 _inlineStat(
-                  'Adherencia',
-                  report.progress.adherencePct == null
+                  'Contra tu objetivo',
+                  vsTarget == null
                       ? '—'
-                      : '${report.progress.adherencePct} %',
+                      : '${Fmt.signed(vsTarget)} kcal/día',
                   p,
                   f,
                 ),
@@ -382,7 +435,7 @@ class PdfReport {
               ),
               pw.SizedBox(height: 6),
               pw.CustomPaint(
-                size: PdfPoint(_contentWidth - 24, 130),
+                size: PdfPoint(_chartWidth, 130),
                 painter: (canvas, size) =>
                     _paintCalories(canvas: canvas, size: size, p: p, days: days),
               ),
@@ -392,188 +445,317 @@ class PdfReport {
           ],
         ),
       ),
-      pw.SizedBox(height: 18),
-    ];
+    );
   }
 
   // ── Nutrientes ───────────────────────────────────────────────────────────
 
-  /// Tres filas y no un gráfico de torta.
+  /// Cuatro filas y no un gráfico de torta.
   ///
   /// Lo que alguien quiere saber de sus macros es cuánto comió y cuánto le
   /// tocaba, y eso son dos números por fila. Una torta muestra proporciones que
   /// nadie pidió y esconde justo el dato que importa.
-  List<pw.Widget> _nutrientes(_Palette p, _Fonts f) => <pw.Widget>[
-    _sectionTitle('Nutrientes por día', p, f),
-    _card(
-      p,
-      pw.Column(
-        children: <pw.Widget>[
-          _tableHeader(
-            <String>['', 'Promedio', 'Objetivo', 'Del objetivo'],
-            p,
-            f,
+  pw.Widget _nutrientes(_Palette p, _Fonts f) => _section(
+    'Nutrientes por día',
+    p.protein,
+    p,
+    f,
+    body: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: <pw.Widget>[
+        _card(
+          p,
+          pw.Column(
+            children: <pw.Widget>[
+              _tableHeader(
+                <String>['', 'Promedio', 'Objetivo', 'Del objetivo'],
+                p,
+                f,
+              ),
+              for (final nutrient in <ReportNutrient>[
+                ReportNutrient(
+                  label: 'Energía',
+                  average: report.calories,
+                  targetPerDay: report.goal?.baseCalorieTarget ?? 0,
+                  unit: 'kcal',
+                ),
+                ...report.nutrients,
+              ])
+                _tableRow(
+                  <String>[
+                    nutrient.label,
+                    nutrient.average.hasData
+                        ? '${Fmt.integer(nutrient.average.value)} ${nutrient.unit}'
+                        : '—',
+                    nutrient.targetPerDay <= 0
+                        ? '—'
+                        : '${Fmt.integer(nutrient.targetPerDay)} ${nutrient.unit}',
+                    nutrient.pctOfTarget == null || !nutrient.average.hasData
+                        ? '—'
+                        : '${nutrient.pctOfTarget} %',
+                  ],
+                  p,
+                  f,
+                ),
+            ],
           ),
-          for (final nutrient in <ReportNutrient>[
-            ReportNutrient(
-              label: 'Energía',
-              average: report.calories,
-              targetPerDay: report.goal?.baseCalorieTarget ?? 0,
-              unit: 'kcal',
-            ),
-            ...report.nutrients,
-          ])
-            _tableRow(
-              <String>[
-                nutrient.label,
-                nutrient.average.hasData
-                    ? '${Fmt.integer(nutrient.average.value)} ${nutrient.unit}'
-                    : '—',
-                nutrient.targetPerDay <= 0
-                    ? '—'
-                    : '${Fmt.integer(nutrient.targetPerDay)} ${nutrient.unit}',
-                nutrient.pctOfTarget == null || !nutrient.average.hasData
-                    ? '—'
-                    : '${nutrient.pctOfTarget} %',
-              ],
-              p,
-              f,
-            ),
-        ],
-      ),
+        ),
+        pw.SizedBox(height: 6),
+        _note(
+          'El promedio sale de los ${report.daysWithRecords} días con '
+          'registro: un día sin cargar no es un día de cero calorías.',
+          p,
+          f,
+        ),
+      ],
     ),
-    pw.SizedBox(height: 6),
-    _note(
-      'El promedio sale de los ${report.daysWithRecords} días con registro, no '
-      'de los ${report.totalDays} del período: un día sin cargar no es un día '
-      'de cero calorías.',
-      p,
-      f,
-    ),
-    pw.SizedBox(height: 18),
-  ];
+  );
 
   // ── Actividad ────────────────────────────────────────────────────────────
 
-  List<pw.Widget> _actividad(_Palette p, _Fonts f) {
+  pw.Widget _actividad(_Palette p, _Fonts f) {
     final totals = report.progress.activityTotals;
+    final byDay = report.progress.activityByDay;
     final byCategory = report.progress.activityByCategory;
     final maxMinutes = byCategory.isEmpty
         ? 0
         : byCategory.map((c) => c.minutes).reduce((a, b) => a > b ? a : b);
 
-    return <pw.Widget>[
-      _sectionTitle('Actividad', p, f),
-      if (totals.sessions == 0)
-        _empty('No registraste actividad en este período.', p, f)
-      else
-        _card(
-          p,
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: <pw.Widget>[
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: <pw.Widget>[
-                  _inlineStat('Sesiones', '${totals.sessions}', p, f),
-                  _inlineStat(
-                    'Por semana',
-                    Fmt.duration(report.progress.weeklyAverageMinutes),
-                    p,
-                    f,
-                  ),
-                  _inlineStat('Días activos', '${totals.activeDays}', p, f),
-                  // "Por día" y no "estimado" a secas: es un promedio diario y
-                  // sin decirlo se lee como el total del período, que en 30
-                  // días es un número veinte veces más grande.
-                  _inlineStat(
-                    'Gasto por día',
-                    Fmt.estimatedKcal(report.exerciseCalories.value),
-                    p,
-                    f,
-                  ),
-                ],
-              ),
-              if (byCategory.isNotEmpty) ...<pw.Widget>[
-                pw.SizedBox(height: 12),
-                // Barras con el nombre al lado: la identidad la lleva la
-                // etiqueta, no el color, así que alcanza con un solo tono. Seis
-                // colores distintos acá no agregarían nada que el texto no diga
-                // y algunos de esos pares no se distinguen entre sí.
-                for (final slice in byCategory)
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 5),
-                    child: _categoryBar(
-                      label: slice.category.label,
-                      minutes: slice.minutes,
-                      maxMinutes: maxMinutes,
-                      p: p,
-                      f: f,
-                    ),
-                  ),
-              ],
-              if (totals.mostFrequentTypeName != null) ...<pw.Widget>[
-                pw.SizedBox(height: 4),
-                pw.Text(
-                  'Lo que más hiciste: ${totals.mostFrequentTypeName}.',
-                  style: pw.TextStyle(
-                    font: f.regular,
-                    fontSize: 9,
-                    color: p.textMuted,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      pw.SizedBox(height: 18),
-    ];
-  }
-
-  // ── Agua y sueño ─────────────────────────────────────────────────────────
-
-  List<pw.Widget> _descanso(_Palette p, _Fonts f) {
-    if (!report.water.hasData && !report.sleepMinutes.hasData) {
-      return <pw.Widget>[];
+    if (totals.sessions == 0) {
+      return _section(
+        'Actividad',
+        p.activity,
+        p,
+        f,
+        body: _empty('No registraste actividad en este período.', p, f),
+      );
     }
-    return <pw.Widget>[
-      _sectionTitle('Agua y descanso', p, f),
-      _card(
+
+    return _section(
+      'Actividad',
+      p.activity,
+      p,
+      f,
+      body: _card(
         p,
         pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: <pw.Widget>[
-            _tableHeader(
-              <String>['', 'Promedio', '', 'Días con registro'],
-              p,
-              f,
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: <pw.Widget>[
+                _inlineStat('Sesiones', '${totals.sessions}', p, f),
+                _inlineStat(
+                  'Por semana',
+                  Fmt.duration(report.progress.weeklyAverageMinutes),
+                  p,
+                  f,
+                ),
+                _inlineStat('Días activos', '${totals.activeDays}', p, f),
+                // "Quemaste por día" y no "Gasto por día": lo segundo no dice
+                // de qué gasto habla —¿el del ejercicio, el del día entero?— ni
+                // que sea un promedio.
+                //
+                // Y con cero se muestra una raya: hay sesiones cargadas, así
+                // que un "≈ 0 kcal" no significa que no gastó nada, significa
+                // que no se pudo estimar —falta el peso con el que se calcula—
+                // y son dos cosas distintas.
+                _inlineStat(
+                  'Quemaste por día',
+                  report.exerciseCalories.value < 1
+                      ? '—'
+                      : Fmt.estimatedKcal(report.exerciseCalories.value),
+                  p,
+                  f,
+                ),
+              ],
             ),
-            if (report.water.hasData)
-              _tableRow(
-                <String>[
-                  'Agua',
-                  '${_decimal(report.water.value)} vasos por día',
-                  '',
-                  '${report.water.days}',
-                ],
+            if (byDay.any((d) => d.minutes > 0)) ...<pw.Widget>[
+              pw.SizedBox(height: 12),
+              pw.CustomPaint(
+                size: PdfPoint(_chartWidth, 90),
+                painter: (canvas, size) => _paintBars(
+                  canvas: canvas,
+                  size: size,
+                  p: p,
+                  color: p.activity,
+                  values: <double>[for (final d in byDay) d.minutes.toDouble()],
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              _axisLabels(
+                shortDay(byDay.first.date),
+                'minutos por día',
+                shortDay(byDay.last.date),
                 p,
                 f,
               ),
-            if (report.sleepMinutes.hasData)
-              _tableRow(
-                <String>[
-                  'Sueño',
-                  Fmt.duration(roundHalfUp(report.sleepMinutes.value)),
-                  '',
-                  '${report.sleepMinutes.days}',
-                ],
-                p,
-                f,
-              ),
+            ],
+            if (byCategory.isNotEmpty) ...<pw.Widget>[
+              pw.SizedBox(height: 12),
+              // Barras con el nombre al lado: la identidad la lleva la
+              // etiqueta, no el color, así que alcanza con un solo tono. Seis
+              // colores distintos acá no agregarían nada que el texto no diga
+              // y algunos de esos pares no se distinguen entre sí.
+              for (final slice in byCategory)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 5),
+                  child: _categoryBar(
+                    label: slice.category.label,
+                    minutes: slice.minutes,
+                    maxMinutes: maxMinutes,
+                    p: p,
+                    f: f,
+                  ),
+                ),
+            ],
+            if (totals.mostFrequentTypeName != null)
+              _note('Lo que más hiciste: ${totals.mostFrequentTypeName}.', p, f),
           ],
         ),
       ),
-      pw.SizedBox(height: 18),
-    ];
+    );
+  }
+
+  // ── Agua ─────────────────────────────────────────────────────────────────
+
+  pw.Widget _agua(_Palette p, _Fonts f) {
+    if (!report.water.hasData) return pw.SizedBox();
+    final extremos = ReportBuilder.extremes(report.waterByDay);
+
+    return _section(
+      'Agua',
+      p.water,
+      p,
+      f,
+      body: _card(
+        p,
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: <pw.Widget>[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: <pw.Widget>[
+                _inlineStat(
+                  'Promedio',
+                  '${_decimal(report.water.value)} vasos',
+                  p,
+                  f,
+                ),
+                _inlineStat(
+                  'Día más bajo',
+                  extremos == null ? '—' : '${extremos.$1.value.round()} vasos',
+                  p,
+                  f,
+                ),
+                _inlineStat(
+                  'Día más alto',
+                  extremos == null ? '—' : '${extremos.$2.value.round()} vasos',
+                  p,
+                  f,
+                ),
+                _inlineStat('Días con registro', '${report.water.days}', p, f),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+            pw.CustomPaint(
+              size: PdfPoint(_chartWidth, 90),
+              painter: (canvas, size) => _paintBars(
+                canvas: canvas,
+                size: size,
+                p: p,
+                color: p.water,
+                values: <double>[for (final d in report.waterByDay) d.value],
+                average: report.water.value,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            _axisLabels(
+              shortDay(report.waterByDay.first.date),
+              'vasos por día · la línea es tu promedio',
+              shortDay(report.waterByDay.last.date),
+              p,
+              f,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Sueño ────────────────────────────────────────────────────────────────
+
+  pw.Widget _sueno(_Palette p, _Fonts f) {
+    if (!report.sleepMinutes.hasData) return pw.SizedBox();
+    final extremos = ReportBuilder.extremes(report.sleepByDay);
+
+    return _section(
+      'Sueño',
+      p.sleep,
+      p,
+      f,
+      body: _card(
+        p,
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: <pw.Widget>[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: <pw.Widget>[
+                _inlineStat(
+                  'Promedio',
+                  Fmt.duration(roundHalfUp(report.sleepMinutes.value)),
+                  p,
+                  f,
+                ),
+                _inlineStat(
+                  'Noche más corta',
+                  extremos == null
+                      ? '—'
+                      : Fmt.duration(extremos.$1.value.round()),
+                  p,
+                  f,
+                ),
+                _inlineStat(
+                  'Noche más larga',
+                  extremos == null
+                      ? '—'
+                      : Fmt.duration(extremos.$2.value.round()),
+                  p,
+                  f,
+                ),
+                _inlineStat(
+                  'Noches con registro',
+                  '${report.sleepMinutes.days}',
+                  p,
+                  f,
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+            pw.CustomPaint(
+              size: PdfPoint(_chartWidth, 90),
+              painter: (canvas, size) => _paintBars(
+                canvas: canvas,
+                size: size,
+                p: p,
+                color: p.sleep,
+                values: <double>[for (final d in report.sleepByDay) d.value],
+                average: report.sleepMinutes.value,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            _axisLabels(
+              shortDay(report.sleepByDay.first.date),
+              'horas por noche · la línea es tu promedio',
+              shortDay(report.sleepByDay.last.date),
+              p,
+              f,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Medidas ──────────────────────────────────────────────────────────────
@@ -581,31 +763,35 @@ class PdfReport {
   List<pw.Widget> _medidas(_Palette p, _Fonts f) {
     if (report.measurements.isEmpty) return <pw.Widget>[];
     return <pw.Widget>[
-      _sectionTitle('Medidas corporales', p, f),
-      _card(
+      _section(
+        'Medidas corporales',
+        p.measure,
         p,
-        pw.Column(
-          children: <pw.Widget>[
-            _tableHeader(
-              <String>['', 'Al empezar', 'Última', 'Diferencia'],
-              p,
-              f,
-            ),
-            for (final m in report.measurements)
-              _tableRow(
-                <String>[
-                  m.label,
-                  '${_decimal(m.first)} ${m.unit}'.trim(),
-                  '${_decimal(m.last)} ${m.unit}'.trim(),
-                  '${_signedDecimal(m.delta)} ${m.unit}'.trim(),
-                ],
+        f,
+        body: _card(
+          p,
+          pw.Column(
+            children: <pw.Widget>[
+              _tableHeader(
+                <String>['', 'Al empezar', 'Última', 'Diferencia'],
                 p,
                 f,
               ),
-          ],
+              for (final m in report.measurements)
+                _tableRow(
+                  <String>[
+                    m.label,
+                    '${_decimal(m.first)} ${m.unit}'.trim(),
+                    '${_decimal(m.last)} ${m.unit}'.trim(),
+                    '${_signedDecimal(m.delta)} ${m.unit}'.trim(),
+                  ],
+                  p,
+                  f,
+                ),
+            ],
+          ),
         ),
       ),
-      pw.SizedBox(height: 18),
     ];
   }
 
@@ -618,6 +804,57 @@ class PdfReport {
   );
 
   // ── Piezas ───────────────────────────────────────────────────────────────
+
+  /// Una sección entera: su título y su contenido, **sin poder partirse**.
+  ///
+  /// `Inseparable` es lo que arregla el cascarón vacío que aparecía al pie de
+  /// una página: `Column` sabe partirse entre páginas, así que una tarjeta que
+  /// no entraba dejaba su marco dibujado arriba y se llevaba todas las filas a
+  /// la página siguiente. Ahora la sección que no entra se muda entera.
+  pw.Widget _section(
+    String title,
+    PdfColor color,
+    _Palette p,
+    _Fonts f, {
+    required pw.Widget body,
+  }) => pw.Inseparable(
+    child: pw.Container(
+      padding: const pw.EdgeInsets.only(bottom: 18),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: <pw.Widget>[
+          pw.Row(
+            children: <pw.Widget>[
+              // Un pastilla del color de la sección antes del título. Es lo
+              // único que colorea el encabezado: el texto sigue con la tinta de
+              // siempre, porque un título de color se lee como si el color
+              // significara algo del dato y acá solo dice de qué sección es.
+              pw.Container(
+                width: 3,
+                height: 9,
+                decoration: pw.BoxDecoration(
+                  color: color,
+                  borderRadius: pw.BorderRadius.circular(2),
+                ),
+              ),
+              pw.SizedBox(width: 6),
+              pw.Text(
+                title.toUpperCase(),
+                style: pw.TextStyle(
+                  font: f.medium,
+                  fontSize: 8,
+                  letterSpacing: 1,
+                  color: p.textMuted,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 8),
+          body,
+        ],
+      ),
+    ),
+  );
 
   pw.Widget _runningHeader(_Palette p, _Fonts f) => pw.Container(
     padding: const pw.EdgeInsets.only(bottom: 10),
@@ -645,19 +882,6 @@ class PdfReport {
     ),
   );
 
-  pw.Widget _sectionTitle(String title, _Palette p, _Fonts f) => pw.Padding(
-    padding: const pw.EdgeInsets.only(bottom: 8),
-    child: pw.Text(
-      title.toUpperCase(),
-      style: pw.TextStyle(
-        font: f.medium,
-        fontSize: 8,
-        letterSpacing: 1,
-        color: p.textMuted,
-      ),
-    ),
-  );
-
   pw.Widget _card(_Palette p, pw.Widget child) => pw.Container(
     width: double.infinity,
     padding: const pw.EdgeInsets.all(12),
@@ -673,6 +897,7 @@ class PdfReport {
     required String label,
     required String value,
     required String caption,
+    required PdfColor color,
     required _Palette p,
     required _Fonts f,
   }) => pw.Expanded(
@@ -686,13 +911,28 @@ class PdfReport {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: <pw.Widget>[
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              font: f.regular,
-              fontSize: 8,
-              color: p.textMuted,
-            ),
+          pw.Row(
+            children: <pw.Widget>[
+              pw.Container(
+                width: 5,
+                height: 5,
+                decoration: pw.BoxDecoration(
+                  color: color,
+                  borderRadius: pw.BorderRadius.circular(3),
+                ),
+              ),
+              pw.SizedBox(width: 5),
+              pw.Expanded(
+                child: pw.Text(
+                  label,
+                  style: pw.TextStyle(
+                    font: f.regular,
+                    fontSize: 8,
+                    color: p.textMuted,
+                  ),
+                ),
+              ),
+            ],
           ),
           pw.SizedBox(height: 4),
           pw.Text(
@@ -810,7 +1050,7 @@ class PdfReport {
                 child: pw.Container(
                   height: 8,
                   decoration: pw.BoxDecoration(
-                    color: p.intake,
+                    color: p.activity,
                     borderRadius: pw.BorderRadius.circular(4),
                   ),
                 ),
@@ -860,27 +1100,32 @@ class PdfReport {
   );
 
   pw.Widget _axisDates(DateTime from, DateTime to, _Palette p, _Fonts f) =>
-      pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: <pw.Widget>[
-          pw.Text(
-            shortDay(from),
-            style: pw.TextStyle(
-              font: f.regular,
-              fontSize: 8,
-              color: p.textMuted,
-            ),
-          ),
-          pw.Text(
-            shortDay(to),
-            style: pw.TextStyle(
-              font: f.regular,
-              fontSize: 8,
-              color: p.textMuted,
-            ),
-          ),
-        ],
-      );
+      _axisLabels(shortDay(from), '', shortDay(to), p, f);
+
+  /// El pie de un gráfico: la fecha de cada punta y, en el medio, qué se está
+  /// mirando. Sin eso una barra de 90 pt de alto no dice si son minutos, vasos
+  /// o litros.
+  pw.Widget _axisLabels(
+    String left,
+    String middle,
+    String right,
+    _Palette p,
+    _Fonts f,
+  ) {
+    final style = pw.TextStyle(
+      font: f.regular,
+      fontSize: 8,
+      color: p.textMuted,
+    );
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: <pw.Widget>[
+        pw.Text(left, style: style),
+        if (middle.isNotEmpty) pw.Text(middle, style: style),
+        pw.Text(right, style: style),
+      ],
+    );
+  }
 
   pw.Widget _note(String text, _Palette p, _Fonts f) => pw.Text(
     text,
@@ -1027,13 +1272,63 @@ class PdfReport {
       ..setLineDashPattern();
   }
 
-  /// Tres líneas de fondo, muy tenues. La grilla ubica; no compite.
-  void _grid(PdfGraphics canvas, PdfPoint size, _Palette p) {
+  /// Barras de una sola serie, con su promedio marcado.
+  ///
+  /// Lo usan agua, sueño y actividad: los tres son "cuánto hubo cada día" y no
+  /// hay nada contra qué compararlos salvo el propio promedio, así que la línea
+  /// punteada es eso y lo dice el pie del gráfico.
+  void _paintBars({
+    required PdfGraphics canvas,
+    required PdfPoint size,
+    required _Palette p,
+    required PdfColor color,
+    required List<double> values,
+    double? average,
+  }) {
+    if (values.isEmpty) return;
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    if (maxValue <= 0) return;
+    final top = maxValue * 1.15;
+
+    _grid(canvas, size, p, lines: 2);
+
+    double y(double value) => value / top * size.y;
+
+    final slot = size.x / values.length;
+    final width = (slot - 2).clamp(1.0, 14.0);
+
+    canvas.setFillColor(color);
+    for (var i = 0; i < values.length; i++) {
+      if (values[i] <= 0) continue;
+      final height = y(values[i]);
+      final left = i * slot + (slot - width) / 2;
+      if (height <= 2 || width <= 3) {
+        canvas.drawRect(left, 0, width, height < 0.8 ? 0.8 : height);
+      } else {
+        canvas.drawRRect(left, 0, width, height, 2, 2);
+      }
+    }
+    canvas.fillPath();
+
+    if (average != null && average > 0) {
+      canvas
+        ..setStrokeColor(p.textMuted)
+        ..setLineWidth(1)
+        ..setLineDashPattern(<int>[3, 3])
+        ..moveTo(0, y(average))
+        ..lineTo(size.x, y(average))
+        ..strokePath()
+        ..setLineDashPattern();
+    }
+  }
+
+  /// Líneas de fondo, muy tenues. La grilla ubica; no compite.
+  void _grid(PdfGraphics canvas, PdfPoint size, _Palette p, {int lines = 3}) {
     canvas
       ..setStrokeColor(p.divider)
       ..setLineWidth(0.4);
-    for (var i = 0; i <= 3; i++) {
-      final y = size.y / 3 * i;
+    for (var i = 0; i <= lines; i++) {
+      final y = size.y / lines * i;
       canvas
         ..moveTo(0, y)
         ..lineTo(size.x, y);
@@ -1085,6 +1380,12 @@ class _LegendMark {
 /// No hay una paleta propia del PDF: si el sistema de diseño cambia, el informe
 /// cambia con él. Es lo que hace que se vea como Nutrimat y no como el reporte
 /// genérico de una librería.
+///
+/// Cada sección tiene su tono, y eso no es decoración: es lo que permite
+/// reconocer de un vistazo en qué parte del informe está uno cuando lo hojea.
+/// Como cada gráfico tiene **una sola serie**, el color identifica la sección y
+/// nunca compite dentro del mismo gráfico — los dos que sí tienen dos series
+/// (peso y calorías) las separan además por trazo.
 class _Palette {
   _Palette({required this.dark})
     : _roles = dark ? NmColors.dark : NmColors.light;
@@ -1097,27 +1398,28 @@ class _Palette {
   PdfColor get text => _of(_roles.text);
   PdfColor get textMuted => _of(_roles.textMuted);
   PdfColor get divider => _of(_roles.divider);
-  PdfColor get track => _of(_roles.surfaceRaised);
+  PdfColor get accent => _of(_roles.accent);
+  PdfColor get success => _of(_roles.success);
 
   /// La paleta de datos del sistema (`NmChartColors`), la misma que usan los
   /// gráficos de Progreso y el panel profesional.
   PdfColor get intake => _of(NmChartColors.intake);
   PdfColor get weight => _of(NmChartColors.weight);
+  PdfColor get activity => _of(NmChartColors.cycling);
+  PdfColor get water => _of(NmChartColors.running);
+  PdfColor get sleep => _of(NmChartColors.sports);
+  PdfColor get protein => _of(NmChartColors.walking);
+  PdfColor get measure => _of(NmChartColors.strength);
 
-  /// La línea del objetivo. Mismo caso que [trend]: el token es un gris muy
-  /// claro pensado contra el fondo oscuro, y sobre papel blanco la línea
-  /// punteada casi no se ve. En claro se baja a un gris medio, que sigue siendo
-  /// recesivo pero se lee.
+  /// La línea del objetivo. El token es un gris muy claro pensado contra el
+  /// fondo oscuro, y sobre papel blanco la línea punteada casi no se ve; en
+  /// claro se baja a un gris medio, que sigue siendo recesivo pero se lee.
   PdfColor get target =>
       dark ? _of(NmChartColors.target) : _of(NmNeutral.c600);
 
-  /// La media móvil. En claro no puede ser el token: `NmChartColors.trend` es
-  /// casi blanco —la paleta de datos está definida contra el tema oscuro, que
-  /// es el canónico— y sobre papel blanco la línea desaparece. Se sustituye por
-  /// el extremo oscuro de la rampa neutral, que es exactamente lo que hace el
-  /// panel profesional en su media query de tema claro.
-  PdfColor get trend =>
-      dark ? _of(NmChartColors.trend) : _of(NmNeutral.c900);
+  /// La media móvil, con el mismo problema y la misma solución. Es lo que hace
+  /// el panel profesional en su media query de tema claro.
+  PdfColor get trend => dark ? _of(NmChartColors.trend) : _of(NmNeutral.c900);
 
   static PdfColor _of(Color color) => PdfColor.fromInt(color.toARGB32());
 }

@@ -59,6 +59,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         glassesOn: repo.glassesOn,
         sleepMinutesOn: (date) => repo.sleepOn(date)?.minutes,
         measurementsOf: repo.measurements,
+        // Desde cuándo usa la app: es lo que evita decirle "16 de 30 días" a
+        // alguien que la instaló hace dos semanas.
+        trackingSince: repo.trackingSince,
         generatedAt: DateTime.now(),
       );
 

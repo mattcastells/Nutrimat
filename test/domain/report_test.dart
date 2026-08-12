@@ -69,6 +69,7 @@ void main() {
       glassesOn: repo.glassesOn,
       sleepMinutesOn: (date) => repo.sleepOn(date)?.minutes,
       measurementsOf: repo.measurements,
+      trackingSince: repo.trackingSince,
       generatedAt: DateTime(2026, 8, 12),
     );
   }
@@ -100,7 +101,6 @@ void main() {
       expect(r.daysWithRecords, 3);
       expect(r.calories.value, 600);
       expect(r.calories.days, 3);
-      expect(r.coveragePct, 10);
     });
 
     test('los macros se promedian sobre los mismos días que las calorías',
@@ -160,10 +160,62 @@ void main() {
       expect(extremos.$2.consumed, 2400);
     });
 
-    test('un día sin registro no cuenta como día dentro del objetivo',
-        () async {
-      await repo.saveMeal(comida(hoy, kcal: repo.currentGoalOrNull!.baseCalorieTarget));
-      expect(ReportBuilder.daysWithinTarget(informe()), 1);
+    test('"sin pasarte" es no pasarse, no acertar el número', () async {
+      final objetivo = repo.currentGoalOrNull!.baseCalorieTarget;
+      // Muy por debajo, justo en el número, y pasado por poco.
+      await repo.saveMeal(comida(hoy, kcal: (objetivo * 0.6).round()));
+      await repo.saveMeal(
+        comida(hoy.subtract(const Duration(days: 1)), kcal: objetivo),
+      );
+      await repo.saveMeal(
+        comida(hoy.subtract(const Duration(days: 2)), kcal: objetivo + 300),
+      );
+
+      final r = informe();
+      // Dos de tres. El día de 60 % del objetivo cuenta: es exactamente un día
+      // en el que no se pasó, y antes quedaba afuera por estar a más de un
+      // 10 % del número.
+      expect(r.daysNotOver, 2);
+      expect(r.daysWithRecords, 3);
+    });
+
+    test('un día sin registro no cuenta ni a favor ni en contra', () async {
+      await repo.saveMeal(comida(hoy, kcal: 1000));
+      final r = informe();
+      expect(r.daysWithRecords, 1);
+      expect(r.daysNotOver, 1);
+    });
+  });
+
+  group('desde cuándo se cuenta', () {
+    test('sin nada cargado, el período entero es el denominador', () {
+      final r = informe();
+      expect(r.totalDays, 30);
+      expect(r.startedMidPeriod, isFalse);
+    });
+
+    test('empezando a mitad del período, se cuenta desde ahí', () async {
+      // Registró los últimos 5 días de una ventana de 30: registró 5 de 5, no
+      // 5 de 30. Los otros 25 no son huecos, son días sin la app.
+      for (var i = 0; i < 5; i++) {
+        await repo.saveMeal(comida(hoy.subtract(Duration(days: i))));
+      }
+
+      final r = informe();
+      expect(r.trackingSince, repo.trackingSince);
+      expect(r.startedMidPeriod, isTrue);
+      expect(r.totalDays, 5);
+      expect(r.daysWithRecords, 5);
+      expect(r.coveragePct, 100);
+    });
+
+    test('lo que ya venía de antes no recorta el período', () async {
+      await repo.saveMeal(comida(hoy.subtract(const Duration(days: 200))));
+      await repo.saveMeal(comida(hoy));
+
+      final r = informe();
+      expect(r.startedMidPeriod, isFalse);
+      expect(r.totalDays, 30);
     });
   });
 

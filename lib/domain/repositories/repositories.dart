@@ -360,6 +360,14 @@ abstract interface class SummaryRepository {
 
   /// Días con al menos un registro, para la densidad del selector de fecha.
   Set<String> get daysWithRecords;
+
+  /// El primer día del que hay algo cargado. `null` si no hay nada.
+  ///
+  /// Es "desde cuándo usás la app", y sirve para no dividir por días que
+  /// todavía no existían: alguien que empezó hace dos semanas registró 16 de
+  /// 16 días, no 16 de 30, y decirle lo segundo es contarle como huecos los
+  /// días en que no tenía la app.
+  DateTime? get trackingSince;
 }
 
 abstract interface class HealthRepository {

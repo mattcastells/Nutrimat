@@ -124,23 +124,24 @@ class _MealDescribeScreenState extends ConsumerState<MealDescribeScreen> {
           ),
           const SizedBox(height: NmSpace.s6),
 
-          NmTextField(
-            label: 'Qué comiste',
+          // Contarlo en voz alta es la forma corta de este campo: se toca el
+          // micrófono, se dice, y lo dicho queda escrito acá. De ahí en
+          // adelante el camino es el mismo de siempre —estimar, revisar,
+          // guardar—, así que no hay un paso más ni una pantalla nueva.
+          NmDictationField(
             controller: _text,
-            hint: 'dos empanadas de carne y una coca',
-            autofocus: true,
-            maxLines: 3,
-            maxLength: 400,
-            // Contarlo en voz alta es la forma corta de este campo: se toca el
-            // micrófono, se dice, y lo dicho queda escrito acá. De ahí en
-            // adelante el camino es el mismo de siempre —estimar, revisar,
-            // guardar—, así que no hay un paso más ni una pantalla nueva.
-            suffixIcon: NmDictationButton(
+            enabled: !_busy,
+            onChanged: (_) => setState(() => _error = null),
+            builder: (context, microphone) => NmTextField(
+              label: 'Qué comiste',
               controller: _text,
-              enabled: !_busy,
+              hint: 'dos empanadas de carne y una coca',
+              autofocus: true,
+              maxLines: 3,
+              maxLength: 400,
+              suffixIcon: microphone,
               onChanged: (_) => setState(() => _error = null),
             ),
-            onChanged: (_) => setState(() => _error = null),
           ),
 
           const SizedBox(height: NmSpace.s3),

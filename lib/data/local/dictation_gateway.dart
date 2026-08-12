@@ -3,6 +3,20 @@ import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+/// En qué estado está el dictado, para que la pantalla lo pueda mostrar.
+enum DictationState {
+  /// Todavía no se tocó nada, o ya terminó.
+  idle,
+
+  /// Se pidió empezar y el motor está abriendo el micrófono. Dura entre medio
+  /// segundo y dos, y es justo el rato en que uno empieza a hablar creyendo
+  /// que ya está grabando.
+  starting,
+
+  /// Escuchando de verdad.
+  listening,
+}
+
 /// Dictado: lo que se dice al micrófono, convertido en texto.
 ///
 /// Lo hace el reconocedor del propio teléfono (`SpeechRecognizer` de Android),
@@ -15,14 +29,26 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// tener detrás de una puerta, porque falla de maneras muy distintas según el
 /// teléfono —sin motor de reconocimiento, sin permiso, sin idioma instalado— y
 /// ninguna de esas puede llegar a la interfaz como una excepción suelta.
+///
+/// ## Por qué el estado se escucha y no se supone
+///
+/// La primera versión daba por terminada la sesión cuando llegaba un resultado
+/// marcado como final. No alcanza: el motor de Android también deja de
+/// escuchar por silencio, por timeout o por un error, y en esos casos **no
+/// manda ningún resultado**. El botón se quedaba encendido para siempre y la
+/// persona seguía hablándole a un micrófono cerrado. Por eso se escucha
+/// `onStatus`, que es lo único que dice la verdad sobre si el micrófono está
+/// abierto.
 class DictationGateway {
   DictationGateway({SpeechToText? engine}) : _engine = engine ?? SpeechToText();
 
   final SpeechToText _engine;
 
-  /// Cuánto silencio corta el dictado. Tres segundos es lo que tarda alguien en
-  /// pensar el segundo plato sin que se le corte la frase.
-  static const Duration pauseFor = Duration(seconds: 3);
+  /// Cuánto silencio corta el dictado.
+  ///
+  /// Cinco segundos y no tres: describir una comida tiene pausas —uno se
+  /// acuerda del postre a mitad de frase— y con tres se cortaba en la mitad.
+  static const Duration pauseFor = Duration(seconds: 5);
 
   /// Techo duro de una sesión. Nadie describe una comida durante un minuto, y
   /// un micrófono abierto para siempre es lo peor que puede quedar prendido.
@@ -30,13 +56,18 @@ class DictationGateway {
 
   bool _initialized = false;
   bool _unavailable = false;
+  DictationState _state = DictationState.idle;
 
-  bool get isListening => _engine.isListening;
+  ValueChanged<DictationState>? _onState;
+  ValueChanged<String>? _onText;
+
+  DictationState get state => _state;
+  bool get isBusy => _state != DictationState.idle;
 
   /// Si este teléfono puede dictar. `false` sin motor de reconocimiento o con
   /// el permiso denegado: ahí el micrófono ni se ofrece, en vez de ofrecer un
   /// botón que siempre falla.
-  bool get isAvailable => _initialized && !_unavailable;
+  bool get isAvailable => !_unavailable;
 
   /// Prepara el motor. Devuelve `false` si no se puede dictar en este teléfono.
   ///
@@ -49,9 +80,7 @@ class DictationGateway {
     try {
       final ok = await _engine.initialize(
         onError: _onError,
-        // `initialize` no lanza cuando el permiso se niega: devuelve false. El
-        // `catch` de abajo es para lo otro —un motor que no responde—, que sí
-        // llega como excepción de canal.
+        onStatus: _onStatus,
       );
       _initialized = true;
       _unavailable = !ok;
@@ -63,6 +92,27 @@ class DictationGateway {
     }
   }
 
+  void _emit(DictationState next) {
+    if (_state == next) return;
+    _state = next;
+    _onState?.call(next);
+  }
+
+  /// El estado que informa el motor: `listening`, `notListening`, `done`.
+  ///
+  /// Es la fuente de verdad de si el micrófono está abierto. Los nombres son
+  /// del plugin y llegan como texto, así que se comparan como texto.
+  void _onStatus(String status) {
+    if (status == SpeechToText.listeningStatus) {
+      _emit(DictationState.listening);
+      return;
+    }
+    // `notListening` es "dejó de escuchar pero todavía está procesando" y
+    // `done` es "terminó del todo". Para quien mira la pantalla los dos son lo
+    // mismo: el micrófono ya no está tomando nada.
+    _emit(DictationState.idle);
+  }
+
   void _onError(SpeechRecognitionError error) {
     // `error_no_match` y `error_speech_timeout` son "no se entendió" y "no
     // dijiste nada": no inhabilitan el dictado, pasan todo el tiempo y no son
@@ -70,24 +120,34 @@ class DictationGateway {
     if (error.permanent && error.errorMsg != 'error_no_match') {
       _unavailable = true;
     }
+    _emit(DictationState.idle);
   }
 
   /// Empieza a escuchar. [onText] recibe la frase **completa** de la sesión
   /// cada vez que el reconocedor la corrige, no los pedazos sueltos.
   ///
-  /// [onDone] avisa cuando dejó de escuchar por su cuenta —silencio, tope de
-  /// tiempo o un fallo—, que es lo que el botón necesita para volver a su
-  /// estado normal sin que nadie lo toque.
+  /// [onState] avisa de cada cambio: cuándo abrió el micrófono de verdad y
+  /// cuándo lo cerró, sea porque lo pidió la persona, por silencio o por un
+  /// fallo. Es lo que el botón necesita para no quedarse encendido solo.
   Future<bool> start({
     required ValueChanged<String> onText,
-    required VoidCallback onDone,
+    required ValueChanged<DictationState> onState,
   }) async {
-    if (!await prepare()) return false;
+    _onText = onText;
+    _onState = onState;
+    if (!await prepare()) {
+      _emit(DictationState.idle);
+      return false;
+    }
+
+    // Se avisa antes de abrir: entre el toque y el micrófono abierto pasa
+    // hasta un par de segundos, y sin decirlo la persona habla en ese hueco y
+    // lo dicho se pierde.
+    _emit(DictationState.starting);
     try {
       await _engine.listen(
         onResult: (SpeechRecognitionResult result) {
-          onText(result.recognizedWords);
-          if (result.finalResult) onDone();
+          _onText?.call(result.recognizedWords);
         },
         listenOptions: SpeechListenOptions(
           // Parciales: la frase aparece mientras se habla. Sin esto la pantalla
@@ -100,14 +160,16 @@ class DictationGateway {
           localeId: await _localeId(),
         ),
       );
-      return _engine.isListening;
+      return true;
     } on Object {
       _unavailable = true;
+      _emit(DictationState.idle);
       return false;
     }
   }
 
   Future<void> stop() async {
+    _emit(DictationState.idle);
     if (!_initialized) return;
     try {
       await _engine.stop();
@@ -118,6 +180,9 @@ class DictationGateway {
   }
 
   Future<void> cancel() async {
+    _onText = null;
+    _onState = null;
+    _state = DictationState.idle;
     if (!_initialized) return;
     try {
       await _engine.cancel();

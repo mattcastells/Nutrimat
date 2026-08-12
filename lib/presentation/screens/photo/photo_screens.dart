@@ -330,17 +330,20 @@ class _PhotoDescribeScreenState extends ConsumerState<PhotoDescribeScreen> {
             style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
           ),
           const SizedBox(height: NmSpace.s5),
-          NmTextField(
-            label: 'Descripción (opcional)',
+          // Con el plato delante y el teléfono en la mano, decirlo es más
+          // rápido que escribirlo. Mismo campo, mismo botón de abajo.
+          NmDictationField(
             controller: _text,
-            hint: 'empanadas de carne al horno, la ensalada con aceite',
-            maxLines: 3,
-            maxLength: _maxLength,
-            autofocus: true,
-            textInputAction: TextInputAction.newline,
-            // Con el plato delante y el teléfono en la mano, decirlo es más
-            // rápido que escribirlo. Mismo campo, mismo botón de abajo.
-            suffixIcon: NmDictationButton(controller: _text),
+            builder: (context, microphone) => NmTextField(
+              label: 'Descripción (opcional)',
+              controller: _text,
+              hint: 'empanadas de carne al horno, la ensalada con aceite',
+              maxLines: 3,
+              maxLength: _maxLength,
+              autofocus: true,
+              textInputAction: TextInputAction.newline,
+              suffixIcon: microphone,
+            ),
           ),
           const SizedBox(height: NmSpace.s6),
           // Un solo botón, que lee el campo.

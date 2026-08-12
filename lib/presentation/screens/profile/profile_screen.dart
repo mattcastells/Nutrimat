@@ -12,6 +12,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/utils/formats.dart';
 import '../../../domain/calculations/goal_presets.dart';
 import '../../../domain/enums/enums.dart';
+import '../../../domain/models/user_profile.dart';
 import '../../components/brand/brand_mark.dart';
 import '../../components/system/buttons.dart';
 import '../../components/system/inputs.dart';
@@ -195,6 +196,15 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const NmDivider(indent: NmSpace.s6),
                 NmListRow(
+                  title: 'Preferencias y alergias',
+                  subtitle: profile.hasDietaryLimits
+                      ? _dietarySummary(profile)
+                      : 'Lo que la IA no te va a sugerir',
+                  leading: Icon(PhosphorIcons.plant()),
+                  onTap: () => context.push(Routes.profileDietary),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
                   title: 'Objetivo y macros',
                   subtitle: 'Cómo se calcula tu objetivo diario',
                   leading: Icon(PhosphorIcons.target()),
@@ -296,6 +306,17 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Lo que hay cargado, en una línea: "Vegetariano, sin gluten y 1 más".
+///
+/// El subtítulo dice lo que hay y no "Configurado", que obligaría a entrar para
+/// saber si la alergia que uno cargó sigue estando.
+String _dietarySummary(UserProfile profile) {
+  final labels = <String>[for (final f in profile.dietaryFlags) f.label];
+  if (labels.isEmpty) return 'Una nota tuya';
+  if (labels.length <= 2) return labels.join(', ');
+  return '${labels.take(2).join(', ')} y ${labels.length - 2} más';
 }
 
 /// Cambiar el nombre visible.

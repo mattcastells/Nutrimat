@@ -32,12 +32,26 @@ class MealSuggestionsClient {
   /// un viaje —ni una unidad de cuota— para que le contesten que no.
   static const int minBudgetKcal = 150;
 
-  /// Tres comidas que entran en [remainingKcal].
+  /// Cuánto de la nota libre viaja. Lo mismo que acepta la columna y que deja
+  /// entrar el servidor: un texto largo se lleva puesto el prompt entero.
+  static const int maxNoteLength = 200;
+
+  /// Tres comidas que entran en [remainingKcal] y que esta persona **puede
+  /// comer**.
+  ///
+  /// [restrictions] son los `wire` de `DietaryFlag` y [restrictionsNote] lo que
+  /// escribió a mano. Van al servidor porque el filtro tiene que estar de los
+  /// dos lados: el prompt se lo pide al modelo y la función descarta lo que
+  /// igual se cuele. Un plato con queso ofrecido a alguien con alergia a la
+  /// leche no es una sugerencia imprecisa.
   Future<List<MealSuggestion>> suggest({
     required int remainingKcal,
     MealSlot? slot,
     int? remainingProteinG,
+    List<String> restrictions = const <String>[],
+    String? restrictionsNote,
   }) async {
+    final nota = restrictionsNote?.trim() ?? '';
     final FunctionResponse response;
     try {
       response = await _functions
@@ -48,6 +62,11 @@ class MealSuggestionsClient {
               if (slot != null) 'slot': slot.label,
               if (remainingProteinG != null && remainingProteinG > 0)
                 'remainingProteinG': remainingProteinG,
+              if (restrictions.isNotEmpty) 'restrictions': restrictions,
+              if (nota.isNotEmpty)
+                'restrictionsNote': nota.length > maxNoteLength
+                    ? nota.substring(0, maxNoteLength)
+                    : nota,
             },
           )
           .timeout(timeout);

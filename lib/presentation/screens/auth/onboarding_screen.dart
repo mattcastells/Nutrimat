@@ -23,6 +23,7 @@ import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
 import '../../providers/app_providers.dart';
+import '../profile/dietary_screen.dart';
 import '../profile/goal_picker_screen.dart';
 
 /// S-05 · Alta guiada. Los datos con los que la app calcula, antes de Inicio.
@@ -55,7 +56,11 @@ import '../profile/goal_picker_screen.dart';
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
-  static const int totalSteps = 5;
+  /// Seis: los cuatro insumos de las fórmulas, cómo come, y el número que se
+  /// confirma. El de alimentación se puede pasar de largo sin tocar nada —no
+  /// es un requisito para calcular—, pero está en el alta y no escondido en
+  /// Perfil porque es donde alguien celíaco espera decirlo.
+  static const int totalSteps = 6;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -247,7 +252,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     0 => _birthDate != null && ageFromBirthDate(_birthDate!) >= 13,
     1 => _heightCm != null && _weightKg != null,
     2 => true,
-    3 => _goalType != null,
+    // Alimentación: no elegir nada es una respuesta válida y la más común.
+    3 => true,
+    4 => _goalType != null,
     _ => _confirmedTarget != null,
   };
 
@@ -285,7 +292,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ref.read(profileProvider).copyWith(activityLevel: _level),
         );
       case 3:
-        // El objetivo no se guarda todavía: recién se confirma en el paso 5, y
+        // Las restricciones ya se fueron guardando a medida que se tocaban los
+        // chips, igual que en Perfil: no hay nada pendiente que escribir acá.
+        break;
+      case 4:
+        // El objetivo no se guarda todavía: recién se confirma en el paso 6, y
         // guardarlo acá dejaría escrito un número que la persona no vio.
         break;
       default:
@@ -414,7 +425,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               0 => 'Empecemos por vos',
               1 => 'Tu altura y tu peso de hoy',
               2 => '¿Cuánto te movés?',
-              3 => '¿Qué buscás?',
+              3 => '¿Hay algo que no comas?',
+              4 => '¿Qué buscás?',
               _ => 'Tus calorías por día',
             },
             style: NmTextStyles.from(NmType.h1, color: nm.text),
@@ -432,6 +444,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 'Es el multiplicador que convierte tu metabolismo basal en el '
                     'gasto del día. Elegí lo que hacés en una semana normal.',
               3 =>
+                'Si no hay nada, seguí de largo. Esto no cambia tus calorías: '
+                    'cambia lo que la IA te puede proponer para comer.',
+              4 =>
                 'De acá salen tus calorías, tus macros y tu objetivo semanal '
                     'de actividad. Se cambia cuando quieras.',
               _ =>
@@ -476,7 +491,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               level: _level,
               onChanged: (v) => setState(() => _level = v),
             ),
-            3 => _StepGoal(
+            // El mismo selector que Perfil → Preferencias y alergias, y se
+            // guarda igual: al tocar, no al pasar de paso. Así una alergia
+            // cargada acá sobrevive aunque la persona cierre la app antes de
+            // terminar el alta.
+            3 => DietaryPicker(
+              selected: ref.watch(profileProvider).dietaryFlags,
+              note: ref.watch(profileProvider).dietaryNote,
+              onFlags: (flags) => ref
+                  .read(repositoryProvider)
+                  .updateProfile(
+                    ref.read(profileProvider).copyWith(dietaryFlags: flags),
+                  ),
+              onNote: (note) => ref
+                  .read(repositoryProvider)
+                  .updateProfile(
+                    ref.read(profileProvider).copyWith(dietaryNote: note),
+                  ),
+            ),
+            4 => _StepGoal(
               selected: _goalType,
               weightKg: _weightKg,
               onChanged: (v) => setState(() {
@@ -539,7 +572,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           // decir para qué es pedirle a alguien que confíe. Acá se ve que el
           // objetivo sale de lo que se acaba de cargar y no de una tabla. En el
           // último paso no se repite: ahí el resumen es la pantalla entera.
-          if (_step == 2 || _step == 3) ...<Widget>[
+          //
+          // En el de alimentación tampoco: ahí no se está decidiendo nada que
+          // cambie el número, y ponerlo al lado sugeriría que sí.
+          if (_step == 2 || _step == 4) ...<Widget>[
             const SizedBox(height: NmSpace.s6),
             _CalculationPreview(plan: _plan, level: _level),
           ],

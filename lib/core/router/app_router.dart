@@ -23,6 +23,7 @@ import '../../presentation/screens/pals/pals_screen.dart';
 import '../../presentation/screens/photo/photo_screens.dart';
 import '../../presentation/screens/profile/body_target_screens.dart';
 import '../../presentation/screens/profile/care_access_screen.dart';
+import '../../presentation/screens/profile/dietary_screen.dart';
 import '../../presentation/screens/profile/goal_picker_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/progress/progress_detail_screens.dart';
@@ -203,6 +204,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.profileBody,
         builder: (context, state) => const BodyProfileScreen(),
+      ),
+      GoRoute(
+        path: Routes.profileDietary,
+        builder: (context, state) => const DietaryScreen(),
       ),
       GoRoute(
         path: Routes.profileGoal,

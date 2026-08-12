@@ -22,6 +22,12 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { PROMPT_SUGGEST_V1 } from './prompts/suggest_v1.ts';
 import {
+  parseRestrictions,
+  restrictionsPrompt,
+  RestrictionId,
+  violatesRestrictions,
+} from './restrictions.ts';
+import {
   CORS,
   DAILY_QUOTA,
   GEMINI_MODEL,
@@ -152,7 +158,11 @@ const num = (v: unknown): number | null => {
  * le arreglamos un ingrediente ya no es lo que el modelo propuso, y la receta
  * dejaría de corresponderse con los números.
  */
-function validateSuggestions(raw: unknown, budget: number): Suggestion[] | null {
+function validateSuggestions(
+  raw: unknown,
+  budget: number,
+  restrictions: RestrictionId[],
+): Suggestion[] | null {
   if (!raw || typeof raw !== 'object') return null;
   const rawOptions = (raw as { options?: unknown }).options;
   if (!Array.isArray(rawOptions)) return null;
@@ -246,6 +256,12 @@ function validateSuggestions(raw: unknown, budget: number): Suggestion[] | null 
 
     const minutes = num(o.minutes);
 
+    // (4) Lo que esta persona no puede comer. Va último porque necesita la
+    // lista de ingredientes ya saneada, y descarta la opción entera igual que
+    // el resto: una receta a la que le sacamos el queso ya no es la receta que
+    // el modelo propuso, y sus números dejarían de corresponderse.
+    if (violatesRestrictions({ name, items, steps }, restrictions)) continue;
+
     clean.push({
       name,
       kcal: Math.round(sumaKcal),
@@ -289,12 +305,23 @@ Deno.serve(async (req) => {
   let budget = 0;
   let slot = '';
   let proteinLeft: number | null = null;
+  let restrictions: RestrictionId[] = [];
+  let restrictionsNote = '';
   try {
     const body = await req.json();
     budget = Math.round(Number(body.remainingKcal));
     slot = typeof body.slot === 'string' ? body.slot.slice(0, 20) : '';
     const p = Number(body.remainingProteinG);
     proteinLeft = Number.isFinite(p) && p > 0 ? Math.round(p) : null;
+    // Lo que esta persona no puede comer. Lo manda la app desde su perfil y no
+    // se lee de `profiles` a propósito: así funciona igual con un perfil que
+    // todavía no llegó a las tablas, y el dato no deja de ser suyo.
+    restrictions = parseRestrictions(body.restrictions);
+    restrictionsNote = typeof body.restrictionsNote === 'string'
+      // El mismo techo que la columna y que el cliente. Un texto largo acá se
+      // lleva puesto el prompt entero.
+      ? body.restrictionsNote.trim().slice(0, 200)
+      : '';
   } catch {
     return fail('ERR_VALIDATION', 'Falta cuántas calorías quedan.');
   }
@@ -332,15 +359,17 @@ Deno.serve(async (req) => {
     proteinLeft ? `Le faltan ${proteinLeft} g de proteína para su objetivo.` : '',
   ].filter(Boolean).join(' ');
 
+  const restringido = restrictionsPrompt(restrictions, restrictionsNote);
+
   const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
     geminiKey,
-    [{ text: `${PROMPT_SUGGEST_V1}\n\n${contexto}` }],
+    [{ text: `${PROMPT_SUGGEST_V1}${restringido}\n\n${contexto}` }],
     SUGGEST_SCHEMA,
   );
 
   if (parsed === null && rateLimited) return rateLimitedResponse();
 
-  const options = validateSuggestions(parsed, budget);
+  const options = validateSuggestions(parsed, budget, restrictions);
   if (options === null) {
     return fail(
       'ERR_AI_INVALID_RESPONSE',
@@ -355,8 +384,14 @@ Deno.serve(async (req) => {
   if (options.length === 0) {
     return fail(
       'ERR_AI_NO_SUGGESTIONS',
-      'Esta vez no salió ninguna opción que cierre con las calorías que te ' +
-        'quedan. Probá de nuevo.',
+      restrictions.length > 0 || restrictionsNote
+        // Se dice que las restricciones son parte del motivo. Sin esto, quien
+        // cargó tres alergias y ve "probá de nuevo" prueba diez veces sin
+        // entender que lo que conviene es subir el presupuesto.
+        ? 'Esta vez no salió ninguna opción que entre en esas calorías y ' +
+          'respete lo que no comés. Probá de nuevo o con un número más alto.'
+        : 'Esta vez no salió ninguna opción que cierre con las calorías que te ' +
+          'quedan. Probá de nuevo.',
       422,
     );
   }

@@ -38,6 +38,9 @@ abstract final class Routes {
   static const String progressGoals = '/progress/goals';
 
   static const String profileBody = '/profile/body';
+
+  /// Preferencias, alergias y condiciones: lo que la IA no puede sugerir.
+  static const String profileDietary = '/profile/dietary';
   static const String profileGoal = '/profile/goal';
   static const String profileTarget = '/profile/target';
 

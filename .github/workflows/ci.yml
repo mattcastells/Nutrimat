@@ -108,6 +108,20 @@ jobs:
           done
           exit $fallo
 
+      # El único pedazo de las funciones que sí se ejecuta acá.
+      #
+      # `violatesRestrictions` decide si una sugerencia con almendras le llega a
+      # alguien alérgico a los frutos secos. Es una comparación por palabra, o
+      # sea el tipo de código que se rompe en silencio: la primera versión no
+      # reconocía plurales —"almendra" no pegaba contra "almendras"— y la
+      # opción salía igual. Se parsea, no alcanza; hay que correrlo.
+      - name: Probar el filtro de restricciones alimentarias
+        run: |
+          npx --yes esbuild@0.24.0 --bundle \
+            supabase/functions/suggest-meals/restrictions.test.ts \
+            --format=esm --platform=node --outfile=/tmp/restrictions.test.mjs
+          node /tmp/restrictions.test.mjs
+
   database:
     name: Probar las políticas RLS
     runs-on: ubuntu-latest

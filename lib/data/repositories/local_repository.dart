@@ -1959,6 +1959,15 @@ class LocalRepository
       remainingKcal: remainingKcal,
       slot: slot,
       remainingProteinG: remainingProteinG,
+      // Las restricciones salen del perfil y las manda el cliente: la Edge
+      // Function no las lee de `profiles` a propósito, para que la app funcione
+      // igual con un perfil que todavía no se sincronizó. Son de esta persona,
+      // así que no hay nada que defender de un cliente que mienta: mentirse a
+      // sí mismo sobre su propia alergia no es un ataque.
+      restrictions: <String>[
+        for (final flag in profile.dietaryFlags) flag.wire,
+      ],
+      restrictionsNote: profile.dietaryNote,
     );
     _quotaUsed++;
     return options;

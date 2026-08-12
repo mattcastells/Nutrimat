@@ -580,26 +580,33 @@ class NmChip extends StatelessWidget {
                     ),
                     const SizedBox(width: NmSpace.s2),
                   ],
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        label,
-                        style: NmTextStyles.from(
-                          NmType.bodySm,
-                          color: selected ? nm.accentOnFill : nm.text,
-                        ),
-                      ),
-                      if (subtitle != null)
+                  // `Flexible` y no el `Column` suelto: dentro de un `Wrap` el
+                  // chip recibe el ancho de la fila como techo, y un texto que
+                  // no cede desborda por derecha en vez de pasar a dos
+                  // renglones. Con esto el chip se hace más alto, que es lo
+                  // único que un chip puede hacer sin romper la grilla.
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
                         Text(
-                          subtitle!,
+                          label,
                           style: NmTextStyles.from(
-                            NmType.micro,
-                            color: selected ? nm.accentOnFill : nm.textMuted,
-                          ).tnum,
+                            NmType.bodySm,
+                            color: selected ? nm.accentOnFill : nm.text,
+                          ),
                         ),
-                    ],
+                        if (subtitle != null)
+                          Text(
+                            subtitle!,
+                            style: NmTextStyles.from(
+                              NmType.micro,
+                              color: selected ? nm.accentOnFill : nm.textMuted,
+                            ).tnum,
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

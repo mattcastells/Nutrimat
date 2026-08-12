@@ -163,6 +163,10 @@ Future<void> _hastaElPlan(WidgetTester tester) async {
   await _elegir(tester, ActivityLevel.light.label);
   await _continuar(tester, 'Continuar');
 
+  // Alimentación: se pasa de largo sin tocar nada, que es lo que hace la
+  // mayoría y lo que el paso permite explícitamente.
+  await _continuar(tester, 'Continuar');
+
   await _elegir(tester, GoalType.lose.label);
   await _continuar(tester, 'Continuar');
 }
@@ -233,15 +237,15 @@ void main() {
     await tester.pumpWidget(_wrap(container));
     await _settle(tester);
 
-    expect(find.text('Paso 1 de 5'), findsOneWidget);
+    expect(find.text('Paso 1 de 6'), findsOneWidget);
     await _continuar(tester, 'Continuar');
 
     // Sigue en el primero: sin edad no hay Mifflin-St Jeor y el paso no se
     // puede dar por cumplido.
-    expect(find.text('Paso 1 de 5'), findsOneWidget);
+    expect(find.text('Paso 1 de 6'), findsOneWidget);
   });
 
-  testWidgets('los cinco pasos se caminan y dejan a la persona en Inicio', (
+  testWidgets('los seis pasos se caminan y dejan a la persona en Inicio', (
     tester,
   ) async {
     late ProviderContainer container;
@@ -261,14 +265,14 @@ void main() {
     await _continuar(tester, 'Continuar');
 
     // ── Paso 2: altura y peso ──────────────────────────────────────────
-    expect(find.text('Paso 2 de 5'), findsOneWidget);
+    expect(find.text('Paso 2 de 6'), findsOneWidget);
     final campos = find.byType(TextField);
     await tester.enterText(campos.at(0), '178');
     await tester.enterText(campos.at(1), '82');
     await _settle(tester);
     await _continuar(tester, 'Continuar');
 
-    expect(find.text('Paso 3 de 5'), findsOneWidget);
+    expect(find.text('Paso 3 de 6'), findsOneWidget);
     expect(repo.profile.heightCm, 178);
     // El peso entra como registro con fecha, no como campo del perfil: es lo
     // que hace que el primer punto de la curva de progreso sea el de hoy.
@@ -280,8 +284,19 @@ void main() {
     await _settle(tester);
     await _continuar(tester, 'Continuar');
 
-    // ── Paso 4: objetivo ───────────────────────────────────────────────
-    expect(find.text('Paso 4 de 5'), findsOneWidget);
+    // ── Paso 4: alimentación ───────────────────────────────────────────
+    // Es el único paso que se puede pasar sin tocar nada, y se prueba tocando
+    // algo: una alergia elegida acá tiene que quedar escrita en el momento, no
+    // al final del alta, porque quien cierra la app a mitad de camino no puede
+    // volver a encontrarse sin ella.
+    expect(find.text('Paso 4 de 6'), findsOneWidget);
+    expect(find.text('¿Hay algo que no comas?'), findsOneWidget);
+    await _elegir(tester, DietaryFlag.glutenFree.label);
+    expect(repo.profile.dietaryFlags, <DietaryFlag>[DietaryFlag.glutenFree]);
+    await _continuar(tester, 'Continuar');
+
+    // ── Paso 5: objetivo ───────────────────────────────────────────────
+    expect(find.text('Paso 5 de 6'), findsOneWidget);
     expect(find.text('¿Qué buscás?'), findsOneWidget);
     expect(repo.profile.activityLevel, ActivityLevel.light);
 
@@ -294,8 +309,8 @@ void main() {
     await _settle(tester);
     await _continuar(tester, 'Continuar');
 
-    // ── Paso 5: el número, antes de entrar ─────────────────────────────
-    expect(find.text('Paso 5 de 5'), findsOneWidget);
+    // ── Paso 6: el número, antes de entrar ─────────────────────────────
+    expect(find.text('Paso 6 de 6'), findsOneWidget);
     expect(find.text('Tus calorías por día'), findsOneWidget);
 
     // Elegir el objetivo todavía no guardó nada: el objetivo vigente sigue
@@ -524,7 +539,7 @@ void main() {
       await _settle(tester);
       await _hastaElPlan(tester);
 
-      expect(find.text('Paso 5 de 5'), findsOneWidget);
+      expect(find.text('Paso 6 de 6'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -545,7 +560,7 @@ void main() {
 
     await tester.tap(find.text('Atrás'));
     await _settle(tester);
-    expect(find.text('Paso 1 de 5'), findsOneWidget);
+    expect(find.text('Paso 1 de 6'), findsOneWidget);
 
     await _continuar(tester, 'Continuar');
 

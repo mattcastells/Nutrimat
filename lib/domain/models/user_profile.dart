@@ -21,6 +21,8 @@ class UserProfile {
     this.avatarPath,
     this.birthDate,
     this.heightCm,
+    this.dietaryFlags = const <DietaryFlag>[],
+    this.dietaryNote = '',
     this.isDemo = false,
     this.email,
     this.deletionRequestedAt,
@@ -69,6 +71,24 @@ class UserProfile {
   /// vasos, así que cambiarlo no reescribe el pasado.
   final int glassSizeMl;
 
+  /// Lo que esta persona no puede o no quiere comer.
+  ///
+  /// No entra en ninguna fórmula: entra en lo que la IA **puede proponer**. Sin
+  /// esto, "¿Qué como?" le ofrecía tarta de jamón y queso a alguien que es
+  /// vegano y milanesa rebozada a alguien celíaco, y una sugerencia que la
+  /// persona no puede comer no es una sugerencia imprecisa: es la app
+  /// diciéndole que puede comer algo que no puede.
+  final List<DietaryFlag> dietaryFlags;
+
+  /// Lo que la lista de arriba no cubre, escrito por la persona. Una lista
+  /// cerrada de ocho opciones deja afuera a quien es alérgico a otra cosa, y
+  /// esa es justamente la que no se puede perder.
+  final String dietaryNote;
+
+  /// Si hay algo que condicione lo que se le puede sugerir.
+  bool get hasDietaryLimits =>
+      dietaryFlags.isNotEmpty || dietaryNote.trim().isNotEmpty;
+
   /// Hay lo necesario para Mifflin-St Jeor: sin esto el objetivo solo puede
   /// ser manual.
   bool get hasBodyData => birthDate != null && heightCm != null;
@@ -98,6 +118,8 @@ class UserProfile {
     bool? showNetCalories,
     int? waterGoalGlasses,
     int? glassSizeMl,
+    List<DietaryFlag>? dietaryFlags,
+    String? dietaryNote,
     bool? isDemo,
     String? email,
     DateTime? deletionRequestedAt,
@@ -121,6 +143,11 @@ class UserProfile {
     showNetCalories: showNetCalories ?? this.showNetCalories,
     waterGoalGlasses: waterGoalGlasses ?? this.waterGoalGlasses,
     glassSizeMl: glassSizeMl ?? this.glassSizeMl,
+    // Una lista vacía sí pisa a la anterior: sacar la última restricción es un
+    // gesto tan válido como agregarla, y con `?? this.` no habría forma de
+    // hacerlo.
+    dietaryFlags: dietaryFlags ?? this.dietaryFlags,
+    dietaryNote: dietaryNote ?? this.dietaryNote,
     isDemo: isDemo ?? this.isDemo,
     email: email ?? this.email,
     deletionRequestedAt: deletionRequestedAt ?? this.deletionRequestedAt,
@@ -145,6 +172,8 @@ class UserProfile {
     'showNetCalories': showNetCalories,
     'waterGoalGlasses': waterGoalGlasses,
     'glassSizeMl': glassSizeMl,
+    'dietaryFlags': dietaryFlags.map((f) => f.wire).toList(),
+    'dietaryNote': dietaryNote,
     'isDemo': isDemo,
     'email': email,
     'deletionRequestedAt': deletionRequestedAt?.toIso8601String(),
@@ -177,6 +206,10 @@ class UserProfile {
     showNetCalories: j['showNetCalories'] as bool,
     waterGoalGlasses: (j['waterGoalGlasses'] as num?)?.toInt() ?? 8,
     glassSizeMl: (j['glassSizeMl'] as num?)?.toInt() ?? 250,
+    dietaryFlags: DietaryFlag.fromWires(
+      j['dietaryFlags'] as List<dynamic>? ?? const <dynamic>[],
+    ),
+    dietaryNote: j['dietaryNote'] as String? ?? '',
     isDemo: j['isDemo'] as bool? ?? false,
     email: j['email'] as String?,
     deletionRequestedAt: j['deletionRequestedAt'] == null

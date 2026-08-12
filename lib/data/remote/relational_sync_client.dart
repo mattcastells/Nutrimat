@@ -149,6 +149,16 @@ class RelationalSyncClient {
               'exercise_credit_percentage': profile.exerciseCreditPercentage,
               'exercise_credit_enabled': profile.exerciseCreditEnabled,
               'show_net_calories': profile.showNetCalories,
+              // Las restricciones alimentarias viajan a las tablas y no solo en
+              // el respaldo: al abrir la app en un teléfono nuevo el perfil se
+              // arma con esta fila, y una alergia que no llegue ahí no existe
+              // del otro lado.
+              'dietary_flags': <String>[
+                for (final f in profile.dietaryFlags) f.wire,
+              ],
+              'dietary_note': profile.dietaryNote.trim().isEmpty
+                  ? null
+                  : profile.dietaryNote.trim(),
             })
             .timeout(timeout);
         escritas['profiles'] = 1;
@@ -699,6 +709,14 @@ class RelationalSyncClient {
           'exerciseCreditPercentage': perfil['exercise_credit_percentage'],
           'exerciseCreditEnabled': perfil['exercise_credit_enabled'],
           'showNetCalories': perfil['show_net_calories'],
+          // Una fila escrita por una versión anterior no trae la columna: se
+          // resuelve como lista vacía, no como error.
+          'dietaryFlags': <String>[
+            for (final f in (perfil['dietary_flags'] as List<dynamic>? ??
+                const <dynamic>[]))
+              if (f is String) f,
+          ],
+          'dietaryNote': perfil['dietary_note'] ?? '',
           'isDemo': false,
           'createdAt': isoOf(perfil['created_at']),
           'updatedAt': isoOf(perfil['updated_at']),

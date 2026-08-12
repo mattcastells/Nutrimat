@@ -536,3 +536,99 @@ enum ActivityFormMode {
   static ActivityFormMode fromWire(String? w) =>
       values.firstWhere((e) => e.wire == w, orElse: () => duration);
 }
+
+/// De qué tipo es una restricción alimentaria: por elección, por alergia o por
+/// una condición médica.
+///
+/// No es cosmético. Saltarse "vegetariano" es una decisión de quien come;
+/// saltarse "sin gluten" puede mandar a alguien al hospital. La app las trata
+/// distinto —el texto que las acompaña, y la dureza con la que se filtran las
+/// sugerencias— y por eso el grupo viaja con cada opción.
+enum DietaryGroup {
+  preference('preference', 'Cómo comés'),
+  allergy('allergy', 'Alergias e intolerancias'),
+  condition('condition', 'Condiciones');
+
+  const DietaryGroup(this.wire, this.label);
+  final String wire;
+  final String label;
+}
+
+/// Lo que alguien no puede o no quiere comer.
+///
+/// Son ocho y no ochenta a propósito: cubren la enorme mayoría de los casos y
+/// se eligen de un vistazo. Lo que no esté acá va en la nota libre del perfil,
+/// que viaja igual a las sugerencias — es lo que evita que una lista cerrada
+/// deje afuera a alguien con una alergia poco común.
+enum DietaryFlag {
+  vegetarian(
+    'vegetarian',
+    DietaryGroup.preference,
+    'Vegetariano',
+    'Sin carne ni pescado',
+  ),
+  vegan('vegan', DietaryGroup.preference, 'Vegano', 'Nada de origen animal'),
+  glutenFree(
+    'gluten_free',
+    DietaryGroup.allergy,
+    'Sin gluten',
+    'Celiaquía o sensibilidad',
+  ),
+  lactoseFree(
+    'lactose_free',
+    DietaryGroup.allergy,
+    'Sin lactosa',
+    'Leche y derivados',
+  ),
+  nutFree(
+    'nut_free',
+    DietaryGroup.allergy,
+    'Sin frutos secos',
+    'Maní y nueces',
+  ),
+  seafoodFree(
+    'seafood_free',
+    DietaryGroup.allergy,
+    'Sin pescado ni mariscos',
+    '',
+  ),
+  diabetes(
+    'diabetes',
+    DietaryGroup.condition,
+    'Diabetes',
+    'Menos azúcar y harinas',
+  ),
+  hypertension(
+    'hypertension',
+    DietaryGroup.condition,
+    'Hipertensión',
+    'Bajo en sodio',
+  );
+
+  const DietaryFlag(this.wire, this.group, this.label, this.description);
+
+  final String wire;
+  final DietaryGroup group;
+  final String label;
+
+  /// Qué implica, en una línea. Vacío cuando la etiqueta ya lo dice todo.
+  final String description;
+
+  static DietaryFlag? fromWire(String? w) {
+    for (final flag in values) {
+      if (flag.wire == w) return flag;
+    }
+    // Devuelve `null` y no un valor por defecto: inventar una restricción que
+    // nadie eligió es peor que perderla, porque condicionaría las sugerencias
+    // de alguien que no pidió nada.
+    return null;
+  }
+
+  static List<DietaryFlag> inGroup(DietaryGroup group) =>
+      values.where((f) => f.group == group).toList();
+
+  static List<DietaryFlag> fromWires(Iterable<Object?> raw) => <DietaryFlag>[
+    for (final w in raw)
+      if (w is String && fromWire(w) != null) fromWire(w)!,
+  ];
+}

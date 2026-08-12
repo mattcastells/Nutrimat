@@ -98,6 +98,16 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
       ? int.tryParse(_target.text.trim()) ?? 0
       : _remaining;
 
+  /// Las restricciones del perfil, para decirlas en pantalla. Quien las aplica
+  /// es el servidor; acá solo se muestran.
+  List<String> get _restricciones {
+    final profile = ref.watch(profileProvider);
+    return <String>[
+      for (final flag in profile.dietaryFlags) flag.label.toLowerCase(),
+      if (profile.dietaryNote.trim().isNotEmpty) 'lo que anotaste',
+    ];
+  }
+
   Future<void> _pedir() async {
     if (!mounted) return;
     final summary = ref.read(todaySummaryProvider);
@@ -278,6 +288,35 @@ class _SuggestionsScreenState extends ConsumerState<SuggestionsScreen> {
             Text(
               'Tres platos de hasta $_budget kcal.',
               style: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
+            ),
+            const SizedBox(height: NmSpace.s5),
+          ],
+
+          // Que se vea que las restricciones están puestas.
+          //
+          // Sin esto no hay forma de distinguir "respeta que soy celíaco" de
+          // "se olvidó", y esa duda obliga a leer la lista de ingredientes de
+          // las tres opciones con lupa — que es exactamente el trabajo que la
+          // pantalla venía a sacarse de encima.
+          if (_restricciones.isNotEmpty) ...<Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  PhosphorIcons.plant(),
+                  size: NmIconSize.sm,
+                  color: nm.textMuted,
+                ),
+                const SizedBox(width: NmSpace.s2),
+                Expanded(
+                  child: Text(
+                    'Sin lo que no comés: ${_restricciones.join(', ')}.',
+                    style: NmTextStyles.from(
+                      NmType.caption,
+                      color: nm.textMuted,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: NmSpace.s5),
           ],

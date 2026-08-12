@@ -97,7 +97,26 @@ flutter pub get && flutter build apk --release --dart-define-from-file=env/local
 
 Para confirmar que el APK es el del código, buscar un texto nuevo dentro de
 `libapp.so` (se extrae del APK, que es un zip). Es la única prueba que no
-miente. Ojo: `grep` con acentos falla — buscar subcadenas ASCII.
+miente.
+
+⚠️ **Y `grep` miente acá.** Dart guarda cada cadena en Latin-1 si le entra, y
+en **UTF-16** si tiene aunque sea una letra que no entra — los puntos
+suspensivos tipográficos (`…`), una comilla curva, un guion largo—. En UTF-16
+la cadena queda como `A\0b\0r\0…`, así que **ni siquiera un prefijo ASCII la
+encuentra**: buscar "Abriendo" no da nada aunque "Abriendo el micrófono…" esté
+adentro. Lleva a concluir que el APK es viejo cuando no lo es.
+
+Buscar en las tres codificaciones, no en una:
+
+```bash
+node -e '
+const b = require("fs").readFileSync("lib/arm64-v8a/libapp.so");
+for (const s of process.argv.slice(1)) {
+  const d = ["latin1","utf16le","utf8"]
+    .filter(e => b.indexOf(Buffer.from(s, e)) >= 0);
+  console.log((d.length ? "OK  " : "NO  ") + s + "  " + d.join(" "));
+}' "Tu texto nuevo" "Otro con acentós…"
+```
 
 ### Sin `--dart-define-from-file` el APK no tiene servidor
 

@@ -193,21 +193,24 @@ class PalsClient {
     }
   }
 
-  /// Publica el día propio. Sobrescribe el de esa fecha.
-  Future<void> publishDay(PalDay day) async {
+  /// Publica varios días propios de una. Sobrescribe la fila de cada fecha.
+  ///
+  /// En **un** pedido y no uno por día: la ventana que puede mirar un pal son
+  /// ocho fechas, y corregir el día de anteayer no puede costar ocho viajes.
+  /// La clave primaria es `(user_id, local_date)`, así que el upsert resuelve
+  /// por día sin necesidad de decirle sobre qué.
+  Future<void> publishDays(List<PalDay> days) async {
+    if (days.isEmpty) return;
+    final now = DateTime.now().toUtc().toIso8601String();
     try {
-      await _db.from('shared_days').upsert(<String, dynamic>{
-        'user_id': _me,
-        'local_date': isoDate(day.date),
-        'meals': day.meals.map((m) => m.toJson()).toList(),
-        'activity_minutes': day.activityMinutes,
-        'activity_count': day.activityCount,
-        'activities': day.activities.map((a) => a.toJson()).toList(),
-        'water_glasses': day.waterGlasses,
-        'sleep_minutes': day.sleepMinutes,
-        'sleep_quality': day.sleepQuality?.wire,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }).timeout(timeout);
+      await _db.from('shared_days').upsert(<Map<String, dynamic>>[
+        for (final day in days)
+          <String, dynamic>{
+            'user_id': _me,
+            ...day.toRow(),
+            'updated_at': now,
+          },
+      ]).timeout(timeout);
     } on Exception {
       throw _offline;
     }

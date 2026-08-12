@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import '../../core/utils/dates.dart';
 import '../enums/enums.dart';
 import 'sleep.dart';
 
@@ -139,6 +142,50 @@ class PalDay {
 
   List<PalMeal> mealsIn(MealSlot slot) =>
       meals.where((m) => m.slot == slot).toList();
+
+  /// Los topes que la tabla `shared_days` hace cumplir (migraciones 20 y 25).
+  ///
+  /// Están acá y no solo en Postgres porque del lado de la base un número
+  /// fuera de rango no es un dato recortado: es un `insert` rechazado, y como
+  /// [PalPublisher] se traga los errores a propósito —publicar el día es una
+  /// comodidad social, no puede interrumpir el registro de una comida— el
+  /// resultado era **que ese día dejaba de actualizarse para siempre** sin que
+  /// nadie se enterara.
+  ///
+  /// Pasaba con cualquiera de los cuatro: tres actividades largas suman más de
+  /// 1440 minutos, 41 vasos de agua existen, y `activity_count` corta en 50.
+  /// El pal se quedaba viendo la última versión que sí había entrado —de ahí
+  /// las "calorías de menos" y las comidas que no aparecían— y el dueño no
+  /// tenía forma de saberlo.
+  static const int maxActivityMinutes = 1440;
+  static const int maxActivityCount = 50;
+  static const int maxWaterGlasses = 40;
+  static const int maxSleepMinutes = 1440;
+
+  static int _clamp(int value, int max) => math.min(math.max(value, 0), max);
+
+  /// El payload de esta fila de `shared_days`, sin `user_id` ni `updated_at`.
+  ///
+  /// Los pone quien publica. Que no estén acá es lo que permite comparar dos
+  /// proyecciones para saber si hay algo nuevo que subir: con la marca de
+  /// tiempo adentro, todas serían distintas siempre.
+  Map<String, dynamic> toRow() => <String, dynamic>{
+    'local_date': isoDate(date),
+    'meals': meals.take(maxActivityCount).map((m) => m.toJson()).toList(),
+    'activity_minutes': _clamp(activityMinutes, maxActivityMinutes),
+    'activity_count': _clamp(activityCount, maxActivityCount),
+    'activities': activities
+        .take(maxActivityCount)
+        .map((a) => a.toJson())
+        .toList(),
+    'water_glasses': waterGlasses == null
+        ? null
+        : _clamp(waterGlasses!, maxWaterGlasses),
+    'sleep_minutes': sleepMinutes == null
+        ? null
+        : _clamp(sleepMinutes!, maxSleepMinutes),
+    'sleep_quality': sleepQuality?.wire,
+  };
 
   static PalDay fromRow(Map<String, dynamic> row) => PalDay(
     userId: row['user_id'] as String,

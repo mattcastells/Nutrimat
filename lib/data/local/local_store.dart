@@ -360,10 +360,21 @@ class LocalStore {
       final raw = j[key];
       if (raw is! List) return <T>[];
       final out = <T>[];
+      final vistos = <String>{};
       var bad = 0;
       for (final e in raw) {
         try {
-          out.add(fromJson(e as Map<String, dynamic>));
+          final row = e as Map<String, dynamic>;
+          // Dos filas con el mismo id son **el mismo registro**, no dos: la
+          // primera gana y la segunda se descarta. No es una pérdida de datos
+          // —el id es la identidad— y es lo que evita que una comida se cuente
+          // dos veces en el total del día, en el historial y en la proyección
+          // que ven los pals. La reconciliación une por id y no puede
+          // generarlos, pero un documento venido de un respaldo viejo o de un
+          // archivo importado sí puede traerlos, y hasta acá entraban enteros.
+          final id = row['id'];
+          if (id is String && id.isNotEmpty && !vistos.add(id)) continue;
+          out.add(fromJson(row));
         } on Object {
           bad++;
         }

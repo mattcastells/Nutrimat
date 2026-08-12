@@ -204,9 +204,12 @@ Future<void> bootstrap() async {
             for (final meal in repository.mealsOn(date))
               PalMeal(
                 slot: meal.slot,
-                // El nombre de la comida es el del primer ítem: alcanza para
-                // "cargó una milanesa" sin publicar la lista entera.
-                name: meal.items.isEmpty ? 'Comida' : meal.items.first.name,
+                // El título de la comida, que resume lo que tiene adentro sin
+                // publicar la lista de ítems. Antes era `items.first.name` —el
+                // primer ingrediente que se hubiera cargado—, así que una
+                // milanesa con puré y ensalada le llegaba al pal como "Puré de
+                // papa" si el puré había entrado primero.
+                name: meal.title,
                 kcal: meal.totalKcal,
                 photoPath: prefs.photos ? meal.photoPath : null,
               ),
@@ -229,6 +232,15 @@ Future<void> bootstrap() async {
         );
       },
     );
+
+    // Una publicación al arrancar, sin esperar a que cambie nada.
+    //
+    // Es lo que repara una cuenta que quedó con el día viejo del otro lado: un
+    // teléfono nuevo, una restauración desde la nube, o una subida que falló
+    // hace días y nunca se reintentó. Sube **solo lo que difiere** de lo que ya
+    // está publicado, así que en el caso normal —nada cambió— es un pedido de
+    // lectura de preferencias y nada más.
+    palPublisher.markDirty();
   }
 
   final container = ProviderContainer(

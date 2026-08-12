@@ -19,6 +19,7 @@ class NmTextField extends StatelessWidget {
     this.hint,
     this.helper,
     this.suffix,
+    this.suffixIcon,
     this.prefixIcon,
     this.keyboardType,
     this.textInputAction,
@@ -46,6 +47,11 @@ class NmTextField extends StatelessWidget {
   final String? hint;
   final String? helper;
   final String? suffix;
+
+  /// Una acción adentro del campo, al final. La usa el micrófono de dictado:
+  /// vive ahí y no como un botón aparte porque es una forma de escribir en
+  /// **este** campo, no una función nueva de la pantalla.
+  final Widget? suffixIcon;
   final IconData? prefixIcon;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -94,6 +100,7 @@ class NmTextField extends StatelessWidget {
                 ? null
                 : Icon(prefixIcon, size: NmIconSize.md, color: nm.textMuted),
             suffixText: suffix,
+            suffixIcon: suffixIcon,
             suffixStyle: NmTextStyles.from(NmType.bodySm, color: nm.textMuted),
             enabledBorder: OutlineInputBorder(
               borderRadius: NmRadius.brMd,

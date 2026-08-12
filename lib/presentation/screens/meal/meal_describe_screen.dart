@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/dictation.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/surfaces.dart';
@@ -130,6 +131,15 @@ class _MealDescribeScreenState extends ConsumerState<MealDescribeScreen> {
             autofocus: true,
             maxLines: 3,
             maxLength: 400,
+            // Contarlo en voz alta es la forma corta de este campo: se toca el
+            // micrófono, se dice, y lo dicho queda escrito acá. De ahí en
+            // adelante el camino es el mismo de siempre —estimar, revisar,
+            // guardar—, así que no hay un paso más ni una pantalla nueva.
+            suffixIcon: NmDictationButton(
+              controller: _text,
+              enabled: !_busy,
+              onChanged: (_) => setState(() => _error = null),
+            ),
             onChanged: (_) => setState(() => _error = null),
           ),
 

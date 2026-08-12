@@ -19,6 +19,19 @@
          intent de cámara del sistema, que no exige permiso. -->
     <uses-permission android:name="android.permission.CAMERA"/>
 
+    <!-- Dictado: contar en voz alta lo que se comió, en vez de escribirlo.
+         Lo transcribe el reconocedor del propio Android; Nutrimat recibe la
+         frase ya en texto y **no guarda audio en ningún lado** — ni en el
+         teléfono ni en el servidor. El permiso se pide al tocar el micrófono
+         y no al abrir la pantalla, y negarlo solo esconde el botón: el campo
+         se escribe igual.
+
+         `android.hardware.microphone` va como `required="false"` por lo mismo
+         que la cámara: un teléfono sin micrófono usable tiene que poder
+         instalar la app. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+
     <!-- Health Connect: solo **lectura**, y solo de estas tres cosas.
          Cada permiso que se pide hay que poder justificarlo en la pantalla de
          Privacidad, así que se piden los que se usan y ninguno más:
@@ -165,5 +178,11 @@
              sin esto la consulta devuelve "no está" en Android 11+ aunque esté,
              y la app mandaría a instalar algo que ya existe. -->
         <package android:name="com.google.android.apps.healthdata"/>
+        <!-- Igual que arriba, pero para el motor de dictado: sin esta consulta,
+             en Android 11+ la app no ve ningún `RecognitionService` aunque el
+             teléfono lo tenga, y el micrófono se escondería siempre. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
     </queries>
 </manifest>

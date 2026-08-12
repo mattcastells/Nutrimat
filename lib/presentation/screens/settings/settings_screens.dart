@@ -623,6 +623,15 @@ class PrivacyScreen extends ConsumerWidget {
                 : 'Esta compilación no tiene servidor: todo vive solo en tu '
                       'teléfono y no sale de acá.',
           ),
+          const SizedBox(height: NmSpace.s3),
+          // El micrófono es el único permiso que no deja rastro en la lista de
+          // arriba, y por eso se explica acá: cada permiso que pedimos tiene
+          // que poder justificarse en esta pantalla.
+          const InfoNote(
+            text: 'El micrófono se usa solo mientras dictás una comida, y lo '
+                'transcribe tu propio teléfono: no guardamos el audio ni lo '
+                'mandamos a ningún lado.',
+          ),
           const SizedBox(height: NmSpace.s6),
           const NmSectionHeader(title: 'Respaldo'),
           InfoNote(

@@ -30,6 +30,7 @@ import '../../components/food/food_widgets.dart';
 import '../../components/food/meal_photo.dart';
 import '../../components/food/photo_viewer.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/dictation.dart';
 import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
@@ -337,6 +338,9 @@ class _PhotoDescribeScreenState extends ConsumerState<PhotoDescribeScreen> {
             maxLength: _maxLength,
             autofocus: true,
             textInputAction: TextInputAction.newline,
+            // Con el plato delante y el teléfono en la mano, decirlo es más
+            // rápido que escribirlo. Mismo campo, mismo botón de abajo.
+            suffixIcon: NmDictationButton(controller: _text),
           ),
           const SizedBox(height: NmSpace.s6),
           // Un solo botón, que lee el campo.

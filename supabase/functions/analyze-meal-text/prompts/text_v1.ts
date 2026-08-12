@@ -29,6 +29,12 @@ Reglas que no se negocian:
   asumiste en \`preparation\`.
 - Los nombres van en español rioplatense, en singular y sin marca, salvo que la
   persona nombre la marca.
+- \`title\` es cómo se llama **la comida entera**, no el primer ingrediente:
+  "Milanesa con puré", "Dos empanadas y una coca", "Ensalada de atún". Máximo
+  60 caracteres, sin cantidades salvo que sean lo que define al plato, sin
+  punto final y sin la palabra "comida". Si hay un plato principal claro, el
+  título es ese plato con su guarnición; si son cosas sueltas, nombrá las dos
+  más importantes.
 - \`visualReference\` va vacío: acá no hay foto que mirar.
 - No devuelvas texto fuera del JSON.
 - Si la descripción no menciona ninguna comida, devolvé \`items: []\`.

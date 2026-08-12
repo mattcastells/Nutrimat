@@ -1,4 +1,5 @@
 import '../../core/utils/dates.dart';
+import '../calculations/meal_title.dart';
 import '../enums/enums.dart';
 import 'ai_analysis.dart';
 
@@ -170,8 +171,18 @@ class Meal {
 
   bool get isDeleted => deletedAt != null;
 
-  /// "Milanesa con puré · 2 ítems".
-  String get title => name ?? (items.isEmpty ? slot.label : items.first.name);
+  /// Cómo se llama esta comida en una lista: el nombre que le pusieron, o un
+  /// resumen de sus ítems ("Milanesa y puré", "Milanesa, puré y 2 más").
+  ///
+  /// Antes esto era `items.first.name` y por eso una comida se llamaba como el
+  /// primer ingrediente que se hubiera cargado. La regla del resumen vive en
+  /// [MealTitle] porque la comparte la proyección que ven los pals.
+  String get title {
+    final custom = name?.trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    final derived = MealTitle.fromItems(items);
+    return derived.isEmpty ? slot.label : derived;
+  }
 
   DataOrigin get origin =>
       source.isAi ? DataOrigin.ai : DataOrigin.manual;
@@ -197,6 +208,9 @@ class Meal {
     slot: slot ?? this.slot,
     loggedAt: loggedAt ?? this.loggedAt,
     localDate: localDate ?? this.localDate,
+    // Sin `clearName`: borrar el título es guardar la comida entera de nuevo
+    // desde el formulario, y ahí `MealDraft.toMeal` la construye con `name` en
+    // null. Un parámetro que nadie usa sugiere que hay otro camino.
     name: name ?? this.name,
     items: items ?? this.items,
     source: source ?? this.source,

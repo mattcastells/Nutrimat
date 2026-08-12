@@ -117,6 +117,8 @@ Devolvé la comida **completa** ya corregida:
   porque es información que vos no podías medir.
 - Si nombra algo que falta, agregalo. Si dice que algo no estaba, no lo
   devuelvas.
+- \`title\` describe la comida corregida **entera**, con la misma regla de
+  siempre: el plato, no el primer ingrediente.
 - No agregues nada que no esté en la lista${withPhoto ? ', en la foto' : ''} ni en la corrección.${
   withPhoto
     ? `

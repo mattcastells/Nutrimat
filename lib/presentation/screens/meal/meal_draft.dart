@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/dates.dart';
+import '../../../domain/calculations/meal_title.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/meal.dart';
 
@@ -19,6 +20,7 @@ class MealDraft {
     required this.loggedAt,
     required this.items,
     required this.source,
+    this.name,
     this.editingMealId,
     this.photoPath,
     this.aiAnalysisId,
@@ -30,9 +32,24 @@ class MealDraft {
   final DateTime loggedAt;
   final List<MealItem> items;
   final MealSource source;
+
+  /// El título que escribió la persona, o el que propuso la IA. `null` mientras
+  /// nadie tocó nada: ahí el título sale de los ítems ([autoTitle]).
+  final String? name;
   final String? editingMealId;
   final String? photoPath;
   final String? aiAnalysisId;
+
+  /// El resumen que se guardaría si nadie escribe un título.
+  String get autoTitle => MealTitle.fromItems(items);
+
+  /// Lo que se muestra como título de la comida en cualquier pantalla.
+  String get displayTitle {
+    final custom = name?.trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    final derived = autoTitle;
+    return derived.isEmpty ? slot.label : derived;
+  }
 
   int get totalKcal => items.fold(0, (acc, i) => acc + i.kcal);
   double get proteinG => items.fold(0.0, (acc, i) => acc + i.proteinG);
@@ -56,6 +73,7 @@ class MealDraft {
     loggedAt: loggedAt ?? this.loggedAt,
     items: items ?? this.items,
     source: source ?? this.source,
+    name: name,
     editingMealId: editingMealId,
     photoPath: photoPath ?? this.photoPath,
     aiAnalysisId: aiAnalysisId ?? this.aiAnalysisId,
@@ -66,6 +84,13 @@ class MealDraft {
     slot: slot,
     loggedAt: loggedAt,
     localDate: dateOnly(date),
+    // Solo se guarda el título si alguien lo eligió: lo escribió la persona o
+    // lo propuso la IA. El resumen de los ítems **no** se congela acá a
+    // propósito — si se guardara, agregarle un ítem a la comida dejaría el
+    // nombre viejo para siempre, que es la misma clase de bug que se está
+    // arreglando. Sin nombre, `Meal.title` lo deriva al leer y siempre
+    // describe lo que la comida tiene hoy.
+    name: name?.trim().isEmpty ?? true ? null : name!.trim(),
     items: <MealItem>[
       for (var i = 0; i < items.length; i++) items[i].copyWith(position: i),
     ],
@@ -86,6 +111,7 @@ class MealDraftController extends Notifier<MealDraft?> {
     required MealSlot slot,
     required DateTime date,
     MealSource source = MealSource.manual,
+    String? name,
     String? photoPath,
     String? aiAnalysisId,
     List<MealItem> items = const <MealItem>[],
@@ -104,6 +130,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       ),
       items: items,
       source: source,
+      name: name,
       photoPath: photoPath,
       aiAnalysisId: aiAnalysisId,
     );
@@ -117,9 +144,33 @@ class MealDraftController extends Notifier<MealDraft?> {
       loggedAt: meal.loggedAt,
       items: meal.items,
       source: meal.source,
+      // El nombre viajaba perdido: editar una comida con título propio la
+      // guardaba de vuelta sin él, así que corregir un gramo le borraba el
+      // nombre a la comida.
+      name: meal.name,
       editingMealId: meal.id,
       photoPath: meal.photoPath,
       aiAnalysisId: meal.aiAnalysisId,
+    );
+  }
+
+  /// El título que escribió la persona. Vacío lo borra y devuelve la comida al
+  /// resumen automático.
+  void setName(String value) {
+    final current = state;
+    if (current == null) return;
+    final clean = value.trim();
+    state = MealDraft(
+      id: current.id,
+      slot: current.slot,
+      date: current.date,
+      loggedAt: current.loggedAt,
+      items: current.items,
+      source: current.source,
+      name: clean.isEmpty ? null : clean,
+      editingMealId: current.editingMealId,
+      photoPath: current.photoPath,
+      aiAnalysisId: current.aiAnalysisId,
     );
   }
 
@@ -156,6 +207,10 @@ class MealDraftController extends Notifier<MealDraft?> {
       loggedAt: current.loggedAt,
       items: <MealItem>[...current.items, ...items],
       source: source,
+      // El título del análisis **no** pisa al de la comida abierta: acá lo
+      // estimado se suma a algo que ya existe, y el nombre describiría solo la
+      // mitad que trajo la IA.
+      name: current.name,
       editingMealId: current.editingMealId,
       photoPath: photoPath ?? current.photoPath,
       aiAnalysisId: aiAnalysisId ?? current.aiAnalysisId,
@@ -186,6 +241,7 @@ class MealDraftController extends Notifier<MealDraft?> {
         for (var i = 0; i < items.length; i++) items[i].copyWith(position: i),
       ],
       source: source,
+      name: current.name,
       editingMealId: current.editingMealId,
       photoPath: photoPath ?? current.photoPath,
       aiAnalysisId: aiAnalysisId ?? current.aiAnalysisId,
@@ -228,6 +284,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       loggedAt: current.loggedAt,
       items: current.items,
       source: current.source,
+      name: current.name,
       editingMealId: current.editingMealId,
       photoPath: path,
       aiAnalysisId: current.aiAnalysisId,

@@ -10,12 +10,14 @@ import '../../../core/theme/nm_theme.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
+import '../../../domain/calculations/meal_title.dart';
 import '../../../domain/enums/enums.dart';
 import '../../components/feedback/feedback.dart';
 import '../../components/food/food_widgets.dart';
 import '../../components/food/meal_photo.dart';
 import '../../components/food/meal_photo_field.dart';
 import '../../components/system/buttons.dart';
+import '../../components/system/inputs.dart';
 import '../../components/system/nm_screen.dart';
 import '../../components/system/overlays.dart';
 import '../../components/system/surfaces.dart';
@@ -245,6 +247,22 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                           ],
                         ),
                         const SizedBox(height: NmSpace.s6),
+                        // El título, con el resumen automático de placeholder.
+                        //
+                        // Un campo y no una pantalla: dejarlo vacío es lo
+                        // normal y no cuesta nada, porque la comida ya se llama
+                        // como lo que tiene adentro. Está acá para el caso en
+                        // que ese resumen no alcance —"Cumpleaños de Ana"— o
+                        // para corregir el que propuso la IA.
+                        _TitleField(
+                          key: ValueKey<String>(draft.id),
+                          initial: draft.name ?? '',
+                          hint: draft.autoTitle.isEmpty
+                              ? 'Se arma con lo que cargues'
+                              : draft.autoTitle,
+                          onChanged: controller.setName,
+                        ),
+                        const SizedBox(height: NmSpace.s6),
                         const NmSectionHeader(title: 'Ítems'),
                         // El vacío solo cuenta qué se puede hacer; los botones
                         // de abajo lo hacen.
@@ -428,6 +446,50 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
   }
 }
 
+/// El campo del título, con su propio controlador.
+///
+/// Vive aparte porque el borrador se abre después del primer frame: un
+/// controlador creado en el `build` del formulario se reemplazaría en cada
+/// tecla y el cursor volvería al principio. La `key` es el id del borrador, así
+/// que abrir otra comida lo recrea con el nombre de esa.
+class _TitleField extends StatefulWidget {
+  const _TitleField({
+    required this.initial,
+    required this.hint,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String initial;
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_TitleField> createState() => _TitleFieldState();
+}
+
+class _TitleFieldState extends State<_TitleField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => NmTextField(
+    label: 'Título',
+    controller: _controller,
+    hint: widget.hint,
+    maxLength: MealTitle.maxLength,
+    textInputAction: TextInputAction.done,
+    onChanged: widget.onChanged,
+  );
+}
+
 /// Detalle de una comida guardada.
 class MealDetailScreen extends ConsumerWidget {
   const MealDetailScreen({required this.mealId, super.key});
@@ -453,7 +515,10 @@ class MealDetailScreen extends ConsumerWidget {
     }
 
     return NmScreen(
-      title: meal.slot.label,
+      // El título de la comida, no el momento del día: el momento ya está en la
+      // línea de la fecha, dos renglones más abajo, y en una pantalla que
+      // muestra **una** comida el dato que falta es cuál.
+      title: meal.title,
       actions: <Widget>[
         IconButton(
           onPressed: () => context.push(Routes.mealEdit(meal.id)),
@@ -492,7 +557,8 @@ class MealDetailScreen extends ConsumerWidget {
             const SizedBox(height: NmSpace.s4),
           ],
           Text(
-            '${longDay(meal.localDate)} · ${timeOfDay(meal.loggedAt)}',
+            '${meal.slot.label} · ${longDay(meal.localDate)} · '
+            '${timeOfDay(meal.loggedAt)}',
             style: NmTextStyles.from(NmType.caption, color: nm.textMuted).tnum,
           ),
           const SizedBox(height: NmSpace.s6),

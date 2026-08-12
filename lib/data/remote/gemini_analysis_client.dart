@@ -167,9 +167,19 @@ class GeminiAnalysisClient {
     final rawItems = data['items'];
     if (rawItems != null && rawItems is! List) throw _unreadable;
 
+    // El título es opcional a propósito: una función todavía no desplegada, o
+    // una respuesta del modelo sin el campo, no puede tumbar un análisis que
+    // por lo demás está bien. Cuando no viene, la app arma el título con
+    // `MealTitle` a partir de los ítems.
+    final rawTitle = data['title'];
+    final title = rawTitle is String && rawTitle.trim().isNotEmpty
+        ? rawTitle.trim()
+        : null;
+
     return AiAnalysis(
       id: id,
       photoPath: photoPath,
+      title: title,
       status: AiAnalysisStatus.completed,
       model: data['model'] as String? ?? 'gemini',
       promptVersion: data['promptVersion'] as String? ?? 'v3',

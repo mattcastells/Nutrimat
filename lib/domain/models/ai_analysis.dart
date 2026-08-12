@@ -94,6 +94,7 @@ class AiAnalysis {
     required this.items,
     required this.latencyMs,
     required this.createdAt,
+    this.title,
     this.errorCode,
     this.corrections,
   });
@@ -103,6 +104,11 @@ class AiAnalysis {
   /// `null` cuando la estimación salió de una descripción escrita: no hay
   /// imagen que adjuntar ni que mostrar.
   final String? photoPath;
+
+  /// Cómo llamaría al plato quien lo miró: "Milanesa con puré", no el primer
+  /// ingrediente de la lista. Puede venir vacío —modelo viejo, respuesta sin el
+  /// campo— y entonces el título lo arma la app con `MealTitle`.
+  final String? title;
   final AiAnalysisStatus status;
   final String model;
   final String promptVersion;
@@ -126,9 +132,11 @@ class AiAnalysis {
     List<AiAnalysisItem>? items,
     AiCorrections? corrections,
     String? photoPath,
+    String? title,
   }) => AiAnalysis(
     id: id,
     photoPath: photoPath ?? this.photoPath,
+    title: title ?? this.title,
     status: status ?? this.status,
     model: model,
     promptVersion: promptVersion,

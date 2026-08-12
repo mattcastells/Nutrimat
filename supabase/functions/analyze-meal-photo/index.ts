@@ -24,6 +24,7 @@ import {
   ok,
   rateLimitedResponse,
   validate,
+  validateTitle,
 } from '../_shared/estimation.ts';
 import { parseCurrentItems, recalculatedFrom } from '../_shared/recalc.ts';
 
@@ -205,6 +206,9 @@ Deno.serve(async (req) => {
 
   return ok({
     id,
+    // Cómo se llama el plato entero. Puede ser `null` y la app lo resuelve: no
+    // vale la pena tirar una estimación buena por una etiqueta que faltó.
+    title: validateTitle(parsed),
     items,
     overallConfidence: Number(confidenceAvg.toFixed(2)),
     model: GEMINI_MODEL,

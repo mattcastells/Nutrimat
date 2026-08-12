@@ -45,8 +45,9 @@ export function ok(payload: unknown): Response {
  */
 export const RESPONSE_SCHEMA = {
   type: 'OBJECT',
-  required: ['items', 'overallConfidence'],
+  required: ['title', 'items', 'overallConfidence'],
   properties: {
+    title: { type: 'STRING' },
     items: {
       type: 'ARRAY',
       maxItems: 12,
@@ -153,6 +154,27 @@ export function validate(raw: unknown): AnalysisItem[] | null {
   // El array vacío es una respuesta válida — significa "no hay comida" — y por
   // eso se distingue de `null`, que es "la respuesta no se pudo leer".
   return clean;
+}
+
+/** Un título más largo que esto ya no se lee de un vistazo en una lista. */
+const MAX_TITLE = 60;
+
+/**
+ * El nombre del plato entero: "Milanesa con puré", no el primer ingrediente.
+ *
+ * Devuelve `null` si no vino o si no sirve, y eso **no** invalida el análisis:
+ * la app arma el título con los ítems cuando falta. Un modelo que se olvidó de
+ * una etiqueta no puede costar una estimación que por lo demás está bien.
+ */
+export function validateTitle(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const title = (raw as { title?: unknown }).title;
+  if (typeof title !== 'string') return null;
+  // Una línea sola: un modelo que se entusiasma devuelve un párrafo, y eso en
+  // una fila de lista es peor que no tener título.
+  const clean = title.split('\n')[0].trim();
+  if (!clean) return null;
+  return clean.length > MAX_TITLE ? clean.slice(0, MAX_TITLE).trimEnd() : clean;
 }
 
 export interface GeminiOutcome {

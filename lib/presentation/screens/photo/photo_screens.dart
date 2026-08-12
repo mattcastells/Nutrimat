@@ -797,6 +797,9 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
       slot: target?.slot ?? MealSlot.forHour(DateTime.now().hour),
       date: target?.date ?? ref.read(selectedDateProvider),
       source: source,
+      // Cómo llamó el modelo al plato entero ("Milanesa con puré"). Si no vino
+      // ninguno, el borrador arma el título con los ítems y no se guarda nada.
+      name: analysis.title,
       photoPath: photoPath,
       aiAnalysisId: analysis.id,
       items: items,

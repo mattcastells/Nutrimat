@@ -15,6 +15,7 @@ import 'package:nutrimat/data/local/local_store.dart';
 import 'package:nutrimat/data/repositories/local_repository.dart';
 import 'package:nutrimat/domain/enums/enums.dart';
 import 'package:nutrimat/domain/models/meal.dart';
+import 'package:nutrimat/presentation/components/food/food_widgets.dart';
 import 'package:nutrimat/presentation/providers/app_providers.dart';
 import 'package:nutrimat/presentation/screens/meal/meal_draft.dart';
 import 'package:nutrimat/presentation/screens/meal/meal_form_screen.dart';
@@ -163,7 +164,17 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.text('Milanesa'), findsOneWidget);
+    // Una sola fila de ítem. Se busca adentro de `MealItemRow` y no en toda la
+    // pantalla porque el campo del título muestra de placeholder el resumen
+    // que se guardaría —con un solo ítem, su nombre—, y eso es otra cosa: no
+    // es el ítem repetido, es cómo se va a llamar la comida.
+    expect(
+      find.descendant(
+        of: find.byType(MealItemRow),
+        matching: find.text('Milanesa'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Agregar alimento'), findsOneWidget);
     expect(find.text('Sacar foto y analizarla'), findsOneWidget);
     expect(find.text('Describir lo que comiste'), findsOneWidget);

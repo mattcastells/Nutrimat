@@ -20,6 +20,11 @@ Reglas que no se negocian:
   número que parece exacto y no lo es.
 - Los nombres van en español rioplatense, en singular y sin marca, salvo que la
   marca se lea en la foto.
+- \`title\` es cómo se llama **el plato entero**, no el primer ingrediente:
+  "Milanesa con puré", "Ensalada de atún", "Asado con ensalada". Máximo 60
+  caracteres, sin punto final y sin la palabra "comida". Si hay un plato
+  principal claro, el título es ese plato con su guarnición; si son cosas
+  sueltas, nombrá las dos más importantes.
 - No devuelvas texto fuera del JSON.
 - Si en la foto no hay comida, devolvé \`items: []\`.
 `;

@@ -1,0 +1,338 @@
+import 'dart:math' as math;
+
+import '../../core/utils/dates.dart';
+import '../calculations/rounding.dart';
+import '../enums/enums.dart';
+import '../models/body.dart';
+import '../models/goal.dart';
+import '../models/summaries.dart';
+import '../models/user_profile.dart';
+
+/// Un promedio con cuántos días lo sostienen.
+///
+/// Los dos números van juntos siempre. "2.100 kcal por día" sobre dos días
+/// registrados no es un promedio, es una anécdota, y el informe tiene que poder
+/// decir la diferencia en vez de dibujar los dos iguales.
+class ReportAverage {
+  const ReportAverage({required this.value, required this.days});
+
+  const ReportAverage.empty() : value = 0, days = 0;
+
+  final double value;
+
+  /// Sobre cuántos días con registro se calculó.
+  final int days;
+
+  bool get hasData => days > 0;
+}
+
+/// Una fila de la tabla de nutrientes: cuánto se comió en promedio y cuál era
+/// el objetivo.
+class ReportNutrient {
+  const ReportNutrient({
+    required this.label,
+    required this.average,
+    required this.targetPerDay,
+    required this.unit,
+  });
+
+  final String label;
+  final ReportAverage average;
+  final int targetPerDay;
+  final String unit;
+
+  /// Qué porcentaje del objetivo cubre el promedio. `null` sin objetivo.
+  int? get pctOfTarget => targetPerDay <= 0
+      ? null
+      : roundHalfUp(average.value / targetPerDay * 100);
+}
+
+/// Cómo cambió una medida entre el principio y el final del período.
+class ReportDelta {
+  const ReportDelta({
+    required this.first,
+    required this.last,
+    required this.label,
+    required this.unit,
+  });
+
+  final double first;
+  final double last;
+  final String label;
+  final String unit;
+
+  double get delta => double.parse((last - first).toStringAsFixed(1));
+}
+
+/// Todo lo que muestra el informe, ya calculado.
+///
+/// Es un objeto de datos sin nada de PDF ni de Flutter adentro: lo arma
+/// [ReportBuilder] a partir del repositorio y lo dibuja `pdf_report.dart`. La
+/// separación es la de siempre —la aritmética se puede probar sin generar un
+/// archivo— y además deja la puerta abierta a mostrar lo mismo en pantalla.
+class NutritionReport {
+  const NutritionReport({
+    required this.name,
+    required this.from,
+    required this.to,
+    required this.generatedAt,
+    required this.daysWithRecords,
+    required this.goal,
+    required this.calories,
+    required this.exerciseCalories,
+    required this.progress,
+    required this.nutrients,
+    required this.weight,
+    required this.water,
+    required this.sleepMinutes,
+    required this.measurements,
+    required this.dietaryLabels,
+  });
+
+  final String name;
+  final DateTime from;
+  final DateTime to;
+  final DateTime generatedAt;
+
+  /// Días con al menos una comida o una actividad. Es el denominador honesto
+  /// de todo lo demás.
+  final int daysWithRecords;
+
+  final Goal? goal;
+
+  /// Calorías consumidas por día, en promedio.
+  final ReportAverage calories;
+
+  /// Calorías estimadas de ejercicio por día, en promedio.
+  final ReportAverage exerciseCalories;
+
+  final ProgressSummary progress;
+  final List<ReportNutrient> nutrients;
+
+  /// Peso al principio y al final del período. `null` sin registros.
+  final ReportDelta? weight;
+
+  final ReportAverage water;
+  final ReportAverage sleepMinutes;
+
+  /// Las medidas corporales que se movieron en el período.
+  final List<ReportDelta> measurements;
+
+  /// Preferencias y alergias, para que el informe diga bajo qué condiciones se
+  /// comió. Vacío si no hay ninguna.
+  final List<String> dietaryLabels;
+
+  int get totalDays => daysBetween(from, to) + 1;
+
+  /// Qué proporción de los días del período tienen algo registrado. Es lo que
+  /// permite leer el resto con la desconfianza que corresponda.
+  int get coveragePct =>
+      totalDays <= 0 ? 0 : roundHalfUp(daysWithRecords / totalDays * 100);
+
+  bool get hasEnoughData => daysWithRecords >= 3;
+}
+
+/// Arma el informe con lo que ya sabe la app.
+///
+/// No inventa nada ni completa huecos: un día sin registro no cuenta como cero
+/// —eso bajaría todos los promedios y haría parecer que alguien comió menos de
+/// lo que comió—, cuenta como un día que no está. Por eso cada promedio viaja
+/// con su cantidad de días.
+abstract final class ReportBuilder {
+  static NutritionReport build({
+    required UserProfile profile,
+    required Goal? goal,
+    required ProgressSummary progress,
+    required List<DailySummary> days,
+    required int Function(DateTime) glassesOn,
+    required int? Function(DateTime) sleepMinutesOn,
+    required List<BodyMeasurement> Function(MeasurementMetric) measurementsOf,
+    required DateTime generatedAt,
+  }) {
+    final conRegistro = days.where((d) => d.hasRecords).toList();
+
+    final calories = _average(
+      conRegistro.map((d) => d.consumedKcal.toDouble()),
+    );
+    final exercise = _average(
+      conRegistro.map((d) => d.exerciseEstimatedKcal.toDouble()),
+    );
+
+    // Los macros salen de los mismos días que las calorías: mezclarlos con días
+    // sin registro daría un promedio de proteína que no se corresponde con el
+    // de calorías, y las dos filas están una al lado de la otra.
+    final nutrients = <ReportNutrient>[
+      ReportNutrient(
+        label: 'Proteínas',
+        average: _average(conRegistro.map((d) => d.macros.protein.current)),
+        targetPerDay: goal?.proteinG ?? 0,
+        unit: 'g',
+      ),
+      ReportNutrient(
+        label: 'Carbohidratos',
+        average: _average(conRegistro.map((d) => d.macros.carbs.current)),
+        targetPerDay: goal?.carbsG ?? 0,
+        unit: 'g',
+      ),
+      ReportNutrient(
+        label: 'Grasas',
+        average: _average(conRegistro.map((d) => d.macros.fat.current)),
+        targetPerDay: goal?.fatG ?? 0,
+        unit: 'g',
+      ),
+    ];
+
+    // Agua y sueño se promedian sobre los días **que tienen ese dato**, no
+    // sobre los que tienen comida: alguien puede registrar todas sus comidas y
+    // el agua solo los días que se acuerda, y contar los otros como cero diría
+    // que toma la mitad de lo que toma.
+    final vasos = <double>[];
+    final sueno = <double>[];
+    for (final day in days) {
+      final glasses = glassesOn(day.date);
+      if (glasses > 0) vasos.add(glasses.toDouble());
+      final minutes = sleepMinutesOn(day.date);
+      if (minutes != null && minutes > 0) sueno.add(minutes.toDouble());
+    }
+
+    return NutritionReport(
+      name: profile.displayName?.trim().isNotEmpty ?? false
+          ? profile.displayName!.trim()
+          : 'Tu informe',
+      from: progress.from,
+      to: progress.to,
+      generatedAt: generatedAt,
+      daysWithRecords: conRegistro.length,
+      goal: goal,
+      calories: calories,
+      exerciseCalories: exercise,
+      progress: progress,
+      nutrients: nutrients,
+      weight: _weightDelta(progress),
+      water: _average(vasos),
+      sleepMinutes: _average(sueno),
+      measurements: _measurementDeltas(
+        measurementsOf: measurementsOf,
+        from: progress.from,
+        to: progress.to,
+      ),
+      dietaryLabels: <String>[
+        for (final flag in profile.dietaryFlags) flag.label,
+      ],
+    );
+  }
+
+  static ReportAverage _average(Iterable<double> values) {
+    final list = values.toList();
+    if (list.isEmpty) return const ReportAverage.empty();
+    final total = list.fold<double>(0, (acc, v) => acc + v);
+    return ReportAverage(value: total / list.length, days: list.length);
+  }
+
+  static ReportDelta? _weightDelta(ProgressSummary progress) {
+    if (progress.weightPoints.isEmpty) return null;
+    return ReportDelta(
+      first: progress.weightPoints.first.value,
+      last: progress.weightPoints.last.value,
+      label: 'Peso',
+      unit: 'kg',
+    );
+  }
+
+  /// Las medidas con al menos dos registros en el período: con una sola no hay
+  /// nada que comparar, y mostrarla como "sin cambios" sería mentir.
+  static List<ReportDelta> _measurementDeltas({
+    required List<BodyMeasurement> Function(MeasurementMetric) measurementsOf,
+    required DateTime from,
+    required DateTime to,
+  }) {
+    final out = <ReportDelta>[];
+    for (final metric in MeasurementMetric.values) {
+      final inRange =
+          measurementsOf(metric)
+              .where(
+                (m) =>
+                    !m.isDeleted &&
+                    !m.localDate.isBefore(from) &&
+                    !m.localDate.isAfter(to),
+              )
+              .toList()
+            ..sort((a, b) => a.localDate.compareTo(b.localDate));
+      if (inRange.length < 2) continue;
+      out.add(
+        ReportDelta(
+          first: inRange.first.value,
+          last: inRange.last.value,
+          // La etiqueta corta: la unidad ya viaja con cada valor, y con
+          // `longLabel` la fila terminaba diciendo "Cintura (cm) · 78,0 cm".
+          // Dos métricas homónimas en distinta unidad se distinguen igual,
+          // porque la unidad está en los números.
+          label: metric.label,
+          unit: metric.unitLabel,
+        ),
+      );
+    }
+    // Las que más se movieron primero: son las que alguien mira.
+    out.sort((a, b) => b.delta.abs().compareTo(a.delta.abs()));
+    return out.take(6).toList();
+  }
+
+  /// Una frase que resume el período, o `null` si no hay con qué.
+  ///
+  /// Una sola, y de las que se pueden sostener con los números de arriba. El
+  /// informe no es el lugar para consejos: es el lugar para decir qué pasó.
+  static String? headline(NutritionReport report) {
+    if (!report.hasEnoughData) return null;
+
+    final weight = report.weight;
+    final trend = report.progress.trendKgPerWeek;
+    if (weight != null && trend != null && trend.abs() >= 0.05) {
+      final direccion = trend < 0 ? 'bajando' : 'subiendo';
+      final ritmo = trend.abs().toStringAsFixed(2).replaceAll('.', ',');
+      return 'En estos ${report.totalDays} días venís $direccion a un ritmo '
+          'de $ritmo kg por semana.';
+    }
+    if (weight != null && weight.delta.abs() < 0.5) {
+      return 'En estos ${report.totalDays} días tu peso se mantuvo: '
+          '${_kg(weight.first)} a ${_kg(weight.last)}.';
+    }
+    if (report.calories.hasData) {
+      return 'Registraste ${report.daysWithRecords} de los '
+          '${report.totalDays} días, con un promedio de '
+          '${roundHalfUp(report.calories.value)} kcal por día.';
+    }
+    return null;
+  }
+
+  static String _kg(double value) =>
+      '${value.toStringAsFixed(1).replaceAll('.', ',')} kg';
+
+  /// El día de mayor y el de menor consumo, para poner los extremos al lado del
+  /// promedio. `null` con menos de dos días registrados.
+  static (CaloriesDay, CaloriesDay)? calorieExtremes(NutritionReport report) {
+    final conDatos =
+        report.progress.calorieDays.where((d) => d.consumed > 0).toList();
+    if (conDatos.length < 2) return null;
+    var min = conDatos.first;
+    var max = conDatos.first;
+    for (final day in conDatos) {
+      if (day.consumed < min.consumed) min = day;
+      if (day.consumed > max.consumed) max = day;
+    }
+    return (min, max);
+  }
+
+  /// Cuántos días del período estuvieron dentro del objetivo, con margen.
+  ///
+  /// El margen es el mismo que usa la adherencia del resto de la app: no se
+  /// trata de acertar el número exacto, se trata de estar cerca.
+  static int daysWithinTarget(NutritionReport report, {double tolerance = 0.1}) {
+    var count = 0;
+    for (final day in report.progress.calorieDays) {
+      if (day.consumed <= 0 || day.target <= 0) continue;
+      final margen = day.target * tolerance;
+      if ((day.consumed - day.target).abs() <= math.max(margen, 50)) count++;
+    }
+    return count;
+  }
+}

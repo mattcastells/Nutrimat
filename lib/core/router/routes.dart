@@ -68,6 +68,9 @@ abstract final class Routes {
   static String palDay(String userId) => '/pals/$userId';
   static const String palSharing = '/pals/sharing';
 
+  /// El informe del período en PDF, para tener afuera de la app.
+  static const String report = '/settings/report';
+
   static const String cloudBackup = '/settings/cloud-backup';
   static const String water = '/settings/water';
   static const String updates = '/settings/updates';

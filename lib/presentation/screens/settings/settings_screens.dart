@@ -88,6 +88,13 @@ class SettingsScreen extends ConsumerWidget {
                 if (repo.isPlatformSupported)
                   const NmDivider(indent: NmSpace.s6),
                 NmListRow(
+                  title: 'Tu informe',
+                  subtitle: 'Un PDF con tus promedios y tu evolución',
+                  leading: Icon(PhosphorIcons.filePdf()),
+                  onTap: () => context.push(Routes.report),
+                ),
+                const NmDivider(indent: NmSpace.s6),
+                NmListRow(
                   title: 'Privacidad y datos',
                   leading: Icon(PhosphorIcons.shieldCheck()),
                   onTap: () => context.push(Routes.privacy),

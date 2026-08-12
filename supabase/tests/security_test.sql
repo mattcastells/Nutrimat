@@ -9,7 +9,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(10);
+select plan(11);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -51,6 +51,18 @@ select throws_ok(
   '42501',
   null,
   'Ninguna cuenta puede purgar la auditoría a mano'
+);
+
+-- La quinta llegó después que esta lista y nació abierta: una función nueva
+-- trae `execute` para `public`, y la migración 23 revoca **una por una**, así
+-- que no heredó nada. Estuvo un rato en producción pudiendo borrarle los días
+-- compartidos a cualquiera desde cualquier sesión. Que esté acá es lo que hace
+-- que la próxima que se agregue no repita el olvido.
+select throws_ok(
+  $$select public.purge_shared_days()$$,
+  '42501',
+  null,
+  'Ninguna cuenta puede purgar los días compartidos a mano'
 );
 
 -- ── `rate_limits` no se lee ni se escribe directo ────────────────────────

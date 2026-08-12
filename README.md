@@ -7,13 +7,16 @@ and to never present an estimate as if it were a measurement.
 ## What it does
 
 - **Meals** — search a catalog (Argentine foods, USDA, Open Food Facts by
-  barcode), describe what you ate in plain text, or take a photo. AI estimates
-  the items; you always review and confirm before anything is saved.
+  barcode), describe what you ate in plain text or out loud, or take a photo. AI
+  estimates the items; you always review and confirm before anything is saved.
+  Dietary preferences, allergies and conditions are part of the profile and
+  constrain what the app is allowed to suggest you eat.
 - **Activity** — MET-based calorie estimation with an adjustable exercise
   credit, plus manual entry for anything else.
 - **Weight, body measurements, water, and sleep** — logged per day, editable
   and deletable at any time, for any date.
-- **Progress** — trends over time, plus a full day-by-day history.
+- **Progress** — trends over time, plus a full day-by-day history, and a PDF
+  report of any period you can keep or hand to a professional.
 - **Pals** — share your day with people you choose. Meals and whether you
   moved are always visible to an accepted pal; photos, water, sleep, and
   exercise detail are each off by default and only shared if you turn them on.

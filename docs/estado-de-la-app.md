@@ -74,9 +74,36 @@ alimento, escanear, cámara, analizando, revisar análisis, registro de
 actividad (5 modos), buscar actividad, detalle de actividad, diálogo de
 duplicado, peso, medidas, historial con filtros, detalle del día, progreso,
 peso y calorías ampliados, progreso de actividad, objetivos, medidas, perfil,
-perfil corporal, objetivo y macros, mis cosas, configuración, crédito de
-ejercicio, unidades, apariencia, notificaciones, integraciones, privacidad,
-eliminar cuenta y acerca de.
+perfil corporal, preferencias y alergias, objetivo y macros, mis cosas,
+configuración, crédito de ejercicio, unidades, apariencia, notificaciones,
+integraciones, tu informe, privacidad, eliminar cuenta y acerca de.
+
+**Cómo se llama una comida.** El título es un resumen de lo que tiene adentro
+—"Milanesa y puré de papa", "Milanesa, puré y 2 más"— y no el nombre del primer
+ítem que se haya cargado, que era lo que hacía que dos comidas distintas se
+llamaran igual. Cuando la estimación viene de la IA, el título lo propone el
+modelo con el resto del análisis (`title` en el contrato de salida); si no
+viene, lo arma `MealTitle` a partir de los ítems, al leer, así que agregar un
+alimento actualiza el nombre. Escribir uno propio en el formulario lo congela.
+
+**Dictado.** El campo "Qué comiste" —y el de aclarar una foto— tienen un
+micrófono adentro. Lo transcribe el reconocedor de Android
+(`DictationGateway`): el audio no se guarda ni sale del teléfono, y de la frase
+en adelante el camino es idéntico al de escribirla. Sin motor de
+reconocimiento o sin permiso, el botón no aparece.
+
+**Preferencias, alergias y condiciones.** Ocho etiquetas y una nota libre, en
+el alta y en Perfil. No entran en ninguna fórmula: condicionan **qué puede
+proponer "¿Qué como?"**. La Edge Function las mete en el prompt y además
+descarta las opciones que las violan (`restrictions.ts`), con la misma regla
+que ya se aplicaba al presupuesto: lo que importa no se le delega al modelo.
+
+**El informe en PDF.** Configuración → Tu informe arma un PDF del período
+elegido con los promedios, los gráficos de peso y de calorías, los nutrientes
+contra su objetivo, la actividad, el agua, el sueño y las medidas. Se dibuja
+con los tokens de la app y con Inter embebida, en el tema que la persona tenga
+puesto. Sale de lo que ya está en el teléfono: no consulta al servidor ni a un
+modelo, y cada promedio dice sobre cuántos días se calculó.
 
 **Decisiones que se ven en pantalla.**
 

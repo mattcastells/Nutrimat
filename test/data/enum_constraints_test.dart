@@ -111,7 +111,20 @@ Map<String, Set<String>> _leerRestricciones() {
   final dir = Directory('supabase/migrations');
   final encontradas = <String, Set<String>>{};
 
-  for (final file in dir.listSync().whereType<File>()) {
+  // **Ordenadas por nombre**, que en este esquema es el orden en que se
+  // aplican. `listSync()` devuelve lo que le da el sistema de archivos: NTFS
+  // lo entrega alfabético y en Windows esto pasaba siempre, pero ext4 usa un
+  // hash del directorio y el orden es arbitrario. Como el hash depende de los
+  // nombres, **cada migración nueva vuelve a sortear**, y ahí el test se
+  // volvía verde o rojo sin que nadie tocara una restricción: bastaba con
+  // agregar un archivo. Cinco de estas restricciones las redefine una
+  // migración posterior agregando valores —`goals_type` suma `gain_muscle`,
+  // `goals_method` suma `ai`, `meals_source` suma `ai_text`—, así que leer la
+  // vieja al final deja al test creyendo que la base rechaza algo que acepta.
+  final archivos = dir.listSync().whereType<File>().toList()
+    ..sort((a, b) => a.path.compareTo(b.path));
+
+  for (final file in archivos) {
     if (!file.path.endsWith('.sql')) continue;
 
     // Los comentarios `--` se sacan **antes** de juntar las líneas. Al revés,

@@ -71,38 +71,15 @@ class _AddToSlotSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Lo que se repite, arriba de todo: el desayuno es casi siempre el
-          // mismo y volver a armarlo ítem por ítem es la fricción más grande
-          // de registrar todos los días.
-          if (frequent.isNotEmpty) ...<Widget>[
-            const Padding(
-              padding: EdgeInsets.only(
-                left: NmSpace.s3,
-                bottom: NmSpace.s2,
-              ),
-              child: NmSectionHeader(title: 'De lo que repetís'),
-            ),
-            for (final meal in frequent)
-              ActionRow(
-                icon: meal.isFavorite
-                    ? PhosphorIcons.star(PhosphorIconsStyle.fill)
-                    : PhosphorIcons.arrowCounterClockwise(),
-                label: meal.title,
-                subtitle:
-                    '${Fmt.kcal(meal.totalKcal)} · '
-                    '${meal.items.length} '
-                    '${meal.items.length == 1 ? 'ítem' : 'ítems'}',
-                onTap: () => repeat(meal),
-              ),
-            const Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: NmSpace.s3,
-                vertical: NmSpace.s2,
-              ),
-              child: NmDivider(),
-            ),
-          ],
-
+          // Las tres puertas fijas primero, y después lo que se repite.
+          //
+          // Estaba al revés, con el argumento de que repetir el desayuno es lo
+          // más frecuente. Pero la lista de repetidos mide entre cero y cinco
+          // filas según el día y según el slot, así que empujaba a las tres
+          // fijas una cantidad distinta cada vez: "Sacar foto" nunca caía dos
+          // veces en el mismo lugar. Lo que siempre está tiene que estar
+          // siempre en el mismo lado; lo que varía va abajo, donde variar no
+          // le mueve el piso a nadie.
           ActionRow(
             icon: PhosphorIcons.forkKnife(),
             label: 'Buscar alimentos',
@@ -143,13 +120,43 @@ class _AddToSlotSheet extends ConsumerWidget {
             },
           ),
 
-          if (frequent.isEmpty) ...<Widget>[
+          if (frequent.isNotEmpty) ...<Widget>[
+            const Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: NmSpace.s3,
+                vertical: NmSpace.s2,
+              ),
+              child: NmDivider(),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(
+                left: NmSpace.s3,
+                bottom: NmSpace.s2,
+              ),
+              child: NmSectionHeader(title: 'De lo que repetís'),
+            ),
+            for (final meal in frequent)
+              ActionRow(
+                icon: meal.isFavorite
+                    ? PhosphorIcons.star(PhosphorIconsStyle.fill)
+                    : PhosphorIcons.arrowCounterClockwise(),
+                label: meal.title,
+                subtitle:
+                    '${Fmt.kcal(meal.totalKcal)} · '
+                    '${meal.items.length} '
+                    '${meal.items.length == 1 ? 'ítem' : 'ítems'}',
+                onTap: () => repeat(meal),
+              ),
+          ] else ...<Widget>[
             const SizedBox(height: NmSpace.s3),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: NmSpace.s3),
               child: Text(
-                'Cuando repitas una comida va a aparecer acá arriba para '
-                'cargarla de una. También podés marcarla con la estrella.',
+                // Decía "acá arriba" y la lista se mudó abajo. El cartel
+                // ocupa exactamente el lugar donde van a aparecer, así que
+                // ahora alcanza con "acá".
+                'Cuando repitas una comida va a aparecer acá para cargarla '
+                'de una. También podés marcarla con la estrella.',
                 style: NmTextStyles.from(NmType.caption, color: nm.textMuted),
               ),
             ),

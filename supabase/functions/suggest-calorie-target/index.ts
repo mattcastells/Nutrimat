@@ -34,6 +34,7 @@ import {
   callGemini,
   fail,
   ok,
+  overloadedResponse,
   rateLimitedResponse,
 } from '../_shared/estimation.ts';
 
@@ -268,13 +269,17 @@ Deno.serve(async (req) => {
     `Objetivo que da la fórmula: ${stats.formulaTarget} kcal.`,
   ].join(' ');
 
-  const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
-    geminiKey,
-    [{ text: `${PROMPT_TARGET_V1}\n\n${contexto}` }],
-    TARGET_SCHEMA,
-  );
+  const { parsed, lastError, rateLimited, overloaded, retryAfterSeconds, latencyMs } =
+    await callGemini(
+      geminiKey,
+      [{ text: `${PROMPT_TARGET_V1}\n\n${contexto}` }],
+      TARGET_SCHEMA,
+    );
 
-  if (parsed === null && rateLimited) return rateLimitedResponse();
+  if (parsed === null && rateLimited) {
+    return rateLimitedResponse(retryAfterSeconds);
+  }
+  if (parsed === null && overloaded) return overloadedResponse();
 
   const proposal = validateProposal(parsed, tdeeKcal, stats.sex);
   if (proposal === null) {

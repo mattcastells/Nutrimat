@@ -48,17 +48,13 @@ enum AnalysisStage {
 /// —ese último fue un reintento, porque un JSON inválido dispara una segunda
 /// llamada al modelo y duplica el tiempo—.
 ///
-/// Importa porque el aviso de "está tardando más de lo normal" estaba en 15 s,
-/// y a los 15 s **todavía es normal**: la mitad de los análisis buenos siguen
-/// corriendo. Un aviso que salta durante el funcionamiento correcto enseña a
-/// ignorarlo.
+/// Queda una sola constante y es a propósito. Hubo dos más, `slow` y
+/// `tooLong`, que existían para decidir cuándo avisar que se demoraba; ese
+/// aviso se fue entero. Marcar el umbral obliga a elegir a partir de qué
+/// segundo una espera normal pasa a ser un problema, y no hay tal segundo:
+/// cuánto tarda el modelo no lo decide Nutrimat, así que anunciarlo solo pone
+/// a mirar el reloj. La mediana sí se usa, pero para dibujar la barra.
 abstract final class AnalysisTiming {
   /// Mediana medida de la llamada al modelo.
   static const Duration typical = Duration(milliseconds: 12300);
-
-  /// Percentil 90 medido. Recién acá tiene sentido decir que se demora.
-  static const Duration slow = Duration(milliseconds: 24900);
-
-  /// A partir de acá sí es raro: por encima del máximo observado.
-  static const Duration tooLong = Duration(seconds: 38);
 }

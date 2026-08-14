@@ -151,10 +151,19 @@ Es la única espera larga del producto (2–25 s) y necesita tratamiento propio:
    bucle (sugiere lectura de la imagen, no progreso falso).
 2. Debajo, tres filas skeleton con el shimmer estándar — la forma exacta de los ítems que
    van a aparecer.
-3. Texto de fase, con crossfade de `fast` entre frases: "Buscando alimentos…" (0 s) →
-   "Estimando porciones…" (2,5 s) → "Casi listo" (6 s). Si a los 15 s no hubo respuesta:
-   "Está tardando más de lo normal" + el botón de cancelar toma prominencia.
+3. Texto de fase, con crossfade de `fast` entre frases y un cambio cada 3,2 s. Primero
+   las cinco que describen el trabajo real ("Buscando alimentos en la foto…" →
+   "Reconociendo las preparaciones…" → …), que cubren la espera típica; después, **un
+   pozo de frases livianas que rota sin fin** mientras no llegue la respuesta.
+   **Ninguna frase habla del reloj.** Nada de "Terminando", nada de "Está tardando más
+   de lo normal": los dos prometían algo sobre un tiempo que no controlamos —"Terminando"
+   a los 14 s era falso la mitad de las veces— y el aviso de demora convertía una espera
+   normal en un problema que la persona no puede resolver. La señal de que el análisis
+   sigue vivo es que la frase cambia, no que anuncie el final.
 4. **Prohibido** mostrar una barra de progreso determinada: no conocemos el progreso real.
+   Lo que sí se muestra es una barra que avanza por pasos reales (preparar · subir ·
+   analizar) y que dentro del último **estima contra la mediana medida y se frena en
+   92 %**, con el "≈" delante del porcentaje. El 100 % solo llega con la respuesta.
 5. Al llegar la respuesta: los skeletons hacen crossfade a los ítems reales con stagger de
    40 ms.
 

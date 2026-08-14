@@ -35,6 +35,7 @@ import {
   callGemini,
   fail,
   ok,
+  overloadedResponse,
   rateLimitedResponse,
 } from '../_shared/estimation.ts';
 
@@ -361,13 +362,17 @@ Deno.serve(async (req) => {
 
   const restringido = restrictionsPrompt(restrictions, restrictionsNote);
 
-  const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
-    geminiKey,
-    [{ text: `${PROMPT_SUGGEST_V1}${restringido}\n\n${contexto}` }],
-    SUGGEST_SCHEMA,
-  );
+  const { parsed, lastError, rateLimited, overloaded, retryAfterSeconds, latencyMs } =
+    await callGemini(
+      geminiKey,
+      [{ text: `${PROMPT_SUGGEST_V1}${restringido}\n\n${contexto}` }],
+      SUGGEST_SCHEMA,
+    );
 
-  if (parsed === null && rateLimited) return rateLimitedResponse();
+  if (parsed === null && rateLimited) {
+    return rateLimitedResponse(retryAfterSeconds);
+  }
+  if (parsed === null && overloaded) return overloadedResponse();
 
   const options = validateSuggestions(parsed, budget, restrictions);
   if (options === null) {

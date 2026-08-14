@@ -22,6 +22,7 @@ import {
   callGemini,
   fail,
   ok,
+  overloadedResponse,
   rateLimitedResponse,
   validate,
   validateTitle,
@@ -126,18 +127,30 @@ Deno.serve(async (req) => {
   // ("le falta el pan", "la milanesa pesaba 200 g"): ahí manda el bloque de
   // recálculo, que pide devolver la comida entera ya corregida en vez de una
   // lectura nueva de la foto. Sin ellos, todo sigue igual que antes.
-  const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
-    geminiKey,
-    [
-      { text: PROMPT_V3 },
-      { inlineData: { mimeType: 'image/jpeg', data: base64 } },
-      ...(currentItems.length > 0
-        ? [{ text: recalculatedFrom(currentItems, description, { withPhoto: true }) }]
-        : description
-        ? [{ text: describedBy(description) }]
-        : []),
-    ],
-  );
+  const {
+    parsed,
+    lastError,
+    rateLimited,
+    overloaded,
+    retryAfterSeconds,
+    diagnostics,
+    latencyMs,
+  } = await callGemini(
+      geminiKey,
+      [
+        { text: PROMPT_V3 },
+        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+        ...(currentItems.length > 0
+          ? [{
+            text: recalculatedFrom(currentItems, description, {
+              withPhoto: true,
+            }),
+          }]
+          : description
+          ? [{ text: describedBy(description) }]
+          : []),
+      ],
+    );
 
   const registrar = async (errorCode: string) => {
     const { error } = await supabase.from('ai_analyses').insert({
@@ -150,15 +163,26 @@ Deno.serve(async (req) => {
       prompt_version: PROMPT_VERSION,
       error_code: errorCode,
       latency_ms: latencyMs,
+      // Migración 39: la fila del fallo es justo la que necesita explicarse.
+      finish_reason: diagnostics.finishReason,
+      tokens_in: diagnostics.tokensIn,
+      tokens_out: diagnostics.tokensOut,
+      tokens_thinking: diagnostics.tokensThinking,
     });
     if (error) console.error('ai_analyses insert falló:', error.message);
   };
 
-  // El límite del proveedor tiene su propio código y su propio texto: no es un
+  // Los dos límites del proveedor tienen código y texto propios: no son un
   // problema de la foto ni del prompt, y la app no debería sugerir sacar otra.
+  // Van separados porque la salida es distinta — contra la cuota hay que
+  // esperar, contra la saturación alcanza con insistir en unos segundos.
   if (parsed === null && rateLimited) {
     await registrar('ERR_AI_RATE_LIMITED');
-    return rateLimitedResponse();
+    return rateLimitedResponse(retryAfterSeconds);
+  }
+  if (parsed === null && overloaded) {
+    await registrar('ERR_AI_OVERLOADED');
+    return overloadedResponse();
   }
 
   const items = validate(parsed);
@@ -199,6 +223,14 @@ Deno.serve(async (req) => {
     raw_response: parsed,
     confidence_avg: Number(confidenceAvg.toFixed(2)),
     latency_ms: latencyMs,
+    // También en las que salen bien: es acá donde se ve si el modelo viene
+    // razonando de fábrica, que explicaría a la vez la demora y la mitad cara
+    // de la factura. Guardarlo solo en los fallos dejaría afuera el caso
+    // normal, que es el que se paga todos los días.
+    finish_reason: diagnostics.finishReason,
+    tokens_in: diagnostics.tokensIn,
+    tokens_out: diagnostics.tokensOut,
+    tokens_thinking: diagnostics.tokensThinking,
   });
   if (insertError) {
     console.error('ai_analyses insert falló:', insertError.message);

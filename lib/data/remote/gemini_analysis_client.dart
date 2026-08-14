@@ -231,11 +231,20 @@ class GeminiAnalysisClient {
     final details = error.details;
     String? code;
     String? message;
+    Duration? retryAfter;
 
     if (details is Map && details['error'] is Map) {
       final inner = details['error'] as Map;
       code = inner['code'] as String?;
       message = inner['message'] as String?;
+      // Solo viene con el 429 del proveedor, y solo cuando él mismo dice
+      // cuánto falta. Se lee como entrada —número, texto o nada— porque la
+      // forma la decide el servidor.
+      final raw = inner['retryAfter'];
+      final seconds = raw is num ? raw.toInt() : int.tryParse('$raw');
+      if (seconds != null && seconds > 0) {
+        retryAfter = Duration(seconds: seconds);
+      }
     }
 
     final apiCode = ApiErrorCode.values.firstWhere(
@@ -248,6 +257,7 @@ class GeminiAnalysisClient {
       message:
           message ??
           'El análisis falló. Cargá la comida a mano; la foto queda adjunta.',
+      retryAfter: retryAfter,
     );
   }
 }

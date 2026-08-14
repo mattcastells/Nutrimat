@@ -19,6 +19,7 @@ import {
   callGemini,
   fail,
   ok,
+  overloadedResponse,
   rateLimitedResponse,
   validate,
   validateTitle,
@@ -102,16 +103,24 @@ Deno.serve(async (req) => {
   }
 
   // ── Gemini ─────────────────────────────────────────────────────────────
-  const { parsed, lastError, rateLimited, latencyMs } = await callGemini(
-    geminiKey,
-    [{
-      text: currentItems.length > 0
-        ? `${PROMPT_TEXT_V1}\n${recalculatedFrom(currentItems, description, {
-          withPhoto: false,
-        })}`
-        : `${PROMPT_TEXT_V1}\n\nDescripción: ${description}`,
-    }],
-  );
+  const {
+    parsed,
+    lastError,
+    rateLimited,
+    overloaded,
+    retryAfterSeconds,
+    diagnostics,
+    latencyMs,
+  } = await callGemini(
+      geminiKey,
+      [{
+        text: currentItems.length > 0
+          ? `${PROMPT_TEXT_V1}\n${recalculatedFrom(currentItems, description, {
+            withPhoto: false,
+          })}`
+          : `${PROMPT_TEXT_V1}\n\nDescripción: ${description}`,
+      }],
+    );
 
   // `insert` no lanza: devuelve `{ error }`. Ignorarlo fue cómo esta función
   // pasó meses sin registrar una sola fila —`photo_path` era `not null` y una
@@ -128,13 +137,22 @@ Deno.serve(async (req) => {
       prompt_version: PROMPT_VERSION,
       error_code: errorCode,
       latency_ms: latencyMs,
+      // Migración 39: lo que el proveedor contó de esta corrida.
+      finish_reason: diagnostics.finishReason,
+      tokens_in: diagnostics.tokensIn,
+      tokens_out: diagnostics.tokensOut,
+      tokens_thinking: diagnostics.tokensThinking,
     });
     if (error) console.error('ai_analyses insert falló:', error.message);
   };
 
   if (parsed === null && rateLimited) {
     await registrar('failed', 'ERR_AI_RATE_LIMITED');
-    return rateLimitedResponse();
+    return rateLimitedResponse(retryAfterSeconds);
+  }
+  if (parsed === null && overloaded) {
+    await registrar('failed', 'ERR_AI_OVERLOADED');
+    return overloadedResponse();
   }
 
   const items = validate(parsed);
@@ -173,6 +191,10 @@ Deno.serve(async (req) => {
     raw_response: parsed,
     confidence_avg: Number(confidenceAvg.toFixed(2)),
     latency_ms: latencyMs,
+    finish_reason: diagnostics.finishReason,
+    tokens_in: diagnostics.tokensIn,
+    tokens_out: diagnostics.tokensOut,
+    tokens_thinking: diagnostics.tokensThinking,
   });
   if (insertError) {
     // La estimación es buena y se devuelve igual: no se le va a negar a nadie

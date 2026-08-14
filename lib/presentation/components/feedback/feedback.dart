@@ -90,6 +90,7 @@ class ErrorState extends StatelessWidget {
     this.code,
     this.onRetry,
     this.retryLabel = 'Reintentar',
+    this.retryEnabled = true,
     super.key,
   });
 
@@ -97,6 +98,15 @@ class ErrorState extends StatelessWidget {
   final String? code;
   final VoidCallback? onRetry;
   final String retryLabel;
+
+  /// Con `false` el botón se ve pero no se puede tocar.
+  ///
+  /// Es distinto de no pasar `onRetry`: ahí no hay botón y la salida
+  /// desaparece de la pantalla. Cuando reintentar va a fallar seguro —el
+  /// proveedor dijo cuántos segundos faltan— lo que corresponde es que el
+  /// botón siga a la vista, apagado y contando, y no que aparezca y
+  /// desaparezca solo.
+  final bool retryEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +135,10 @@ class ErrorState extends StatelessWidget {
           ],
           if (onRetry != null) ...<Widget>[
             const SizedBox(height: NmSpace.s6),
-            NmButton(label: retryLabel, onPressed: onRetry),
+            NmButton(
+              label: retryLabel,
+              onPressed: retryEnabled ? onRetry : null,
+            ),
           ],
         ],
       ),

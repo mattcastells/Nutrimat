@@ -23,9 +23,17 @@ export const CORS = {
   'Access-Control-Allow-Headers': 'authorization, content-type',
 };
 
-export function fail(code: string, message: string, status = 400): Response {
+export function fail(
+  code: string,
+  message: string,
+  status = 400,
+  // Lo que la app necesita además del texto. Hoy lo usa el 429 para decir
+  // cuántos segundos faltan, que es lo único que permite apagar el botón de
+  // reintentar en vez de dejar que se lo martille.
+  extra: Record<string, unknown> = {},
+): Response {
   return new Response(
-    JSON.stringify({ error: { code, message } }),
+    JSON.stringify({ error: { code, message, ...extra } }),
     { status, headers: { ...CORS, 'Content-Type': 'application/json' } },
   );
 }
@@ -177,11 +185,66 @@ export function validateTitle(raw: unknown): string | null {
   return clean.length > MAX_TITLE ? clean.slice(0, MAX_TITLE).trimEnd() : clean;
 }
 
+/**
+ * Lo que el proveedor cuenta de la corrida, para guardarlo en `ai_analyses`.
+ *
+ * Todo esto venía en cada respuesta y se descartaba. Son las columnas que
+ * agregó la migración 39: sin ellas, "el modelo devolvió cualquier cosa" es
+ * todo lo que se puede decir de una falla, y con ellas se sabe **cuál** de las
+ * cinco maneras de fallar fue.
+ */
+export interface GeminiDiagnostics {
+  /** `STOP` si terminó de decir lo suyo; `MAX_TOKENS` si lo cortaron, etc. */
+  finishReason: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  /** De los de salida, los que se fueron en razonar. Se facturan igual. */
+  tokensThinking: number | null;
+}
+
 export interface GeminiOutcome {
   parsed: unknown;
   lastError: string;
+  /** 429: la cuota del proyecto se agotó. */
   rateLimited: boolean;
+  /** 503: el modelo está saturado. Se parece al 429 y no es lo mismo. */
+  overloaded: boolean;
+  /** Lo que el proveedor pide esperar, cuando lo dice. `null` si no lo dijo. */
+  retryAfterSeconds: number | null;
+  diagnostics: GeminiDiagnostics;
   latencyMs: number;
+}
+
+/**
+ * Motivos de corte que **no cambian por reintentar**.
+ *
+ * Un JSON truncado a la mitad no se arregla pidiéndolo de nuevo: la respuesta
+ * se va a cortar en el mismo lugar, porque el segundo intento va a
+ * `temperature: 0` y es determinista. Un filtro de contenido, lo mismo. Antes
+ * insistíamos igual y cada respuesta ilegible costaba dos pedidos de la cuota
+ * — el 13 de agosto fueron 8 de 20 gastados así.
+ */
+const TERMINAL_FINISH = new Set<string>([
+  'MAX_TOKENS',
+  'SAFETY',
+  'RECITATION',
+  'BLOCKLIST',
+  'PROHIBITED_CONTENT',
+  'SPII',
+]);
+
+/**
+ * Cuánto pide esperar Google, si lo dice.
+ *
+ * El cuerpo de un 429 trae `error.details[]` con un `RetryInfo` y un
+ * `retryDelay` tipo `"26s"`. Es el único dato honesto que existe sobre cuándo
+ * vale la pena volver: sin él, "esperá un minuto" es una adivinanza.
+ */
+function parseRetryDelay(body: string): number | null {
+  const match = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(body);
+  if (!match) return null;
+  const seconds = Math.ceil(Number(match[1]));
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 /**
@@ -189,10 +252,18 @@ export interface GeminiOutcome {
  *
  * Reintenta una vez: si el JSON vino inválido, el segundo intento va con
  * `temperature: 0` y es determinista, así que insistir más no aportaría nada.
- * Un 429 (pasaste el límite del plan) o un 503 (modelo saturado) se reintentan
- * con una espera corta, porque el límite por minuto se libera solo — y se
- * marcan aparte, porque no son "la comida está mal descripta" y decirlo así
- * manda a corregir el lugar equivocado.
+ *
+ * **Un 429 no se reintenta.** Antes sí: esperaba 2 s y mandaba la llamada de
+ * nuevo. Las dos mitades de esa idea estaban mal. La ventana del proveedor es
+ * por minuto o por día, así que 2 s no libera nada y el segundo intento
+ * rebota igual; y como la cuota es **del proyecto entero** —una sola clave
+ * para toda la app— ese intento perdido no lo paga quien lo disparó, lo paga
+ * la próxima persona que saque una foto. O sea: cuando ya estamos al límite,
+ * el reintento nos hacía consumir el doble. Un 503 sí se reintenta, porque es
+ * el modelo saturado un momento y no la cuota.
+ *
+ * Los dos se marcan aparte del resto: no son "la comida está mal descripta", y
+ * decirlo así manda a corregir el lugar equivocado.
  */
 export async function callGemini(
   apiKey: string,
@@ -206,6 +277,14 @@ export async function callGemini(
   let parsed: unknown = null;
   let lastError = '';
   let rateLimited = false;
+  let overloaded = false;
+  let retryAfterSeconds: number | null = null;
+  const diagnostics: GeminiDiagnostics = {
+    finishReason: null,
+    tokensIn: null,
+    tokensOut: null,
+    tokensThinking: null,
+  };
 
   for (const temperature of [0.2, 0]) {
     try {
@@ -238,40 +317,146 @@ export async function callGemini(
         // clave o la URL y no hay forma de distinguirlos.
         const detail = await response.text().catch(() => '');
         lastError = `Gemini ${response.status}: ${detail.slice(0, 300)}`;
-        if (response.status === 429 || response.status === 503) {
+        if (response.status === 429) {
+          // Cuota agotada. Insistir acá es gastar el cupo de otro: se corta.
           rateLimited = true;
+          retryAfterSeconds = parseRetryDelay(detail);
+          break;
+        }
+        if (response.status === 503) {
+          // Saturación pasajera, no cuota. Esta sí se reintenta, y por eso se
+          // marca aparte: mezclarlas hizo que un problema de dos segundos se
+          // leyera como el límite del plan.
+          overloaded = true;
           await new Promise((r) => setTimeout(r, 2000));
         }
         continue;
       }
       rateLimited = false;
+      overloaded = false;
+      retryAfterSeconds = null;
 
       const payload = await response.json();
+      readDiagnostics(payload, diagnostics);
+
       const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
-        lastError = 'Gemini no devolvió contenido';
+        lastError = `Gemini no devolvió contenido (corte: ${
+          diagnostics.finishReason ?? 'sin motivo'
+        })`;
+        if (isTerminal(diagnostics.finishReason)) break;
         continue;
       }
 
-      parsed = JSON.parse(text);
-      break;
+      try {
+        parsed = JSON.parse(text);
+        break;
+      } catch (error) {
+        // El `try` propio es lo que hace útil al de arriba: un JSON cortado
+        // caía en el `catch` general, que no distingue "el modelo devolvió
+        // basura" de "se cayó la red" y reintentaba en los dos casos.
+        parsed = null;
+        lastError = `JSON inválido (corte: ${
+          diagnostics.finishReason ?? 'sin motivo'
+        }): ${error instanceof Error ? error.message : String(error)}`;
+        if (isTerminal(diagnostics.finishReason)) break;
+        continue;
+      }
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
   }
 
-  return { parsed, lastError, rateLimited, latencyMs: Date.now() - startedAt };
+  return {
+    parsed,
+    lastError,
+    rateLimited,
+    overloaded,
+    retryAfterSeconds,
+    diagnostics,
+    latencyMs: Date.now() - startedAt,
+  };
 }
 
-/** El 429 del proveedor, con su propio código y su propio texto. */
-export function rateLimitedResponse(): Response {
+function isTerminal(finishReason: string | null): boolean {
+  return finishReason !== null && TERMINAL_FINISH.has(finishReason);
+}
+
+/**
+ * Lee el motivo del corte y el consumo de la respuesta.
+ *
+ * Se toma todo como entrada, no como promesa: son campos del proveedor y
+ * cualquiera puede faltar o venir con otra forma. Un `usageMetadata` ausente
+ * deja las columnas en `null`, que es lo correcto —no sabemos— y no un cero,
+ * que sería mentira.
+ */
+function readDiagnostics(payload: unknown, into: GeminiDiagnostics): void {
+  const root = payload as {
+    candidates?: Array<{ finishReason?: unknown }>;
+    usageMetadata?: Record<string, unknown>;
+  } | null;
+
+  const reason = root?.candidates?.[0]?.finishReason;
+  into.finishReason = typeof reason === 'string' && reason ? reason : null;
+
+  const usage = root?.usageMetadata;
+  const count = (key: string): number | null => {
+    const value = usage?.[key];
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  };
+
+  into.tokensIn = count('promptTokenCount');
+  into.tokensOut = count('candidatesTokenCount');
+  into.tokensThinking = count('thoughtsTokenCount');
+}
+
+/**
+ * El 429 del proveedor, con su propio código y su propio texto.
+ *
+ * Cuando Google dice cuánto falta, se dice: "esperá un minuto" era una cifra
+ * inventada, y si en realidad faltaban diez segundos la persona esperaba de
+ * más, mientras que si el cupo se soltaba recién al otro día la mandábamos a
+ * reintentar cincuenta veces contra una puerta cerrada.
+ */
+export function rateLimitedResponse(retryAfterSeconds: number | null = null): Response {
   return fail(
     'ERR_AI_RATE_LIMITED',
     // Ojo con el `+`: TypeScript **no** concatena literales adyacentes como
     // Dart. Sin él esto no es un string partido en dos líneas, es un error de
     // sintaxis, y el deploy de la función falla entero.
-    'El servicio de análisis está al límite por ahora. Esperá un minuto y ' +
-      'probá de nuevo, o cargá la comida a mano.',
+    'El servicio de análisis está al límite por ahora. ' +
+      `${esperaHumana(retryAfterSeconds)}, o cargá la comida a mano.`,
     429,
+    // El número, además del texto: con él la app apaga el botón hasta que
+    // valga la pena tocarlo. Sin él lo único que se puede hacer es leer.
+    retryAfterSeconds === null ? {} : { retryAfter: retryAfterSeconds },
   );
+}
+
+/**
+ * El 503: el modelo está ocupado, no la cuota agotada.
+ *
+ * Merece texto propio porque la salida es distinta. Contra el límite del plan
+ * no hay nada que hacer más que esperar o cargar a mano; contra la saturación,
+ * insistir en unos segundos suele alcanzar — y decir "estás al límite" cuando
+ * el problema dura diez segundos manda a la persona a rendirse de más.
+ */
+export function overloadedResponse(): Response {
+  return fail(
+    'ERR_AI_OVERLOADED',
+    'El modelo está ocupado en este momento. Probá de nuevo en unos ' +
+      'segundos, o cargá la comida a mano.',
+    503,
+  );
+}
+
+/** El "esperá tanto" en criollo, o el genérico cuando no vino el dato. */
+function esperaHumana(seconds: number | null): string {
+  if (seconds === null) return 'Probá de nuevo en un rato';
+  if (seconds <= 90) return `Esperá ${seconds} segundos y probá de nuevo`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes <= 90) return `Esperá ${minutes} minutos y probá de nuevo`;
+  // Más de una hora y media es la cuota del día, no la del minuto: mandar a
+  // reintentar sería mandar a chocar contra lo mismo.
+  return 'Se agotó el cupo del día del servicio; volvé mañana';
 }

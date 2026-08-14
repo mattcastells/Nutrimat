@@ -26,7 +26,11 @@ import '../../../domain/models/analysis_stage.dart';
 ///   barra desacelera y se queda esperando, que es exactamente lo que pasa.
 ///
 /// Una barra que se clava en 99 % es la peor versión de esto. Acá la
-/// desaceleración es visible y el texto dice que es una estimación.
+/// desaceleración se ve, y el `≈` delante del porcentaje dice que es una
+/// estimación sin necesidad de una aclaración aparte. La había —"el tiempo
+/// restante es una estimación: cuánto tarda el modelo no lo decidimos
+/// nosotros"— y se sacó: era cierta, pero le ponía el foco al reloj, que es
+/// exactamente lo que una pantalla de espera no necesita.
 class AnalysisProgress extends StatelessWidget {
   const AnalysisProgress({
     required this.stage,

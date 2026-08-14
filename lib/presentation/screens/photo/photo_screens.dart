@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
@@ -376,27 +377,56 @@ class PhotoAnalyzingScreen extends ConsumerStatefulWidget {
 
 class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
     with SingleTickerProviderStateMixin {
-  /// Qué se cuenta mientras el modelo trabaja, y desde qué segundo.
+  /// Lo que se cuenta primero: el trabajo real, en el orden en que pasa.
   ///
-  /// Los cortes salen de medir el circuito real, no de tantear: la mediana de
-  /// la llamada es 12,3 s y el percentil 90 está en 24,9 s (`AnalysisTiming`).
+  /// Se dice una sola vez cada una y entre las cinco cubren la espera típica
+  /// —la mediana de la llamada es 12,3 s (`AnalysisTiming.typical`)—, así que
+  /// la mayoría de las veces la pantalla no llega a salir de acá.
   ///
-  /// El aviso de demora estaba en 15 s y **saltaba durante el funcionamiento
-  /// normal**: a los 15 s la mitad de los análisis buenos siguen corriendo. Un
-  /// cartel de alarma que aparece cuando todo va bien enseña a ignorarlo, así
-  /// que se corrió al percentil 90 — recién ahí es cierto que se demora.
-  ///
-  /// Los tiempos son relativos al inicio del paso `analyzing`: preparar y
-  /// subir tienen su propio texto, que sale de `AnalysisStage`.
-  static const List<(int, String)> _phases = <(int, String)>[
-    (0, 'Buscando alimentos en la foto…'),
-    (2500, 'Reconociendo las preparaciones…'),
-    (5000, 'Estimando el tamaño de las porciones…'),
-    (8000, 'Calculando calorías y macros…'),
-    (11000, 'Revisando que los números cierren…'),
-    (14500, 'Terminando'),
-    (24900, 'Está tardando más de lo normal'),
+  /// Arrancan con el paso `analyzing` y no antes: contar "estimando porciones"
+  /// mientras todavía se sube la foto sería inventar. Preparar y subir tienen
+  /// su propio texto, que sale de `AnalysisStage`.
+  static const List<String> _opening = <String>[
+    'Buscando alimentos en la foto…',
+    'Reconociendo las preparaciones…',
+    'Estimando el tamaño de las porciones…',
+    'Calculando calorías y macros…',
+    'Revisando que los números cierren…',
   ];
+
+  /// Y después, mientras siga sin llegar la respuesta, esto rota sin fin.
+  ///
+  /// **No hay "Terminando" ni "Está tardando más de lo normal", a propósito.**
+  /// Los dos prometían algo sobre el reloj que Nutrimat no puede prometer:
+  /// cuánto tarda el modelo no lo decidimos nosotros. "Terminando" a los 14 s
+  /// era mentira la mitad de las veces, y el aviso de demora convertía una
+  /// espera normal en un problema — la persona no puede hacer nada con ese
+  /// dato salvo ponerse ansiosa y mirar el reloj.
+  ///
+  /// Lo que la espera necesita es señal de vida, y para eso alcanza con que la
+  /// frase cambie. Que además sea liviana es lo que hace la diferencia entre
+  /// esperar y esperar preocupado.
+  /// Ninguna pasa de dos líneas a propósito: la altura del texto está fijada
+  /// en dos y lo que sobre se corta con puntos suspensivos. Un chiste cortado
+  /// es peor que un chiste corto.
+  static const List<String> _idle = <String>[
+    'Contando garbanzos de a uno…',
+    'Discutiendo si es una porción o dos…',
+    'Preguntándole a la milanesa qué lleva…',
+    'Midiendo el aceite con una cucharita…',
+    'Buscando el tomate escondido atrás…',
+    'Pesando el arroz grano por grano…',
+    'Sacándole la ficha a la salsa…',
+    'Llamando al nutricionista imaginario…',
+    'Repasando la cuenta con los dedos…',
+    'Mirando la foto de costado, por las dudas…',
+    'Poniéndole nombre a eso del costado…',
+    'Negociando con la porción de postre…',
+  ];
+
+  /// Cada cuánto cambia la frase. Lo bastante seguido para que se vea que algo
+  /// pasa, lo bastante espaciado para poder leerla.
+  static const Duration _phaseEvery = Duration(milliseconds: 3200);
 
   late final AnimationController _sweep = AnimationController(
     vsync: this,
@@ -404,7 +434,17 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   )..repeat();
 
   final List<Timer> _timers = <Timer>[];
-  String _phase = _phases.first.$2;
+
+  /// Cuántas frases se dijeron ya en esta corrida. Las primeras salen de
+  /// `_opening` y de ahí en más el índice sigue contando contra `_idle`.
+  int _phaseIndex = 0;
+  String _phase = _opening.first;
+
+  /// Desde qué frase del pozo arranca la rotación. Al azar por corrida: dos
+  /// análisis lentos seguidos contarían el mismo chiste en el mismo orden, y
+  /// ahí la broma deja de tapar la espera y pasa a marcarla.
+  final int _idleOffset = math.Random().nextInt(_idle.length);
+
   bool _cancelled = false;
 
   /// En qué paso real va el circuito, y desde cuándo. Los dos alimentan la
@@ -413,11 +453,25 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
   DateTime _stageStartedAt = DateTime.now();
 
   /// Qué falló. Sin esto, un análisis que se cae dejaba la pantalla girando
-  /// para siempre en "Está tardando más de lo normal": `analyze` lanzaba, nadie
-  /// lo agarraba, y no había ni error ni salida más que Cancelar. La espera
-  /// eterna es la peor forma de contar un fallo, porque no se distingue de que
-  /// esté por terminar.
+  /// para siempre: `analyze` lanzaba, nadie lo agarraba, y no había ni error ni
+  /// salida más que Cancelar. La espera eterna es la peor forma de contar un
+  /// fallo, porque no se distingue de una que está por terminar bien — y ahora
+  /// que las frases rotan sin fin, esto es lo único que corta el bucle.
   AppError? _error;
+
+  /// Segundos que faltan para que reintentar pueda salir bien.
+  ///
+  /// Solo se llena cuando el proveedor dice cuánto falta (su 429 lo trae). El
+  /// 13 de agosto se tocó "Reintentar" cuatro veces en cuarenta segundos
+  /// contra una cuota agotada: cada toque gastaba cupo y ninguno podía
+  /// funcionar. Un botón que se puede tocar es una promesa de que sirve.
+  int _retryIn = 0;
+  Timer? _cuenta;
+
+  /// Hasta acá se cuenta segundo a segundo. Más que esto no es una espera, es
+  /// el cupo del día: un contador de seis cifras bajando durante horas no le
+  /// sirve a nadie, y el `setState` por segundo tampoco.
+  static const int _cuentaMax = 90;
 
   /// La copia que analizar dejó en el bucket, mientras nadie la reclame.
   ///
@@ -470,14 +524,31 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
 
   /// Arranca los mensajes recién cuando empieza el trabajo del modelo: contar
   /// "estimando porciones" mientras todavía se sube la foto sería inventar.
+  ///
+  /// Un solo timer periódico en vez de uno por frase: la lista ya no termina,
+  /// así que no hay una cantidad fija de avisos que agendar.
   void _startPhaseMessages() {
-    for (final phase in _phases.skip(1)) {
-      _timers.add(
-        Timer(Duration(milliseconds: phase.$1), () {
-          if (mounted && _error == null) setState(() => _phase = phase.$2);
-        }),
-      );
-    }
+    _phaseIndex = 0;
+    _phase = _phraseAt(0);
+    _timers.add(
+      Timer.periodic(_phaseEvery, (_) {
+        if (!mounted || _error != null) return;
+        setState(() => _phase = _phraseAt(++_phaseIndex));
+      }),
+    );
+  }
+
+  /// Lo que se está diciendo ahora. Mientras se prepara y se sube, el paso
+  /// habla por sí solo; recién con el modelo trabajando entran las frases.
+  String get _label =>
+      _stage == AnalysisStage.analyzing ? _phase : _stage.label;
+
+  /// Las de `_opening` una vez cada una y en orden; de ahí en adelante, el
+  /// pozo en bucle. Nunca se queda sin frase, que es justamente el punto.
+  String _phraseAt(int index) {
+    if (index < _opening.length) return _opening[index];
+    final rotated = index - _opening.length + _idleOffset;
+    return _idle[rotated % _idle.length];
   }
 
   void _onStage(AnalysisStage stage) {
@@ -486,7 +557,6 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
       _stage = stage;
       _stageStartedAt = DateTime.now();
       if (stage == AnalysisStage.analyzing) {
-        _phase = _phases.first.$2;
         _startPhaseMessages();
       }
     });
@@ -525,11 +595,11 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
       context.pushReplacement(Routes.photoReview);
     } on AppError catch (error) {
       if (!mounted || _cancelled) return;
-      setState(() => _error = error);
+      _fallo(error);
     } on Object catch (error) {
       if (!mounted || _cancelled) return;
-      setState(
-        () => _error = AppError(
+      _fallo(
+        AppError(
           code: ApiErrorCode.server,
           message: 'No pudimos analizar la foto. Cargá la comida a mano; la '
               'foto queda adjunta.',
@@ -539,10 +609,35 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
     }
   }
 
+  /// Muestra el fallo y, si el proveedor dijo cuánto falta, arranca la cuenta
+  /// que mantiene apagado el botón hasta que valga la pena.
+  void _fallo(AppError error) {
+    _cuenta?.cancel();
+    setState(() {
+      _error = error;
+      _retryIn = error.retryAfter?.inSeconds ?? 0;
+    });
+    // Sin cuenta regresiva para las esperas largas: el botón queda apagado y
+    // la salida son los dos de abajo, cargar a mano o volver.
+    if (_retryIn <= 0 || _retryIn > _cuentaMax) return;
+
+    _cuenta = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() => _retryIn--);
+      if (_retryIn <= 0) timer.cancel();
+    });
+  }
+
   void _retry() {
+    _cuenta?.cancel();
     setState(() {
       _error = null;
-      _phase = _phases.first.$2;
+      _retryIn = 0;
+      _phaseIndex = 0;
+      _phase = _opening.first;
     });
     _start();
   }
@@ -592,6 +687,7 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
     for (final timer in _timers) {
       timer.cancel();
     }
+    _cuenta?.cancel();
     _sweep.dispose();
     super.dispose();
   }
@@ -654,6 +750,15 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                   message: _error!.message,
                   code: _error!.code.wire,
                   onRetry: _retry,
+                  // El botón queda a la vista y apagado, contando. Esconderlo
+                  // sería peor: la salida desaparecería justo cuando la
+                  // persona la está buscando.
+                  retryEnabled: _retryIn <= 0,
+                  retryLabel: switch (_retryIn) {
+                    <= 0 => 'Reintentar',
+                    <= _cuentaMax => 'Reintentar en $_retryIn s',
+                    _ => 'Reintentar más tarde',
+                  },
                 ),
                 const SizedBox(height: NmSpace.s5),
                 NmButton(
@@ -677,32 +782,45 @@ class _PhotoAnalyzingScreenState extends ConsumerState<PhotoAnalyzingScreen>
                   elapsedInStage: DateTime.now().difference(_stageStartedAt),
                 ),
                 const SizedBox(height: NmSpace.s5),
-                Semantics(
-                  liveRegion: true,
-                  child: AnimatedSwitcher(
-                    duration: context.motion.fade(NmMotion.fast),
-                    child: Text(
-                      _stage == AnalysisStage.analyzing
-                          ? _phase
-                          : _stage.label,
-                      key: ValueKey<String>(
-                        _stage == AnalysisStage.analyzing
-                            ? _phase
-                            : _stage.label,
+                // Dos líneas reservadas, ocupadas o no. Las frases no miden
+                // todas lo mismo y ahora se turnan sin parar: sin la altura
+                // fija, la foto de arriba se estira y se encoge en cada
+                // cambio. Un salto de layout cada 3 s en una pantalla de
+                // espera es justo el nervio que se está tratando de sacar.
+                SizedBox(
+                  width: double.infinity,
+                  // Con el tamaño de letra del sistema, no con el de diseño:
+                  // en ×1,3 dos líneas ya no entran en 48 px y la frase se
+                  // cortaría por la mitad.
+                  height:
+                      MediaQuery.textScalerOf(context).scale(NmType.h3.size) *
+                      NmType.h3.lineHeight *
+                      2,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: AnimatedSwitcher(
+                      duration: context.motion.fade(NmMotion.fast),
+                      // El `Align` no es decorativo: `AnimatedSwitcher` apila
+                      // sus hijos centrados, así que un texto que mide lo que
+                      // dice quedaría centrado y cambiando de lugar en cada
+                      // frase.
+                      child: Align(
+                        key: ValueKey<String>(_label),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: NmTextStyles.from(NmType.h3, color: nm.text),
+                        ),
                       ),
-                      style: NmTextStyles.from(NmType.h3, color: nm.text),
                     ),
                   ),
                 ),
-                const SizedBox(height: NmSpace.s3),
-                Text(
-                  'El tiempo restante es una estimación: cuánto tarda el '
-                  'modelo no lo decidimos nosotros.',
-                  style: NmTextStyles.from(
-                    NmType.caption,
-                    color: nm.textMuted,
-                  ),
-                ),
+                // Acá iba una aclaración de que el tiempo restante es una
+                // estimación. Era cierta y no ayudaba: le ponía el foco al
+                // reloj, que es exactamente lo que la espera no necesita. El
+                // "≈" de la barra ya dice lo mismo sin subrayarlo.
                 const SizedBox(height: NmSpace.s6),
                 NmButton.secondary(
                   label: 'Cancelar',

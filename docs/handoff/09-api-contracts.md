@@ -49,7 +49,9 @@ Error (todas las superficies, normalizado por el cliente):
 | `ERR_QUOTA_EXCEEDED` | 429 | no hasta el reset | "Llegaste al límite diario." |
 | `ERR_UPSTREAM_TIMEOUT` | 504 | sí | "El servicio tardó demasiado. Reintentar." |
 | `ERR_UPSTREAM_FAILED` | 502 | sí | "No pudimos consultar el catálogo. Reintentar." |
-| `ERR_AI_INVALID_RESPONSE` | 502 | 1 reintento automático | "No pudimos leer la foto." |
+| `ERR_AI_INVALID_RESPONSE` | 502 | 1 reintento automático, salvo corte terminal | "No pudimos leer la foto." |
+| `ERR_AI_RATE_LIMITED` | 429 | sí, recién pasado `error.retryAfter` | "El servicio de análisis está al límite por ahora. Esperá N segundos…" |
+| `ERR_AI_OVERLOADED` | 503 | sí, en unos segundos | "El modelo está ocupado en este momento." |
 | `ERR_AI_NO_FOOD` | 200 con `data.items = []` | no | "No encontramos comida en la foto." |
 | `ERR_PERMISSION_DENIED` | — (cliente) | no | "Necesitamos tu permiso para…" |
 | `ERR_PROVIDER_UNAVAILABLE` | — (cliente) | no | "Health Connect no está instalada." |
@@ -60,6 +62,13 @@ Error (todas las superficies, normalizado por el cliente):
 Política de reintento del cliente: backoff exponencial con jitter — 1 s, 4 s, 15 s, 60 s,
 luego cada 5 min, máximo 24 h. Solo para códigos reintentables y solo para escrituras
 idempotentes.
+
+Los dos códigos del proveedor de IA son la excepción y no se reintentan solos: los dispara
+una persona mirando la pantalla, así que el reintento es un botón. Cuando el proveedor dice
+cuánto falta, `ERR_AI_RATE_LIMITED` lo trae en `error.retryAfter` (segundos) y **el botón va
+apagado hasta que pase**. Es la diferencia entre un límite del plan —que no se libera por
+insistir, y donde cada toque le gasta el cupo al resto, porque la clave es una sola para
+toda la app— y uno de saturación, que suele soltarse en segundos.
 
 ---
 
@@ -159,8 +168,14 @@ Errores: `ERR_NOT_FOUND`, `ERR_UPSTREAM_FAILED`.
 }
 ```
 
-Errores: `ERR_QUOTA_EXCEEDED`, `ERR_AI_INVALID_RESPONSE`, `ERR_AI_NO_FOOD`,
-`ERR_UPSTREAM_TIMEOUT`, `ERR_VALIDATION` (foto inexistente o de otro usuario).
+Errores: `ERR_QUOTA_EXCEEDED`, `ERR_AI_RATE_LIMITED`, `ERR_AI_OVERLOADED`,
+`ERR_AI_INVALID_RESPONSE`, `ERR_AI_NO_FOOD`, `ERR_UPSTREAM_TIMEOUT`,
+`ERR_VALIDATION` (foto inexistente o de otro usuario).
+
+`ERR_QUOTA_EXCEEDED` es **nuestra** cuota (20 por persona por día) y
+`ERR_AI_RATE_LIMITED` es la del proveedor, que la comparten todos los usuarios
+de la app. Se parecen en el HTTP y no en nada más: la primera se resuelve
+mañana para esa persona, la segunda depende del plan contratado.
 
 ## 6. Crear comida
 

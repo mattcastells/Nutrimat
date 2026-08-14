@@ -12,6 +12,20 @@ enum ApiErrorCode {
   aiInvalidResponse('ERR_AI_INVALID_RESPONSE'),
   aiNoFood('ERR_AI_NO_FOOD'),
 
+  /// La cuota del proveedor de IA se agotó. **No es** `rateLimited`, que es el
+  /// nuestro: este techo lo comparten todos los usuarios de la app y no se
+  /// libera por dejar de insistir, así que la pantalla espera el tiempo que
+  /// diga el proveedor antes de volver a ofrecer el botón.
+  ///
+  /// Sin este valor caía en `upstreamFailed` por el `orElse` de la traducción,
+  /// y "Reintentar" aparecía al toque: cuatro toques en cuarenta segundos
+  /// contra una puerta cerrada, cada uno gastando cuota.
+  aiRateLimited('ERR_AI_RATE_LIMITED'),
+
+  /// El modelo está saturado un momento. Se parece al de arriba y es lo
+  /// contrario: acá insistir en unos segundos suele funcionar.
+  aiOverloaded('ERR_AI_OVERLOADED'),
+
   /// Ninguna de las opciones que devolvió el modelo cerró con el presupuesto.
   /// No es un fallo del servidor: es que esta tirada no dio, y volver a
   /// intentar sí puede dar — por eso tiene su propio código y no `server`.
@@ -45,7 +59,13 @@ enum ApiErrorCode {
     // determinista y lo que falló fue que ninguna opción cerrara, no el
     // servidor.
     ApiErrorCode.aiNoSuggestions ||
-    ApiErrorCode.rateLimited => true,
+    ApiErrorCode.rateLimited ||
+    // Los dos del proveedor son reintentables, pero no *ya*: el de la cuota
+    // trae cuánto falta en `AppError.retryAfter` y quien lo muestre tiene que
+    // respetarlo. Reintentable significa "esto puede salir bien la próxima",
+    // no "el botón va habilitado".
+    ApiErrorCode.aiRateLimited ||
+    ApiErrorCode.aiOverloaded => true,
     _ => false,
   };
 }
@@ -60,6 +80,7 @@ class AppError implements Exception {
     required this.message,
     this.fields = const <String, String>{},
     this.requestId,
+    this.retryAfter,
   });
 
   final ApiErrorCode code;
@@ -68,6 +89,11 @@ class AppError implements Exception {
   /// Errores por campo, para pintarlos debajo del input que corresponde.
   final Map<String, String> fields;
   final String? requestId;
+
+  /// Cuánto falta para que tenga sentido reintentar, cuando el servidor lo
+  /// dice. Hoy lo manda el 429 del proveedor de IA, que sabe cuándo se libera
+  /// su ventana. `null` es "no lo sabemos", no "ya".
+  final Duration? retryAfter;
 
   bool get isRetryable => code.isRetryable;
 

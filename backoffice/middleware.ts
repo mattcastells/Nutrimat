@@ -58,6 +58,16 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+/**
+ * `preview` está excluido para poder mirar el diseño con datos de ejemplo sin
+ * una sesión (`app/preview/`).
+ *
+ * Que esté acá **no la deja abierta en producción**: esas rutas devuelven 404
+ * cuando `NODE_ENV` es `production`, y ese es el guard que importa. Este
+ * `matcher` solo evita el redirect al login en desarrollo, que es donde la ruta
+ * existe. Los dos están separados a propósito: sacar esta línea no habilita
+ * nada, y sacar el guard de allá tampoco alcanza para exponerla desde acá.
+ */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!preview|_next/static|_next/image|favicon.ico).*)'],
 };

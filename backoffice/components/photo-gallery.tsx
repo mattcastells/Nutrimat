@@ -175,7 +175,7 @@ export function PhotoGallery({
                   <h3>{meal.name || SLOT_LABEL[meal.slot] || 'Comida'}</h3>
                   <p className="caption tnum" style={{ margin: 0 }}>
                     {SLOT_LABEL[meal.slot]} · {fechaLarga(meal.local_date)} ·{' '}
-                    {hora(meal.logged_at)}
+                    {hora(meal.eaten_at)}
                   </p>
                 </div>
                 <button

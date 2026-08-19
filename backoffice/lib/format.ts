@@ -27,7 +27,7 @@ const TZ = 'America/Argentina/Buenos_Aires';
  *  Se arma con `formatToParts` y no con un locale que ya devuelva ese formato
  *  (`en-CA`) porque un Node compilado con ICU chico se cae a `en-US` y
  *  devolvería `8/3/2026`. Las partes se llaman igual en cualquier locale. */
-export function isoEnTz(date: Date): string {
+function isoEnTz(date: Date): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TZ,
     year: 'numeric',

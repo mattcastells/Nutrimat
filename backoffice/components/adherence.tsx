@@ -1,4 +1,5 @@
 import { diaDeSemana, fechaLarga, miles } from '@/lib/format';
+import type { Ventana } from '@/lib/tracking';
 
 const LETRAS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
@@ -24,12 +25,29 @@ const LETRAS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 export function Adherence({
   fechas,
   kcalPorDia,
+  ventana,
 }: {
+  /** El calendario completo del período: es lo que se **dibuja**. */
   fechas: string[];
   kcalPorDia: Map<string, number>;
+  /** El período efectivo: es lo que se **cuenta**. Ver `lib/tracking.ts`. */
+  ventana: Ventana;
 }) {
   const valores = [...kcalPorDia.values()];
   const max = valores.length ? Math.max(...valores) : 0;
+
+  // ⚠️ Dos listas, y confundirlas es el bug que este componente tenía.
+  //
+  // Se dibujan **todos** los días del período —el calendario es el calendario,
+  // y un mes que empieza el jueves tiene que verse empezando el jueves—, pero
+  // se cuentan solo los que la persona podía registrar. Alguien que empezó el
+  // 18 tenía diecisiete cuadrados grises antes de su primer día, una racha rota
+  // que nunca existió y un 4 % "entre semana".
+  //
+  // Los días anteriores se dibujan **fuera de la escala**: ni violetas ni del
+  // gris de "no registró", porque no son ninguna de las dos cosas.
+  // Ver `docs/contexto-diario.md`.
+  const contadas = ventana.fechas;
 
   // La primera columna arranca en el día de semana que caiga: sin los huecos
   // de adelante, las filas dejan de ser lunes, martes, miércoles.
@@ -48,7 +66,7 @@ export function Adherence({
   let rachaMax = 0;
   let huecoMax = 0;
   let huecoCorrido = 0;
-  for (const f of fechas) {
+  for (const f of contadas) {
     if (registrado(f)) {
       rachaActual += 1;
       rachaMax = Math.max(rachaMax, rachaActual);
@@ -60,13 +78,16 @@ export function Adherence({
     }
   }
 
-  const finesDeSemana = fechas.filter((f) => diaDeSemana(f) >= 5);
+  const finesDeSemana = contadas.filter((f) => diaDeSemana(f) >= 5);
   const finesRegistrados = finesDeSemana.filter(registrado).length;
-  const semana = fechas.filter((f) => diaDeSemana(f) < 5);
+  const semana = contadas.filter((f) => diaDeSemana(f) < 5);
   const semanaRegistrados = semana.filter(registrado).length;
 
+  // `—` y no "0 %" cuando no hay días de esa clase en el período efectivo:
+  // alguien que empezó un lunes y mira una semana no tuvo ningún fin de semana
+  // todavía, y "0 %" ahí se lee como que no registró el sábado.
   const pct = (parte: number, total: number) =>
-    total ? Math.round((parte / total) * 100) : 0;
+    total ? `${Math.round((parte / total) * 100)} %` : '—';
 
   return (
     <div
@@ -89,13 +110,17 @@ export function Adherence({
 
               {fechas.map((f) => {
                 const kcal = kcalPorDia.get(f);
+                // Anterior al primer registro de la cuenta: no es "no registró"
+                // sino "todavía no existía", y por eso sale de la escala en vez
+                // de pintarse del gris del día vacío.
+                const antes = !ventana.vacia && f < ventana.desdeEfectivo;
                 return (
                   <span
                     key={f}
                     className="cal-cell"
-                    data-on={kcal === undefined ? '0' : '1'}
+                    data-on={antes ? 'na' : kcal === undefined ? '0' : '1'}
                     style={
-                      kcal === undefined || !max
+                      antes || kcal === undefined || !max
                         ? undefined
                         : {
                             // Se mezcla el color en vez de bajarle la opacidad:
@@ -109,9 +134,11 @@ export function Adherence({
                           }
                     }
                     title={
-                      kcal === undefined
-                        ? `${fechaLarga(f)} · sin registro`
-                        : `${fechaLarga(f)} · ${miles(kcal)} kcal`
+                      antes
+                        ? `${fechaLarga(f)} · antes del primer registro`
+                        : kcal === undefined
+                          ? `${fechaLarga(f)} · sin registro`
+                          : `${fechaLarga(f)} · ${miles(kcal)} kcal`
                     }
                   />
                 );
@@ -123,6 +150,8 @@ export function Adherence({
         <p className="caption cal-legend">
           Cada cuadrado es un día, de lunes a domingo. El gris es un día sin
           comidas cargadas; cuanto más violeta, más calorías registradas.
+          {ventana.empezoDespues &&
+            ' Los días vacíos del principio son anteriores al primer registro: no cuentan como huecos.'}
         </p>
 
         <dl className="cal-facts">
@@ -146,12 +175,12 @@ export function Adherence({
           />
           <Dato
             termino="Entre semana"
-            valor={`${pct(semanaRegistrados, semana.length)} %`}
+            valor={pct(semanaRegistrados, semana.length)}
             nota={`${semanaRegistrados} de ${semana.length} días`}
           />
           <Dato
             termino="Fines de semana"
-            valor={`${pct(finesRegistrados, finesDeSemana.length)} %`}
+            valor={pct(finesRegistrados, finesDeSemana.length)}
             nota={`${finesRegistrados} de ${finesDeSemana.length} días`}
           />
         </dl>

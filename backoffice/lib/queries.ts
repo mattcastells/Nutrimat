@@ -18,7 +18,7 @@ export type Meal = {
   id: string;
   slot: string;
   local_date: string;
-  logged_at: string;
+  eaten_at: string;
   name: string | null;
   total_kcal: number;
   total_protein_g: number;
@@ -73,6 +73,51 @@ export type Measurement = {
   metric: string;
   value: number;
   unit: string;
+};
+
+/** Una marca sobre un día: descanso o enfermedad. Ver `docs/contexto-diario.md`. */
+export type DayMarker = {
+  local_date: string;
+  kind: string;
+  severity: number | null;
+  note: string | null;
+  tags: string[] | null;
+};
+
+/** Un consumo de alcohol. Hay varios por día a propósito. */
+export type AlcoholLog = {
+  id: string;
+  local_date: string;
+  drink_type: string;
+  quantity: number;
+  std_drinks: number;
+  kcal: number;
+  note: string | null;
+};
+
+/** Una nota de la profesional. `local_date` null = del seguimiento en general. */
+export type CareNote = {
+  id: string;
+  patient_id: string;
+  local_date: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const SEVERITY_LABEL: Record<number, string> = {
+  1: 'leve',
+  2: 'moderada',
+  3: 'fuerte',
+};
+
+export const DRINK_LABEL: Record<string, string> = {
+  beer: 'Cerveza',
+  wine: 'Vino',
+  spirits: 'Destilado',
+  cocktail: 'Trago',
+  cider: 'Sidra',
+  other: 'Otra',
 };
 
 export const QUALITY_LABEL: Record<string, string> = {
@@ -134,7 +179,7 @@ export async function fetchMeals(
     const { data } = await db
       .from('meals')
       .select(
-        'id, slot, local_date, logged_at, name, total_kcal, total_protein_g, ' +
+        'id, slot, local_date, eaten_at, name, total_kcal, total_protein_g, ' +
           'total_carbs_g, total_fat_g, source, photo_path, ' +
           'meal_items(id, name, quantity, unit, kcal, protein_g, carbs_g, ' +
           'fat_g, ai_confidence)',
@@ -144,7 +189,7 @@ export async function fetchMeals(
       .gte('local_date', from)
       .lte('local_date', to)
       .order('local_date', { ascending: false })
-      .order('logged_at', { ascending: true })
+      .order('eaten_at', { ascending: true })
       // El orden de arriba es total —fecha y hora— así que las páginas no se
       // pisan ni se saltean entre sí.
       .order('id', { ascending: true })
@@ -276,6 +321,80 @@ export async function fetchMeasurements(
     .order('local_date');
 
   return (data ?? []) as unknown as Measurement[];
+}
+
+/**
+ * Las marcas del día del período.
+ *
+ * Van con `wellbeing` porque se conceden con la misma llave que la actividad,
+ * el agua y el sueño: las cuatro categorías del permiso son las cuatro pestañas
+ * del panel, y una quinta sin pestaña propia rompería esa correspondencia.
+ */
+export async function fetchDayMarkers(
+  db: SupabaseClient,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<DayMarker[]> {
+  const { data } = await db
+    .from('day_markers')
+    .select('local_date, kind, severity, note, tags')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .gte('local_date', from)
+    .lte('local_date', to)
+    .order('local_date');
+
+  return (data ?? []) as unknown as DayMarker[];
+}
+
+export async function fetchAlcohol(
+  db: SupabaseClient,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<AlcoholLog[]> {
+  const { data } = await db
+    .from('alcohol_logs')
+    .select('id, local_date, drink_type, quantity, std_drinks, kcal, note')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .gte('local_date', from)
+    .lte('local_date', to)
+    .order('local_date');
+
+  // `numeric` vuelve como String de PostgREST para no perder precisión. Sin
+  // este paso, `std_drinks` sumaba como texto y "1" + "2" daba "12".
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    local_date: String(r.local_date),
+    drink_type: String(r.drink_type),
+    quantity: Number(r.quantity ?? 0),
+    std_drinks: Number(r.std_drinks ?? 0),
+    kcal: Number(r.kcal ?? 0),
+    note: (r.note as string | null) ?? null,
+  }));
+}
+
+/**
+ * Las notas que escribió **esta** profesional sobre este paciente.
+ *
+ * No hace falta filtrar por autor: la policy de `care_notes` solo devuelve las
+ * propias. El `eq` va igual, por lo mismo que el resto de las consultas de este
+ * archivo — una policy nueva mañana no puede empezar a mezclar filas de otro.
+ */
+export async function fetchNotes(
+  db: SupabaseClient,
+  patientId: string,
+): Promise<CareNote[]> {
+  const { data } = await db
+    .from('care_notes')
+    .select('id, patient_id, local_date, body, created_at, updated_at')
+    .eq('patient_id', patientId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  return (data ?? []) as unknown as CareNote[];
 }
 
 /**

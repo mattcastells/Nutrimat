@@ -752,6 +752,18 @@ details[open] > summary .chev {
   border-color: transparent;
 }
 
+/* Anterior al primer registro de la cuenta.
+ *
+ * Ni violeta ni el gris del día vacío: es una **tercera** categoría —"todavía
+ * no existía"— y con el gris de "no registró" se leía como diecisiete días de
+ * abandono al principio de todo mes. Sin relleno y con el borde punteado se ve
+ * que el día está ahí sin afirmar nada sobre él. */
+.cal-cell[data-on='na'] {
+  background: transparent;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
+}
+
 .cal-days {
   display: grid;
   grid-template-rows: repeat(7, var(--cell));
@@ -1212,4 +1224,150 @@ details[open] > summary .chev {
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   pointer-events: none;
+}
+
+/* ── Contexto del día: enfermedad, alcohol y notas ───────────────────────── */
+
+/*
+ * Lo que califica un día sin medirlo. Ver `docs/contexto-diario.md`.
+ *
+ * Todo esto es **contexto y no calificación**: no hay verde de "bien" ni rojo
+ * de "mal", igual que en el resto del panel. El único acento es el ámbar de la
+ * enfermedad, y es el mismo `--caution` que ya marca el día que se pasó del
+ * objetivo: no dice que esté mal, dice "mirá esto antes de leer el resto".
+ */
+.chip--warn {
+  color: var(--caution);
+  background: color-mix(in srgb, var(--caution) 14%, var(--surface-raised));
+}
+
+/* La nota de la profesional se distingue de los datos del paciente: es lo único
+ * de esta pantalla que escribió ella, y confundirlo con un registro sería leer
+ * su propia hipótesis como si fuera un dato. */
+.chip--note {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-raised));
+}
+
+.day-context {
+  border-left: 2px solid color-mix(in srgb, var(--caution) 50%, transparent);
+  padding-left: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.day-context p {
+  margin: 0 0 var(--s1);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.day-context .day-note {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  padding-left: var(--s3);
+  margin-left: calc(var(--s3) * -1 - 2px);
+}
+
+/* ── Notas ──────────────────────────────────────────────────────────────── */
+
+.note-input {
+  width: 100%;
+  margin-top: var(--s2);
+  padding: var(--s3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  /* Solo vertical: el `resize` libre de un textarea adentro de una carta deja
+   * arrastrarlo más ancho que el contenedor y romper el layout. */
+  resize: vertical;
+}
+
+.note-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note-date {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  /* El calendario nativo del navegador dibuja su ícono en negro sobre el tema
+   * oscuro y queda invisible. `color-scheme` le dice qué tema usar sin tener
+   * que reimplementar el control. */
+  color-scheme: light dark;
+}
+
+/* El salto de línea que escribió la profesional es información: un párrafo con
+ * tres viñetas escritas a mano se convertía en un bloque corrido. */
+.note-body {
+  white-space: pre-wrap;
+  margin: var(--s2) 0 0;
+  line-height: 1.65;
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+button.ghost:hover {
+  color: var(--text);
+  border-color: var(--hairline);
+}
+
+/* La leyenda de las bandas de contexto de un gráfico.
+ *
+ * Hace falta porque la banda es la única marca del panel que **no** se explica
+ * sola: una barra violeta es la magnitud que dice el título, pero una tira de
+ * 3 px abajo del eje no dice de qué es. Es también el único lugar donde un
+ * color codifica algo, y por eso lleva su nombre al lado. */
+.chart-legend {
+  display: flex;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin: var(--s2) 0 0;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+.swatch--sick {
+  background: var(--caution);
+}
+
+.swatch--drink {
+  background: var(--info);
+}
+
+/* El mensaje crudo de PostgREST, cuando una consulta falla.
+ *
+ * Va monoespaciado y con salto de línea: es texto para copiar y pegar en una
+ * búsqueda, no una frase para leer. `pre` sin `white-space: pre-wrap` desborda
+ * la carta con un mensaje largo, y el cuerpo de la página no scrollea en
+ * horizontal nunca. */
+.error-detail {
+  margin: var(--s3) 0 0;
+  padding: var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

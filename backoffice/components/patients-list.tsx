@@ -183,7 +183,7 @@ function categorias(p: PatientRow): string[] {
     p.share_meals && 'Comidas',
     p.share_photos && 'Fotos',
     p.share_body && 'Peso y medidas',
-    p.share_wellbeing && 'Actividad, agua y sueño',
+    p.share_wellbeing && 'Actividad, agua, sueño y contexto',
   ].filter(Boolean) as string[];
 }
 

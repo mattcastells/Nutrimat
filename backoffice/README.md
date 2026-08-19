@@ -16,9 +16,39 @@ consulta de acá pide de más, la base devuelve vacío. Las garantías viven en
 `supabase/migrations/20260803000100_care_access.sql` y están probadas en
 `supabase/tests/care_access_test.sql`, que corre en CI contra una base limpia.
 
-El panel es de **solo lectura**. No hay una sola política de escritura para el
-profesional, así que no es una convención de la interfaz: es que la base no
-tiene por dónde.
+Los **datos del paciente** son de solo lectura. No hay una sola política de
+escritura sobre ellos para el profesional, así que no es una convención de la
+interfaz: es que la base no tiene por dónde.
+
+Lo único que el panel escribe son **sus propias notas** (`care_notes`,
+migración 42), que son una tabla aparte. Dos cosas de esas notas, porque son las
+que se preguntan:
+
+- **Las lee solo quien las escribió.** El paciente no las ve, ni en la app ni
+  por API, ni siquiera las que son sobre él. Fue un pedido explícito del dueño
+  de la cuenta y está fijado en `supabase/tests/care_contexto_test.sql`.
+- **Revocar el acceso no las borra, pero corta la escritura.** El texto es de
+  quien lo escribió; seguir anotando sobre alguien que cortó el acceso es lo que
+  el corte tiene que impedir.
+
+## El período efectivo, que es de donde salen todos los denominadores
+
+Los períodos salen del calendario —"los últimos 30 días"— pero **lo que se
+cuenta no es el calendario**. Alguien que empezó a usar la app el 18 aparecía,
+el 19, con "1 de 30 días · 29 sin registrar", y ninguno de esos 29 era un
+incumplimiento.
+
+`lib/tracking.ts` calcula la ventana efectiva **una vez por pantalla** y todo lo
+demás deriva de ahí: días con comidas, rachas, huecos, porcentajes por día de
+semana, minutos por semana. La fecha de inicio la trae el servidor en
+`care_patients.tracking_since`, porque el panel solo consulta el período elegido
+y no puede saber sola si la persona empezó antes.
+
+Es la misma fórmula que usa la app (`lib/domain/calculations/tracking_window.dart`)
+y la misma que devuelve `public.tracking_since()`. **Las tres tienen que decir lo
+mismo**: si el informe en PDF que genera el teléfono y esta pantalla contaran
+distinto, estarían discutiendo sobre dos números que se llaman igual.
+Ver [`docs/contexto-diario.md`](../docs/contexto-diario.md).
 
 ## Cómo se conceden los accesos
 
@@ -71,8 +101,16 @@ Las dos son públicas por diseño: viajan al navegador igual que en la app.
 
 ```bash
 npm run typecheck
+npm test          # node --test, sin dependencias
 npm run build
 ```
+
+`npm test` corre `lib/*.test.ts` con el runner de Node, que lee TypeScript
+directo desde la 22. No hay Vitest ni Jest a propósito: lo único que se prueba
+acá es aritmética pura —la ventana efectiva—, y un runner entero para eso es más
+peso del que resuelve. Lo que sí necesita es que los imports de esos archivos
+nombren la extensión (`'./format.ts'`), porque Node resuelve ESM por ruta exacta
+y sin bundler.
 
 ⚠️ **No corras `npm run build` con `npm run dev` levantado.** Los dos escriben en
 `.next/`, y el build de producción le pisa los chunks al de desarrollo. El
@@ -138,11 +176,16 @@ maqueta HTML parecida que se desincroniza al primer cambio. `PatientsList`
 está partido igual y por lo mismo.
 
 Una ficha son 30 días de comidas, o 365, y en una sola tira eso es imposible de
-leer. La pantalla se reparte en **seis pestañas** —Resumen, Comidas, Fotos,
-Cuerpo, Hábitos, Día a día— y **las cuatro del medio son exactamente las cuatro
-categorías con las que se concede el permiso** (`share_meals`, `share_photos`,
-`share_body`, `share_wellbeing`): así "esta pestaña está apagada" y "esto no me
-lo compartieron" son la misma frase. La categoría que el paciente no comparte
+leer. La pantalla se reparte en **siete pestañas** —Resumen, Comidas, Fotos,
+Cuerpo, Hábitos, Día a día, Notas— y **las cuatro del medio son exactamente las
+cuatro categorías con las que se concede el permiso** (`share_meals`,
+`share_photos`, `share_body`, `share_wellbeing`): así "esta pestaña está
+apagada" y "esto no me lo compartieron" son la misma frase.
+
+Las Notas van **al final y fuera de esas cuatro**, por lo mismo: no son del
+paciente. Y por eso también el contexto del día —enfermedad, descanso, alcohol—
+entró en `share_wellbeing` en vez de estrenar una quinta categoría, que habría
+roto la correspondencia para agregar un interruptor que nadie pidió. La categoría que el paciente no comparte
 **no se esconde**: la pestaña queda con un punto ámbar y adentro dice qué falta
 y dónde se prende. Una pestaña ausente se leería como "esto no existe" en vez de
 "esto no me lo dieron".
@@ -249,6 +292,33 @@ ser mañana: el período terminaba en un día que todavía no existe y "días co
 comidas de 30" contaba uno de más. Desplegado al este de Greenwich el error se
 da vuelta y es peor, porque la comida de esta noche queda afuera. Si algún día
 hay pacientes en otro huso, eso sale del perfil y no de una constante.
+
+### El contexto del día
+
+Enfermedad, descanso y alcohol. Se abren con `share_wellbeing` y aparecen en
+tres lugares, siempre **solo si hay algo que decir**:
+
+- una banda de 3 px al pie del gráfico de actividad, que es el hueco que más se
+  parece a abandono y el que más seguido tiene explicación;
+- una etiqueta en la fila **cerrada** del día a día, porque el día en que la
+  persona estuvo en cama y no registró nada tiene que explicarse sin abrirlo;
+- una sección "Qué más pasó" al final del Resumen.
+
+Tres reglas que conviene no deshacer:
+
+- **No cambia ningún cálculo.** Un día de enfermedad no baja el objetivo, no se
+  saltea del promedio y no se descuenta de la adherencia. La sección lo dice con
+  todas las letras. Una app que "perdona" un día es una app opinando sobre una
+  semana que no vio.
+- **La marca va debajo del eje, no como color de la barra.** Teñir la barra
+  cambiaría lo que la barra mide: un día de enfermedad con 20 minutos de
+  caminata sigue siendo 20 minutos. Y va debajo y no encima porque el día
+  interesante es justamente el que **no tiene** barra.
+- **Las calorías del alcohol van aparte de las comidas.** Sumarlas ahí
+  escondería de dónde salieron, que es justo el dato que se busca cuando el peso
+  no baja y las comidas estaban bien. El alcohol se cuenta en **UBE de 10 g**
+  —la del Ministerio de Salud, no los 14 g de EE.UU.—, que es lo único con lo que
+  se pueden sumar una cerveza y un whisky.
 
 ## El look and feel
 

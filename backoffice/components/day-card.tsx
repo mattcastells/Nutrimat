@@ -3,13 +3,48 @@ import {
   QUALITY_LABEL,
   esEstimacionIA,
   type Activity,
+  type AlcoholLog,
+  type CareNote,
+  type DayMarker,
   type Meal,
   type SleepLog,
   type WaterLog,
 } from '@/lib/queries';
 import { fechaLarga, hora, horas, miles, num } from '@/lib/format';
+import { DayContext } from '@/components/day-context';
 
 const SLOT_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+/**
+ * Cómo se llama una comida en la lista.
+ *
+ * La mayoría no tiene nombre: se cargan eligiendo ítems del catálogo y `name`
+ * queda en null. Antes todas decían "Comida", así que un día abierto era cuatro
+ * filas idénticas y había que abrirlas una por una para saber cuál era cuál —en
+ * la pantalla donde lo que se busca es exactamente eso, qué comió—.
+ *
+ * El nombre sale de los ítems, que es de donde saldría si uno lo escribiera:
+ * los dos primeros y "+2" si hay más. Dos y no todos porque el título tiene que
+ * entrar en una línea junto a la hora, la etiqueta de IA y las calorías; una
+ * lista completa de seis ítems empuja el total fuera de la pantalla en un
+ * teléfono.
+ *
+ * El orden es el de carga y no por calorías: es el orden en que la persona los
+ * anotó, y reordenarlo por peso pondría primero el aceite de la ensalada.
+ */
+function tituloDeComida(meal: Meal): string {
+  if (meal.name?.trim()) return meal.name.trim();
+
+  const nombres = meal.meal_items
+    .map((i) => i.name?.trim())
+    .filter((n): n is string => !!n);
+
+  if (nombres.length === 0) return 'Comida';
+
+  const visibles = nombres.slice(0, 2).join(', ');
+  const resto = nombres.length - 2;
+  return resto > 0 ? `${visibles} +${resto}` : visibles;
+}
 
 /**
  * Un día entero, que es la unidad con la que se revisa un seguimiento.
@@ -25,10 +60,12 @@ const SLOT_ORDER = ['breakfast', 'lunch', 'dinner', 'snack'];
  * baja veintiocho imágenes para mostrar una lista de fechas.
  *
  * Las comidas van agrupadas por momento y **en orden fijo** —desayuno, almuerzo,
- * cena, snacks— y no por hora de carga: alguien que anota la cena a la mañana
- * siguiente no debería reordenarle el día a quien lo lee. Un momento sin nada se
- * muestra igual, en gris: "no cenó" es información, y si la fila desaparece se
- * confunde con "no lo cargó".
+ * cena, snacks— y no por la hora de cada una: el orden de los cuatro bloques es
+ * el mismo en todas las fichas y en todos los días, así que no hay que leer los
+ * títulos para saber dónde mirar. Adentro de cada bloque sí manda `eaten_at`.
+ *
+ * Un momento sin nada se muestra igual, en gris: "no cenó" es información, y si
+ * la fila desaparece se confunde con "no lo cargó".
  */
 export function DayCard({
   date,
@@ -40,6 +77,9 @@ export function DayCard({
   photoUrls,
   sharePhotos,
   shareWellbeing,
+  markers = [],
+  alcohol = [],
+  notes = [],
   defaultOpen = false,
 }: {
   date: string;
@@ -51,6 +91,9 @@ export function DayCard({
   photoUrls: Record<string, string>;
   sharePhotos: boolean;
   shareWellbeing: boolean;
+  markers?: DayMarker[];
+  alcohol?: AlcoholLog[];
+  notes?: CareNote[];
   defaultOpen?: boolean;
 }) {
   const total = meals.reduce((a, m) => a + m.total_kcal, 0);
@@ -81,6 +124,16 @@ export function DayCard({
         <div className="day-title">
           <div className="day-date">{fechaLarga(date)}</div>
           <div className="caption tnum">{resumen}</div>
+          {/* Las etiquetas del contexto van en la fila **cerrada**: el día en
+              que la persona estuvo enferma y no registró nada tiene que
+              explicarse sin abrirlo, que es el día que más se parece a un
+              abandono y no lo es. */}
+          <DayContext
+            markers={markers}
+            alcohol={alcohol}
+            notes={notes}
+            compacto
+          />
         </div>
 
         {/* Qué momentos tienen algo, sin abrir. Los cuatro están siempre: el
@@ -132,6 +185,10 @@ export function DayCard({
       </summary>
 
       <div className="day-body">
+        {/* Abierto, el contexto va entero —severidad, nota, qué se tomó— y
+            arriba de todo: es lo que hay que leer antes que las calorías. */}
+        <DayContext markers={markers} alcohol={alcohol} notes={notes} />
+
         {SLOT_ORDER.map((slot) => {
           const del = meals.filter((m) => m.slot === slot);
           return (
@@ -243,8 +300,8 @@ function MealRow({
     <details className="meal">
       <summary>
         <Chev />
-        <span>{meal.name || 'Comida'}</span>
-        <span className="caption tnum">{hora(meal.logged_at)}</span>
+        <span>{tituloDeComida(meal)}</span>
+        <span className="caption tnum">{hora(meal.eaten_at)}</span>
         {esEstimacionIA(meal) && (
           <span className="tag tag--ai">Estimado por IA</span>
         )}

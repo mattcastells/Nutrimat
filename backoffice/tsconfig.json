@@ -10,6 +10,11 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // Los imports de `lib/*.test.ts` y de `lib/tracking.ts` nombran la
+    // extensión porque los corre `node --test` directo, sin bundler: Node
+    // resuelve ESM por ruta exacta y sin esto no encuentra el módulo.
+    // Solo se puede con `noEmit`, que ya está arriba.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,

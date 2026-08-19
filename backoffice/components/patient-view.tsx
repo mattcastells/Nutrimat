@@ -3,6 +3,9 @@ import {
   METRIC_LABEL,
   QUALITY_LABEL,
   type Activity,
+  type AlcoholLog,
+  type CareNote,
+  type DayMarker,
   type Goal,
   type Meal,
   type Measurement,
@@ -16,8 +19,12 @@ import {
   fechaCorta,
   horas,
   miles,
+  num,
   rangoDeFechas,
 } from '@/lib/format';
+import { notaDeRecorte, type Ventana } from '@/lib/tracking';
+import { DayContext } from '@/components/day-context';
+import { Notes } from '@/components/notes';
 import { WeightChart } from '@/components/weight-chart';
 import { CaloriesChart } from '@/components/calories-chart';
 import { BarChart, type Point } from '@/components/bar-chart';
@@ -41,6 +48,8 @@ export type PatientProfile = {
   share_photos: boolean;
   share_body: boolean;
   share_wellbeing: boolean;
+  /** El primer día del que hay algo cargado. Lo calcula `public.tracking_since`. */
+  tracking_since: string | null;
 };
 
 export type PatientData = {
@@ -48,12 +57,17 @@ export type PatientData = {
   days: number;
   from: string;
   to: string;
+  /** El período efectivo, ya calculado en la página. Ver `lib/tracking.ts`. */
+  ventana: Ventana;
   meals: Meal[];
   weights: WeightLog[];
   water: WaterLog[];
   activities: Activity[];
   sleep: SleepLog[];
   measurements: Measurement[];
+  markers: DayMarker[];
+  alcohol: AlcoholLog[];
+  notes: CareNote[];
   goal: Goal | null;
   photoUrls: Record<string, string>;
 };
@@ -77,21 +91,33 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
     days,
     from,
     to,
+    ventana,
     meals,
     weights,
     water,
     activities,
     sleep,
     measurements,
+    markers,
+    alcohol,
+    notes,
     goal,
     photoUrls,
   } = data;
 
   const target = goal?.base_calorie_target ?? null;
 
-  // Se recorren los días del período y no solo los que tienen algo: un hueco
-  // es información —"no registró"— y una lista que salta del 3 al 7 lo esconde.
+  // ⚠️ Dos listas de fechas, y la diferencia importa.
+  //
+  // `fechas` es el **calendario**: el eje X de los gráficos sale de acá y
+  // arranca en `from` siempre, porque recortarlo movería las barras de lugar y
+  // el gráfico contradiría al calendario de adherencia de al lado.
+  //
+  // `ventana.fechas` es lo que **se cuenta**: todo denominador, racha, hueco y
+  // porcentaje sale de ahí. Alguien que empezó el 18 registró 13 de 13 días, no
+  // 13 de 30. Ver `docs/contexto-diario.md`.
   const fechas = rangoDeFechas(from, to);
+  const diasEfectivos = ventana.dias;
   const porDia = new Map<string, Meal[]>();
   for (const m of meals) {
     porDia.set(m.local_date, [...(porDia.get(m.local_date) ?? []), m]);
@@ -156,6 +182,52 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
     porMetrica.set(m.metric, [...(porMetrica.get(m.metric) ?? []), m]);
   }
 
+
+  /* ── El contexto del día ───────────────────────────────────────────────
+     Se indexa una sola vez y lo usan el día a día, los gráficos y el resumen.
+     Con un `.filter()` adentro de cada fila, un año de historial recorre la
+     lista entera trescientas sesenta y cinco veces. */
+  const marcasPorDia = new Map<string, DayMarker[]>();
+  for (const m of markers) {
+    marcasPorDia.set(m.local_date, [
+      ...(marcasPorDia.get(m.local_date) ?? []),
+      m,
+    ]);
+  }
+
+  const alcoholPorDia = new Map<string, AlcoholLog[]>();
+  for (const a of alcohol) {
+    alcoholPorDia.set(a.local_date, [
+      ...(alcoholPorDia.get(a.local_date) ?? []),
+      a,
+    ]);
+  }
+
+  const notasPorDia = new Map<string, CareNote[]>();
+  for (const n of notes) {
+    if (!n.local_date) continue;
+    notasPorDia.set(n.local_date, [
+      ...(notasPorDia.get(n.local_date) ?? []),
+      n,
+    ]);
+  }
+
+  const enfermos = markers.filter((m) => m.kind === 'sick');
+  const descansos = markers.filter((m) => m.kind === 'rest');
+
+  const ubePorDia = new Map<string, number>();
+  for (const a of alcohol) {
+    ubePorDia.set(a.local_date, (ubePorDia.get(a.local_date) ?? 0) + a.std_drinks);
+  }
+  const diasConAlcohol = ubePorDia.size;
+  const ubeTotal = [...ubePorDia.values()].reduce((acc, v) => acc + v, 0);
+  const kcalAlcohol = alcohol.reduce((acc, a) => acc + a.kcal, 0);
+
+  // Las semanas del período, para poner las UBE contra el umbral semanal —que
+  // es como está escrito en las guías— y no contra un total que crece con el
+  // período elegido y no se puede comparar con nada.
+  const semanas = diasEfectivos > 0 ? diasEfectivos / 7 : 0;
+  const ubePorSemana = semanas > 0 ? ubeTotal / semanas : 0;
   const diasConAlgo = [...fechas]
     .reverse()
     .filter(
@@ -163,14 +235,21 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
         porDia.has(d) ||
         activities.some((a) => a.local_date === d) ||
         water.some((w) => w.local_date === d) ||
-        sleep.some((s) => s.local_date === d),
+        sleep.some((s) => s.local_date === d) ||
+        // Un día marcado como enfermedad, o con alcohol, **es** un día con
+        // algo: si no entrara acá, el día que la persona estuvo en cama y no
+        // registró nada desaparecería del día a día, que es justo el día que
+        // hay que poder abrir para entender la semana.
+        marcasPorDia.has(d) ||
+        alcoholPorDia.has(d),
     );
+
 
   const apagadas = [
     !p.share_meals && 'las comidas',
     !p.share_photos && 'las fotos',
     !p.share_body && 'el peso y las medidas',
-    !p.share_wellbeing && 'la actividad, el agua y el sueño',
+    !p.share_wellbeing && 'la actividad, el agua, el sueño y el contexto del día',
   ].filter(Boolean) as string[];
 
   const header = (
@@ -206,6 +285,16 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
         title="Resumen del período"
         hint={`Últimos ${days} días · del ${fechaCorta(from)} al ${fechaCorta(to)}`}
       >
+        {/* El recorte se **dice**, no solo se aplica: "13 de 13" sin la
+            aclaración parece un período de trece días elegido a mano, y la
+            profesional necesita saber que pidió treinta. */}
+        {notaDeRecorte(ventana) && (
+          <div className="card" style={{ marginBottom: 'var(--s3)' }}>
+            <p className="muted" style={{ margin: 0 }}>
+              {notaDeRecorte(ventana)}
+            </p>
+          </div>
+        )}
         <StatRow>
           {p.share_meals && (
             <>
@@ -217,14 +306,19 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
                   target ? `objetivo ${miles(target)}` : 'sin objetivo cargado'
                 }
               />
+              {/* El denominador es la ventana efectiva y no `days`: alguien
+                  que empezó el 18 registró 13 de 13, no 13 de 30. Los otros 17
+                  no son huecos, son días sin la app. */}
               <Stat
                 label="Días con comidas"
                 value={`${diasConComida}`}
-                unit={`de ${days}`}
+                unit={diasEfectivos > 0 ? `de ${diasEfectivos}` : undefined}
                 caption={
-                  diasConComida < days
-                    ? `${days - diasConComida} sin registrar`
-                    : 'completo'
+                  diasEfectivos === 0
+                    ? 'sin registros todavía'
+                    : diasConComida < diasEfectivos
+                      ? `${diasEfectivos - diasConComida} sin registrar`
+                      : 'completo'
                 }
               />
               {target !== null && target > 0 && (
@@ -315,7 +409,7 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
           title="Registro"
           hint="Qué días quedaron cargados. Un promedio alto sobre seis días no es lo mismo que sobre treinta."
         >
-          <Adherence fechas={fechas} kcalPorDia={kcalPorDia} />
+          <Adherence fechas={fechas} kcalPorDia={kcalPorDia} ventana={ventana} />
         </Section>
       )}
 
@@ -353,6 +447,66 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
               </div>
             )}
           </div>
+        </Section>
+      )}
+
+      {/* ── Qué más pasó en el período ──────────────────────────────────
+          Va al final del resumen y **solo si hay algo**: es lo que explica a
+          los números de arriba, no una métrica más. Una sección permanente que
+          diga "0 días de enfermedad · 0 tragos" convierte en ruido de todas las
+          semanas lo que tiene que saltar la semana que pasó algo.
+          Ver `docs/contexto-diario.md`. */}
+      {p.share_wellbeing &&
+        (enfermos.length > 0 || diasConAlcohol > 0 || descansos.length > 0) && (
+        <Section
+          title="Qué más pasó"
+          hint="No cambia ningún número de arriba: los promedios y la adherencia se calculan igual. Está para poder leerlos."
+        >
+          <StatRow>
+            {enfermos.length > 0 && (
+              <Stat
+                label="Días de enfermedad"
+                value={`${enfermos.length}`}
+                unit={diasEfectivos > 0 ? `de ${diasEfectivos}` : undefined}
+                caption={resumenEnfermedad(enfermos)}
+              />
+            )}
+            {/* El descanso planificado y el día sin actividad se ven igual en
+                el gráfico, y no son lo mismo: uno es el plan y el otro es lo
+                que no pasó. */}
+            {descansos.length > 0 && (
+              <Stat
+                label="Descansos planificados"
+                value={`${descansos.length}`}
+                caption="marcados como descanso, no como día sin moverse"
+              />
+            )}
+            {diasConAlcohol > 0 && (
+              <>
+                <Stat
+                  label="Días con alcohol"
+                  value={`${diasConAlcohol}`}
+                  unit={diasEfectivos > 0 ? `de ${diasEfectivos}` : undefined}
+                  caption={`${num(ubeTotal)} tragos en el período`}
+                />
+                {/* Por semana y no el total: el umbral de las guías está escrito
+                    por semana, y un total crece con el período elegido y no se
+                    puede comparar con nada. Sin semáforo: la pantalla muestra
+                    distancias, no notas. */}
+                <Stat
+                  label="Tragos por semana"
+                  value={num(ubePorSemana)}
+                  caption="referencia de bajo riesgo: hasta 9–14 según sexo"
+                />
+                <Stat
+                  label="Calorías del alcohol"
+                  value={miles(kcalAlcohol)}
+                  unit="kcal"
+                  caption="aparte de las comidas, no suman al promedio"
+                />
+              </>
+            )}
+          </StatRow>
         </Section>
       )}
 
@@ -560,18 +714,23 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
 
   /* ── Hábitos ────────────────────────────────────────────────────────── */
   const habitos = !p.share_wellbeing ? (
-    <NoCompartido que="La actividad, el agua y el sueño" />
+    <NoCompartido que="La actividad, el agua, el sueño y el contexto del día" />
   ) : (
     <Section
-      title="Actividad, agua y sueño"
+      title="Actividad, agua, sueño y contexto"
       hint="Las calorías del ejercicio son una estimación por MET, no una medición."
     >
       <div className="grid grid--3">
         <div className="card habito">
           <h3>Actividad</h3>
           <p className="caption">
-            {actPorDia.length} de {days} días con movimiento
+            {actPorDia.length} de {diasEfectivos} días con movimiento
           </p>
+          {/* Acá es donde el contexto vale más: el hueco de actividad es el que
+              más se parece a abandono y el que más seguido tiene una
+              explicación. Las bandas van al pie del gráfico, no como color de
+              la barra: un día de enfermedad con 20 minutos de caminata sigue
+              siendo 20 minutos. Ver `docs/contexto-diario.md`. */}
           <BarChart
             points={actPorDia}
             unit="min"
@@ -579,7 +738,23 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
             hasta={to}
             color="var(--chart-walking)"
             height={150}
+            sickDays={enfermos.map((m) => m.local_date)}
+            drinkDays={[...ubePorDia.keys()]}
           />
+          {(enfermos.length > 0 || diasConAlcohol > 0) && (
+            <p className="caption chart-legend">
+              {enfermos.length > 0 && (
+                <span>
+                  <i className="swatch swatch--sick" /> día de enfermedad
+                </span>
+              )}
+              {diasConAlcohol > 0 && (
+                <span>
+                  <i className="swatch swatch--drink" /> con alcohol
+                </span>
+              )}
+            </p>
+          )}
           <dl className="habito-pie">
             <div>
               <dt className="caption">Sesiones</dt>
@@ -626,7 +801,7 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
             <div>
               <dt className="caption">Días registrados</dt>
               <dd className="tnum">
-                {water.length} de {days}
+                {water.length} de {diasEfectivos}
               </dd>
             </div>
             <div>
@@ -727,6 +902,12 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
           photoUrls={photoUrls}
           sharePhotos={p.share_photos}
           shareWellbeing={p.share_wellbeing}
+          // El contexto entra en la fila que ya existe y no en una sección
+          // aparte: "sin registros" y "estuvo enfermo" se leen juntos o no se
+          // leen. Ver `docs/contexto-diario.md`.
+          markers={marcasPorDia.get(d) ?? []}
+          alcohol={alcoholPorDia.get(d) ?? []}
+          notes={notasPorDia.get(d) ?? []}
           // El más reciente abierto: es el que se mira al entrar, y deja ver
           // de una que el día se abre sin tener que descubrir el triángulo.
           defaultOpen={i === 0}
@@ -747,6 +928,27 @@ export function PatientView({ data, tab }: { data: PatientData; tab?: string }) 
       content: habitos,
     },
     { id: 'diario', label: 'Día a día', content: diario },
+    // Las notas van **después** del día a día y no entre las cuatro del medio:
+    // esas cuatro son exactamente las cuatro categorías del permiso, y esa
+    // correspondencia —"esta pestaña está apagada" y "esto no me lo
+    // compartieron" son la misma frase— es lo que hace legible la pantalla.
+    // Meter acá una que no es del paciente la rompería.
+    {
+      id: 'notas',
+      label: notes.length ? `Notas · ${notes.length}` : 'Notas',
+      content: (
+        <Section
+          title="Tus notas"
+          hint="Lo que observaste, lo que acordaron, qué mirar la próxima vez. Son tuyas: el paciente no las ve."
+        >
+          <Notes
+            patientId={p.patient_id}
+            notes={notes}
+            patientName={p.patient_name}
+          />
+        </Section>
+      ),
+    },
   ];
 
   return <Tabs header={header} tabs={tabs} initial={tab ?? 'resumen'} />;
@@ -787,6 +989,18 @@ function NoCompartido({ que }: { que: string }) {
       </div>
     </Section>
   );
+}
+
+/** "2 seguidos · 12 y 13 de agosto" — de qué días se está hablando.
+ *
+ *  El número solo ("2 días") no alcanza: dos días sueltos en un mes y dos días
+ *  pegados son dos cosas distintas, y la segunda es la que explica el hueco de
+ *  la semana. */
+function resumenEnfermedad(marcas: DayMarker[]): string {
+  const fechas = marcas.map((m) => m.local_date).sort();
+  const partes = fechas.slice(0, 3).map((f) => fechaCorta(f));
+  const resto = fechas.length - 3;
+  return resto > 0 ? `${partes.join(', ')} +${resto}` : partes.join(', ');
 }
 
 /** "a, b y c" — con la "y" del final, que es como se lee en castellano. */

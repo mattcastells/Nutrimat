@@ -37,9 +37,15 @@ export function BarChart({
   targetLabel,
   decimals = 0,
   height = 150,
+  sickDays = [],
+  drinkDays = [],
 }: {
   points: Point[];
   unit: string;
+  /** Fechas marcadas como enfermedad. Ver `docs/contexto-diario.md`. */
+  sickDays?: string[];
+  /** Fechas con algún consumo de alcohol. */
+  drinkDays?: string[];
   /** Los extremos del período. Sin ellos se usa el rango de los datos, que es
    *  lo que hay que evitar salvo que no haya período que respetar. */
   desde?: string;
@@ -73,8 +79,13 @@ export function BarChart({
   // El ancho lo manda la caja: dibujar siempre en 720 y estirar con CSS
   // escalaba también las etiquetas del eje.
   const W = Math.max(ancho, 240);
-  const H = height;
-  const PAD = { top: 10, right: 10, bottom: 20, left: 40 };
+  // Las bandas de contexto viven **abajo del eje**, así que necesitan lugar
+  // propio: sin sumarlo, la de alcohol se dibujaba encima de la fecha del
+  // extremo izquierdo. Se suma al alto y no se le resta al área de las barras,
+  // porque achicar el gráfico para agregar una banda de 3 px sería pagar caro.
+  const bandas = (sickDays.length ? 1 : 0) + (drinkDays.length ? 1 : 0);
+  const H = height + bandas * 5;
+  const PAD = { top: 10, right: 10, bottom: 20 + bandas * 5, left: 40 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
@@ -136,6 +147,42 @@ export function BarChart({
                 {fmtEje(v)}
               </text>
             </g>
+          ))}
+
+          {/* ── El contexto, debajo de las barras ──────────────────────────
+              Va como una banda de 3 px al pie del gráfico y **no** como color
+              de la barra: teñir la barra cambiaría lo que la barra mide, y un
+              día de enfermedad con 20 minutos de caminata sigue siendo 20
+              minutos. Abajo, la marca dice "acá pasó algo" sin tocar el dato.
+
+              Debajo del eje y no encima: un día de enfermedad **sin** actividad
+              no tiene barra, y una marca superpuesta a una barra inexistente no
+              se vería — que es justo el día que hay que poder explicar. */}
+          {sickDays.map((f) => (
+            <rect
+              key={`sick-${f}`}
+              x={x(f)}
+              y={PAD.top + innerH + 2}
+              width={barW}
+              height={3}
+              rx={1.5}
+              fill="var(--caution)"
+            >
+              <title>{`${fechaCorta(f)} · día de enfermedad`}</title>
+            </rect>
+          ))}
+          {drinkDays.map((f) => (
+            <rect
+              key={`drink-${f}`}
+              x={x(f)}
+              y={PAD.top + innerH + (sickDays.length ? 7 : 2)}
+              width={barW}
+              height={3}
+              rx={1.5}
+              fill="var(--info)"
+            >
+              <title>{`${fechaCorta(f)} · con alcohol`}</title>
+            </rect>
           ))}
 
           {points.map((p, i) => (

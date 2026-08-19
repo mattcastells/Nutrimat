@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/error/app_error.dart';
 import '../../core/utils/dates.dart';
+import '../../domain/models/day_marker.dart';
 import '../local/local_store.dart';
 
 /// Sube y baja los datos del usuario **como filas**, en las tablas del
@@ -269,6 +270,86 @@ class RelationalSyncClient {
         onConflict: 'user_id,local_date',
       );
 
+      // ── El contexto del día ─────────────────────────────────────────────
+      //
+      // `day_markers` es la tabla que **antes se llamaba `rest_days` y no se
+      // subía nunca**: existía desde la migración 09, la app guardaba los días
+      // de descanso en un `Set` del documento local, y acá no aparecía. Un día
+      // marcado en un teléfono no llegaba al siguiente. Ver
+      // `docs/contexto-diario.md`.
+      //
+      // Va con `onConflict` por (usuario, día, tipo) y no por id, por lo mismo
+      // que el agua y el sueño: el único de la tabla es ese, así que dos
+      // teléfonos que marcaron el mismo día de descanso con ids distintos
+      // chocarían contra el índice en vez de pisarse.
+      await subir(
+        'day_markers',
+        <Map<String, dynamic>>[
+          for (final m in _unaPorDiaPorTipo(store.dayMarkers))
+            <String, dynamic>{
+              'id': m.id,
+              'user_id': userId,
+              'local_date': isoDate(m.localDate),
+              'kind': m.kind.wire,
+              'severity': m.severity?.level,
+              'note': m.note,
+              'tags': m.tags,
+              'updated_at': m.updatedAt.toUtc().toIso8601String(),
+              // La lápida viaja: sin esto, desmarcar un día lo saca del
+              // teléfono y lo deja vivo en la tabla, y la reconciliación
+              // siguiente lo trae de vuelta.
+              'deleted_at': m.deletedAt?.toUtc().toIso8601String(),
+            },
+        ],
+        onConflict: 'user_id,local_date,kind',
+      );
+
+      // El alcohol sí se resuelve por id: hay varios consumos por día a
+      // propósito, así que no tiene una segunda clave única contra la que
+      // chocar.
+      await subir('alcohol_logs', <Map<String, dynamic>>[
+        for (final a in store.alcoholLogs)
+          <String, dynamic>{
+            'id': a.id,
+            'user_id': userId,
+            'local_date': isoDate(a.localDate),
+            'drink_type': a.type.wire,
+            'quantity': a.quantity,
+            'volume_ml': a.volumeMl,
+            'abv_pct': a.abvPct,
+            'std_drinks': a.standardDrinksTotal,
+            'kcal': a.kcal,
+            'note': a.note,
+            'logged_at': a.loggedAt.toUtc().toIso8601String(),
+            'updated_at': a.updatedAt.toUtc().toIso8601String(),
+            'deleted_at': a.deletedAt?.toUtc().toIso8601String(),
+          },
+      ]);
+
+      // ── Los recordatorios ───────────────────────────────────────────────
+      //
+      // Otra tabla que existía desde la migración 22 y no subía nunca. Sin id:
+      // el modelo se identifica por (usuario, tipo) y la base pone el uuid, así
+      // que el upsert no le reescribe la primary key a la fila en cada subida.
+      //
+      // Los horarios viajan como minutos desde medianoche, que es como los
+      // guarda la columna.
+      await subir(
+        'reminders',
+        <Map<String, dynamic>>[
+          for (final r in store.reminders)
+            <String, dynamic>{
+              'user_id': userId,
+              'kind': r.kind.wire,
+              'enabled': r.enabled,
+              'times': <int>[
+                for (final t in r.times) t.hour * 60 + t.minute,
+              ],
+            },
+        ],
+        onConflict: 'user_id,kind',
+      );
+
       await subir('activity_goals', <Map<String, dynamic>>[
         for (final g in store.activityGoals)
           <String, dynamic>{
@@ -319,7 +400,7 @@ class RelationalSyncClient {
             'id': m.id,
             'user_id': userId,
             'slot': m.slot.wire,
-            'logged_at': m.loggedAt.toUtc().toIso8601String(),
+            'eaten_at': m.eatenAt.toUtc().toIso8601String(),
             'local_date': isoDate(m.localDate),
             'name': m.name,
             'total_kcal': m.totalKcal,
@@ -379,6 +460,35 @@ class RelationalSyncClient {
       // Las actividades al final: necesitan el mapa de tipos.
       final tipos = await _activityTypeIds();
       final custom = tipos['custom'];
+
+      // ── Las plantillas de ejercicio ─────────────────────────────────────
+      //
+      // Existían desde la migración 09 y se quedaban en el teléfono. Una
+      // plantilla que alguien se armó a mano y pierde al cambiar de aparato es
+      // de las cosas más molestas de rehacer, que es justo el argumento por el
+      // que la tabla se creó.
+      //
+      // Van acá abajo y no con el resto porque `activity_type_id` es una FK
+      // contra el catálogo del servidor, así que necesitan el mismo mapa por
+      // slug que las actividades. Una plantilla sobre un tipo que la persona
+      // inventó cae en `custom`, igual que su actividad.
+      await subir('exercise_templates', <Map<String, dynamic>>[
+        for (final t in store.templates)
+          if ((tipos[store.typeById(t.activityTypeId)?.slug] ?? custom) != null)
+            <String, dynamic>{
+              'id': t.id,
+              'user_id': userId,
+              'name': t.name,
+              'activity_type_id':
+                  tipos[store.typeById(t.activityTypeId)?.slug] ?? custom,
+              'default_duration_minutes': t.defaultDurationMinutes,
+              'default_intensity': t.defaultIntensity.wire,
+              'default_distance_meters': t.defaultDistanceMeters,
+              'default_notes': t.defaultNotes,
+              'use_count': t.useCount,
+            },
+      ]);
+
       final actividades = <Map<String, dynamic>>[];
       for (final a in store.activities) {
         // Las borradas suben con su lápida, por lo mismo que las comidas: un
@@ -616,7 +726,11 @@ class RelationalSyncClient {
       final measurements = await traer('body_measurements');
       final waterLogs = await traer('water_logs');
       final sleepLogs = await traer('sleep_logs');
+      final dayMarkers = await traer('day_markers');
+      final alcoholLogs = await traer('alcohol_logs');
       final activityGoals = await traer('activity_goals');
+      final reminders = await traer('reminders');
+      final templates = await traer('exercise_templates');
       final foods = await traer('foods');
 
       // Sin ninguna fila de contenido no hay nada que traer: devolver un
@@ -628,6 +742,8 @@ class RelationalSyncClient {
           measurements.isNotEmpty ||
           waterLogs.isNotEmpty ||
           sleepLogs.isNotEmpty ||
+          dayMarkers.isNotEmpty ||
+          alcoholLogs.isNotEmpty ||
           foods.isNotEmpty;
       if (!hayContenido) return null;
 
@@ -746,7 +862,7 @@ class RelationalSyncClient {
             <String, dynamic>{
               'id': m['id'],
               'slot': m['slot'],
-              'loggedAt': isoOf(m['logged_at']),
+              'eatenAt': isoOf(m['eaten_at']),
               'localDate': m['local_date'],
               'name': m['name'],
               'source': m['source'],
@@ -869,6 +985,79 @@ class RelationalSyncClient {
               'deletedAt': s['deleted_at'] == null
                   ? null
                   : isoOf(s['deleted_at']),
+            },
+        ],
+        'dayMarkers': <Map<String, dynamic>>[
+          for (final m in dayMarkers)
+            <String, dynamic>{
+              'id': m['id'],
+              'localDate': m['local_date'],
+              'kind': m['kind'],
+              'severity': m['severity'],
+              'note': m['note'],
+              'tags': <String>[
+                for (final t in (m['tags'] as List<dynamic>? ?? <dynamic>[]))
+                  t.toString(),
+              ],
+              'updatedAt': isoOf(m['updated_at']),
+              'syncStatus': 'synced',
+              'deletedAt': m['deleted_at'] == null
+                  ? null
+                  : isoOf(m['deleted_at']),
+            },
+        ],
+        'alcoholLogs': <Map<String, dynamic>>[
+          for (final a in alcoholLogs)
+            <String, dynamic>{
+              'id': a['id'],
+              'localDate': a['local_date'],
+              'type': a['drink_type'],
+              // `numeric` vuelve como String en PostgREST, no como número: sin
+              // el `num.tryParse` esto entra al modelo como null y una copa de
+              // vino se convierte en cero tragos al reconciliar.
+              'quantity': _numero(a['quantity']) ?? 1,
+              'volumeMl': (_numero(a['volume_ml']) ?? 0).toInt(),
+              'abvPct': _numero(a['abv_pct']) ?? 0,
+              'note': a['note'],
+              'loggedAt': isoOf(a['logged_at']),
+              'updatedAt': isoOf(a['updated_at']),
+              'syncStatus': 'synced',
+              'deletedAt': a['deleted_at'] == null
+                  ? null
+                  : isoOf(a['deleted_at']),
+            },
+        ],
+        'reminders': <Map<String, dynamic>>[
+          for (final r in reminders)
+            <String, dynamic>{
+              'kind': r['kind'],
+              'enabled': r['enabled'],
+              // La columna guarda minutos desde medianoche; el modelo, hora y
+              // minuto por separado.
+              'times': <Map<String, dynamic>>[
+                for (final m in (r['times'] as List<dynamic>? ?? <dynamic>[]))
+                  <String, dynamic>{
+                    'hour': (m as num).toInt() ~/ 60,
+                    'minute': m.toInt() % 60,
+                  },
+              ],
+            },
+        ],
+        'templates': <Map<String, dynamic>>[
+          for (final t in templates)
+            <String, dynamic>{
+              'id': t['id'],
+              'name': t['name'],
+              // El id del tipo vuelve traducido a slug: es la misma clave con
+              // la que la app resuelve sus tipos locales, y el uuid del
+              // servidor no significa nada de este lado.
+              'activityTypeId':
+                  slugPorId[t['activity_type_id']] ?? 'custom',
+              'defaultDurationMinutes': t['default_duration_minutes'],
+              'defaultIntensity': t['default_intensity'],
+              'defaultDistanceMeters': t['default_distance_meters'],
+              'defaultNotes': t['default_notes'],
+              'useCount': t['use_count'],
             },
         ],
         'activityGoals': <Map<String, dynamic>>[
@@ -1003,4 +1192,34 @@ Iterable<T> _unaPorDia<T>(
     }
   }
   return porDia.values;
+}
+
+/// Un `numeric` de PostgREST, que vuelve como String y no como número.
+///
+/// `quantity`, `abv_pct` y `std_drinks` son `numeric` en la tabla, y postgrest
+/// los serializa a texto para no perder precisión. Un cast directo a `num`
+/// devuelve null y el modelo se queda con el default, así que una copa de vino
+/// entraba como cero tragos en la reconciliación siguiente.
+double? _numero(Object? v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
+/// Lo mismo que [_unaPorDia], pero la clave es **(día, tipo)**.
+///
+/// `day_markers` tiene ese único y no el del día solo: el mismo día puede ser
+/// de descanso y de enfermedad a la vez, que es justamente el caso interesante.
+/// Sin partir por tipo, subir un día con las dos marcas mandaría dos filas que
+/// el upsert no distingue y rompería el lote entero.
+Iterable<DayMarker> _unaPorDiaPorTipo(Iterable<DayMarker> marcas) {
+  final porClave = <String, DayMarker>{};
+  for (final m in marcas) {
+    final clave = '${isoDate(m.localDate)}|${m.kind.wire}';
+    final actual = porClave[clave];
+    if (actual == null || m.updatedAt.isAfter(actual.updatedAt)) {
+      porClave[clave] = m;
+    }
+  }
+  return porClave.values;
 }

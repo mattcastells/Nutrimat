@@ -27,7 +27,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrimat/domain/calculations/alcohol.dart';
 import 'package:nutrimat/domain/enums/enums.dart';
+import 'package:nutrimat/domain/models/day_marker.dart';
 import 'package:nutrimat/domain/models/sleep.dart';
 
 /// Las restricciones de valores fijos sobre columnas que **sube el cliente**
@@ -68,6 +70,19 @@ final Map<String, List<String>> _escribeLaApp = <String, List<String>>{
   'activity_goals_type': ActivityGoalType.values.map((e) => e.wire).toList(),
   'activity_goals_period': GoalPeriod.values.map((e) => e.wire).toList(),
   'weight_logs_sync_status': SyncStatus.values.map((e) => e.wire).toList(),
+
+  // El contexto del día. Las dos las sube el cliente: la marca sale de
+  // `DayMarkerKind` y la bebida de `DrinkType`, así que agregar un valor a
+  // cualquiera de los dos enums sin tocar la migración 40 tiene que romper acá
+  // y no en silencio contra la base.
+  'day_markers_kind': DayMarkerKind.values.map((e) => e.wire).toList(),
+  'alcohol_logs_type': DrinkType.values.map((e) => e.wire).toList(),
+
+  // Las plantillas pasaron a subirse con la migración 44: existían desde la 09
+  // y se quedaban en el teléfono. Por eso esta restricción se movió de la lista
+  // de abajo a esta.
+  'exercise_templates_intensity':
+      Intensity.values.map((e) => e.wire).toList(),
 };
 
 /// Restricciones de valores fijos que la app **no** escribe: las llena el
@@ -87,15 +102,9 @@ const Set<String> _noLasEscribeLaApp = <String>{
   // El estado del acceso profesional lo pone el servidor: la app llama a
   // `grant_care_access` / `revoke_care_access` y nunca manda el literal.
   'care_grants_status',
-  'duplicate_resolutions_resolution',
-  'exercise_templates_intensity',
-  'foods_cache_source',
   'foods_source', // el cliente manda 'user' fijo, no el enum
   'goals_macro_method',
-  'health_integrations_provider',
-  'health_integrations_status',
   'pals_status',
-  'sync_records_entity',
   'weight_logs_source',
 };
 
@@ -107,9 +116,33 @@ final RegExp _constraintConIn = RegExp(
   multiLine: true,
 );
 
+/// `drop table [if exists] public.X` — la tabla que una migración se lleva.
+///
+/// Hace falta porque este archivo lee **el texto de las migraciones**, no la
+/// base: una tabla borrada en la 43 sigue teniendo su `create table` escrito en
+/// la 11, así que sus restricciones se siguen encontrando. Sin esto, cada
+/// limpieza obligaba a dejar los nombres de tablas muertas en una de las dos
+/// listas de arriba para que el test no fallara — que es exactamente el residuo
+/// que la limpieza venía a sacar.
+final RegExp _dropTable = RegExp(
+  r'drop\s+table\s+(?:if\s+exists\s+)?public\.(\w+)',
+  multiLine: true,
+);
+
+/// `alter table public.X rename to Y`. El nombre viejo deja de existir, y con
+/// él sus restricciones: `rest_days_uniq` no se puede clasificar después de que
+/// la migración 40 renombrara la tabla a `day_markers`.
+final RegExp _renameTable = RegExp(
+  r'alter\s+table\s+public\.(\w+)\s+rename\s+to\s+(\w+)',
+  multiLine: true,
+);
+
 Map<String, Set<String>> _leerRestricciones() {
   final dir = Directory('supabase/migrations');
   final encontradas = <String, Set<String>>{};
+
+  /// Las tablas que ya no existen al final de todas las migraciones.
+  final desaparecidas = <String>{};
 
   // **Ordenadas por nombre**, que en este esquema es el orden en que se
   // aplican. `listSync()` devuelve lo que le da el sistema de archivos: NTFS
@@ -152,7 +185,30 @@ Map<String, Set<String>> _leerRestricciones() {
       // última, que es como las aplica Postgres.
       encontradas[nombre] = valores;
     }
+
+    // El orden importa: una tabla se puede crear, borrar y volver a crear, y
+    // los archivos se recorren en el orden en que se aplican.
+    for (final match in _dropTable.allMatches(sql)) {
+      desaparecidas.add(match.group(1)!);
+    }
+    for (final match in _renameTable.allMatches(sql)) {
+      desaparecidas.add(match.group(1)!);
+      desaparecidas.remove(match.group(2)!);
+    }
+    for (final match in RegExp(
+      r'create\s+table\s+(?:if\s+not\s+exists\s+)?public\.(\w+)',
+    ).allMatches(sql)) {
+      desaparecidas.remove(match.group(1)!);
+    }
   }
+
+  // Las restricciones de una tabla que ya no está no se clasifican: no hay
+  // nada que pueda rechazar una fila. Se identifican por prefijo, que es la
+  // convención de nombres de todo el esquema (`meals_slot`, `pals_status`).
+  encontradas.removeWhere(
+    (nombre, _) => desaparecidas.any((t) => nombre.startsWith('${t}_')),
+  );
+
   return encontradas;
 }
 

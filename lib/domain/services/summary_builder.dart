@@ -4,9 +4,12 @@ import '../../core/utils/dates.dart';
 import '../calculations/adherence.dart';
 import '../calculations/moving_average.dart';
 import '../calculations/rounding.dart';
+import '../calculations/tracking_window.dart';
 import '../enums/enums.dart';
 import '../models/activity.dart';
+import '../models/alcohol.dart';
 import '../models/body.dart';
+import '../models/day_marker.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
 import '../models/summaries.dart';
@@ -20,7 +23,7 @@ abstract final class SummaryBuilder {
       meals
           .where((m) => !m.isDeleted && isSameDay(m.localDate, date))
           .toList()
-        ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
+        ..sort((a, b) => a.eatenAt.compareTo(b.eatenAt));
 
   static List<Activity> activitiesOn(
     List<Activity> activities,
@@ -41,9 +44,14 @@ abstract final class SummaryBuilder {
     required int creditPercentage,
     required bool creditEnabled,
     required bool isRestDay,
+    DayMarker? sickMarker,
+    List<AlcoholLog> alcoholLogs = const <AlcoholLog>[],
   }) {
     final meals = mealsOn(allMeals, date);
     final activities = activitiesOn(allActivities, date);
+    final tragos = alcoholLogs
+        .where((a) => !a.isDeleted && isSameDay(a.localDate, date))
+        .toList();
 
     final consumed = meals.fold(0, (acc, m) => acc + m.totalKcal);
     final estimated = activities.fold(
@@ -90,6 +98,10 @@ abstract final class SummaryBuilder {
       ),
       weight: _weightSnapshot(weightLogs, date),
       isRestDay: isRestDay,
+      sickMarker: sickMarker,
+      // `null` y no un día vacío: la tarjeta no aparece en vez de mostrar
+      // "0 tragos", que es un dato que nadie pidió ver todos los días.
+      alcohol: tragos.isEmpty ? null : AlcoholDay.group(tragos).first,
     );
   }
 
@@ -126,10 +138,21 @@ abstract final class SummaryBuilder {
     required Goal Function(DateTime) goalFor,
     required bool Function(DateTime) isRestDay,
     bool creditEnabled = true,
+    bool Function(DateTime)? isSickDay,
+    List<AlcoholLog> alcoholLogs = const <AlcoholLog>[],
   }) {
     final days = <HistoryDay>[];
     var cursor = dateOnly(to);
     final start = dateOnly(from);
+
+    // Una sola pasada por los tragos, no una por día: con un año de historial y
+    // un filtro adentro del `while`, esto es cuadrático.
+    final tragosPorDia = <String, double>{};
+    for (final a in alcoholLogs) {
+      if (a.isDeleted) continue;
+      final k = isoDate(a.localDate);
+      tragosPorDia[k] = (tragosPorDia[k] ?? 0) + a.standardDrinksTotal;
+    }
 
     while (!cursor.isBefore(start)) {
       final meals = mealsOn(allMeals, cursor);
@@ -158,6 +181,8 @@ abstract final class SummaryBuilder {
               : steps.fold<int>(0, (acc, s) => acc + s),
           isRestDay: isRestDay(cursor),
           hasRecords: meals.isNotEmpty || activities.isNotEmpty,
+          isSickDay: isSickDay?.call(cursor) ?? false,
+          standardDrinks: tragosPorDia[isoDate(cursor)] ?? 0,
         ),
       );
       cursor = cursor.subtract(const Duration(days: 1));
@@ -166,6 +191,16 @@ abstract final class SummaryBuilder {
   }
 
   /// El agregado de Progreso (S-23 y S-24).
+  ///
+  /// **El período del que se cuenta no es el que se pidió.** Es el que se
+  /// solapa con el tiempo que la persona lleva usando la app: alguien que
+  /// arrancó el 18 de agosto, mirando "los últimos 30 días" el 19, registró 2
+  /// de 2 días y no 2 de 30. Todo lo que divide por una cantidad de días sale
+  /// de [TrackingWindow] y no de `from`; ver `docs/contexto-diario.md`.
+  ///
+  /// Las series de los gráficos —calorías por día, actividad por día— **sí**
+  /// arrancan en `from`, porque el eje X es el calendario y recortarlo movería
+  /// las barras de lugar. Lo que cambia es qué se cuenta, no dónde se dibuja.
   static ProgressSummary progress({
     required DateTime from,
     required DateTime to,
@@ -176,10 +211,19 @@ abstract final class SummaryBuilder {
     required Goal Function(DateTime) goalFor,
     required bool Function(DateTime) isRestDay,
     required bool creditEnabled,
+    DateTime? trackingSince,
+    List<DayMarker> markers = const <DayMarker>[],
+    List<AlcoholLog> alcoholLogs = const <AlcoholLog>[],
   }) {
     final start = dateOnly(from);
     final end = dateOnly(to);
     final dayCount = daysBetween(start, end) + 1;
+
+    final window = TrackingWindow(
+      from: start,
+      to: end,
+      trackingSince: trackingSince,
+    );
 
     final weightInRange =
         weightLogs
@@ -225,9 +269,11 @@ abstract final class SummaryBuilder {
           exerciseApplied: applied,
         ),
       );
-      adherenceDays.add(
-        AdherenceDay(consumed: consumed, target: goal.baseCalorieTarget),
-      );
+      if (window.contains(day)) {
+        adherenceDays.add(
+          AdherenceDay(consumed: consumed, target: goal.baseCalorieTarget),
+        );
+      }
       activityByDay.add(
         ActivityDayPoint(
           date: day,
@@ -236,7 +282,10 @@ abstract final class SummaryBuilder {
           sessions: activities.length,
         ),
       );
-      if (isRestDay(day)) restDayCount++;
+      // Los días de descanso se cuentan **dentro de la ventana efectiva**: un
+      // "3 días de descanso" que incluyera días anteriores a la cuenta sería
+      // contar como descanso el tiempo en que la app no existía.
+      if (window.contains(day) && isRestDay(day)) restDayCount++;
     }
 
     final rangeActivities = allActivities
@@ -301,10 +350,30 @@ abstract final class SummaryBuilder {
         ? 0.0
         : weightInRange.last.weightKg;
 
+    final marcasEnfermedad = <DayMarker>[
+      for (final m in markers)
+        if (!m.isDeleted &&
+            m.kind == DayMarkerKind.sick &&
+            !dateOnly(m.localDate).isBefore(start) &&
+            !dateOnly(m.localDate).isAfter(end))
+          m,
+    ]..sort((a, b) => a.localDate.compareTo(b.localDate));
+
+    final tragos = AlcoholDay.group(
+      alcoholLogs.where(
+        (a) =>
+            !dateOnly(a.localDate).isBefore(start) &&
+            !dateOnly(a.localDate).isAfter(end),
+      ),
+    );
+
     return ProgressSummary(
       from: start,
       to: end,
       days: dayCount,
+      window: window,
+      sickDays: marcasEnfermedad,
+      alcoholDays: tragos,
       weightPoints: weightPoints,
       weightMovingAverage: movingAvg,
       weightDeltaKg: double.parse(
@@ -346,9 +415,13 @@ abstract final class SummaryBuilder {
         restDays: restDayCount,
         mostFrequentTypeName: mostFrequent,
       ),
-      weeklyAverageMinutes: dayCount == 0
+      // Minutos por semana sobre los días que **se podían** registrar. Con
+      // `dayCount` —los 30 del calendario— alguien que arrancó hace cinco días
+      // veía sus 90 minutos divididos por 4,3 semanas: 21 min/semana, cuando la
+      // única semana que existió tuvo 90.
+      weeklyAverageMinutes: window.effectiveDays == 0
           ? 0
-          : roundHalfUp(totalMinutes / (dayCount / 7)),
+          : roundHalfUp(totalMinutes / (window.effectiveDays / 7)),
       previousWeekDeltaMinutes: thisWeekMinutes - lastWeekMinutes,
       stepsAverage: stepValues.isEmpty
           ? null

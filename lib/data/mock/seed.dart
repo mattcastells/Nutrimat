@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/dates.dart';
+import '../../domain/calculations/alcohol.dart';
 import '../../domain/calculations/bmr.dart';
 import '../../domain/calculations/calorie_target.dart';
 import '../../domain/calculations/exercise_credit.dart';
@@ -11,7 +12,9 @@ import '../../domain/calculations/met_calories.dart';
 import '../../domain/calculations/tdee.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
+import '../../domain/models/alcohol.dart';
 import '../../domain/models/body.dart';
+import '../../domain/models/day_marker.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
@@ -32,7 +35,8 @@ class SeedData {
     required this.measurements,
     required this.activityGoals,
     required this.templates,
-    required this.restDays,
+    required this.dayMarkers,
+    required this.alcoholLogs,
     required this.userFoods,
   });
 
@@ -44,7 +48,8 @@ class SeedData {
   final List<BodyMeasurement> measurements;
   final List<ActivityGoal> activityGoals;
   final List<ExerciseTemplate> templates;
-  final Set<String> restDays;
+  final List<DayMarker> dayMarkers;
+  final List<AlcoholLog> alcoholLogs;
   final List<Food> userFoods;
 }
 
@@ -224,7 +229,8 @@ SeedData buildSeed({
     'off:7622210449283',
   ];
 
-  final restDays = <String>{};
+  final dayMarkers = <DayMarker>[];
+  final alcoholLogs = <AlcoholLog>[];
   var weight = 101.6;
 
   for (var back = 30; back >= 1; back--) {
@@ -295,7 +301,53 @@ SeedData buildSeed({
         ),
       );
     } else if (roll == 9) {
-      restDays.add(isoDate(day));
+      dayMarkers.add(
+        DayMarker(
+          id: _uuid.v4(),
+          localDate: day,
+          kind: DayMarkerKind.rest,
+          updatedAt: day,
+          syncStatus: SyncStatus.synced,
+        ),
+      );
+    }
+
+    // Dos días de enfermedad seguidos y algún sábado con alcohol.
+    //
+    // Sin esto el contexto del día se ve siempre vacío en la demo, y ahí no hay
+    // forma de saber si la pantalla está bien dibujada o si simplemente no hay
+    // nada que dibujar. Los dos días van pegados y con el hueco de actividad
+    // encima a propósito: es exactamente el caso que la feature existe para
+    // explicar.
+    if (back == 12 || back == 11) {
+      dayMarkers.add(
+        DayMarker(
+          id: _uuid.v4(),
+          localDate: day,
+          kind: DayMarkerKind.sick,
+          severity: back == 12 ? SickSeverity.moderate : SickSeverity.mild,
+          note: back == 12 ? 'Angina, fiebre a la tarde' : 'Mejor, sin fiebre',
+          updatedAt: day,
+          syncStatus: SyncStatus.synced,
+        ),
+      );
+    }
+
+    if (day.weekday == DateTime.saturday && rnd.nextInt(3) != 0) {
+      final preset = drinkPresets[rnd.nextInt(4)];
+      alcoholLogs.add(
+        AlcoholLog(
+          id: _uuid.v4(),
+          localDate: day,
+          type: preset.type,
+          quantity: (1 + rnd.nextInt(3)).toDouble(),
+          volumeMl: preset.volumeMl,
+          abvPct: preset.abvPct,
+          loggedAt: DateTime(day.year, day.month, day.day, 22),
+          updatedAt: day,
+          syncStatus: SyncStatus.synced,
+        ),
+      );
     }
 
     // Peso: tendencia a la baja con ruido; no todos los días hay registro.
@@ -413,7 +465,8 @@ SeedData buildSeed({
     measurements: measurements,
     activityGoals: activityGoals,
     templates: templates,
-    restDays: restDays,
+    dayMarkers: dayMarkers,
+    alcoholLogs: alcoholLogs,
     userFoods: userFoods,
   );
 }
@@ -456,7 +509,7 @@ Meal _meal({
 }) => Meal(
   id: _uuid.v4(),
   slot: slot,
-  loggedAt: at,
+  eatenAt: at,
   localDate: dateOnly(at),
   items: items,
   source: MealSource.manual,

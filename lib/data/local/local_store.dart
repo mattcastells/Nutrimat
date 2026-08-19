@@ -7,7 +7,9 @@ import '../../core/config/feature_flags.dart';
 import '../../core/utils/dates.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
+import '../../domain/models/alcohol.dart';
 import '../../domain/models/body.dart';
+import '../../domain/models/day_marker.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
@@ -77,13 +79,28 @@ class LocalStore {
   List<ExerciseTemplate> templates = <ExerciseTemplate>[];
   List<Food> userFoods = <Food>[];
 
-  /// Espejo de `foods_cache`: lo que se trajo del catálogo externo queda
-  /// guardado para que la búsqueda siga andando sin conexión (13-state §4).
+  /// Lo que se trajo del catálogo externo, guardado para que la búsqueda siga
+  /// andando sin conexión.
+  ///
+  /// Vive **solo acá**. El plan original tenía una tabla `foods_cache` del lado
+  /// del servidor y la migración 43 la sacó: un espejo por cuenta de un catálogo
+  /// público no le ahorra nada a nadie, y el cache sirve justamente en el
+  /// teléfono, que es donde no hay red.
   List<Food> cachedFoods = <Food>[];
   List<String> recentFoodIds = <String>[];
 
   static const int _maxCachedFoods = 500;
-  Set<String> restDays = <String>{};
+
+  /// Las marcas del día: descanso y enfermedad.
+  ///
+  /// Antes el descanso era un `Set<String>` de fechas que **no se sincronizaba
+  /// con nada**: la tabla `rest_days` existía desde la migración 09, el cliente
+  /// relacional no la nombraba, y un día marcado en un teléfono no existía en
+  /// el siguiente. Ahora es una colección como el resto y viaja por los dos
+  /// caminos. Ver `docs/contexto-diario.md`.
+  List<DayMarker> dayMarkers = <DayMarker>[];
+
+  List<AlcoholLog> alcoholLogs = <AlcoholLog>[];
   List<ActivityType> customTypes = <ActivityType>[];
   HealthIntegration integration = const HealthIntegration(
     id: 'health-connect',
@@ -172,7 +189,29 @@ class LocalStore {
     return goals.isEmpty ? null : goals.last;
   }
 
-  bool isRestDay(DateTime date) => restDays.contains(isoDate(date));
+  /// La marca viva de ese tipo en ese día, si la hay.
+  DayMarker? markerOn(DateTime date, DayMarkerKind kind) {
+    final key = isoDate(date);
+    for (final m in dayMarkers) {
+      if (!m.isDeleted && m.kind == kind && isoDate(m.localDate) == key) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  bool isRestDay(DateTime date) => markerOn(date, DayMarkerKind.rest) != null;
+
+  bool isSickDay(DateTime date) => markerOn(date, DayMarkerKind.sick) != null;
+
+  /// Lo que se tomó ese día, sin los borrados.
+  List<AlcoholLog> alcoholOn(DateTime date) {
+    final key = isoDate(date);
+    return <AlcoholLog>[
+      for (final a in alcoholLogs)
+        if (!a.isDeleted && isoDate(a.localDate) == key) a,
+    ];
+  }
 
   // ── Carga ──────────────────────────────────────────────────────────────
 
@@ -300,7 +339,8 @@ class LocalStore {
     measurements = data.measurements;
     activityGoals = data.activityGoals;
     templates = data.templates;
-    restDays = data.restDays;
+    dayMarkers = data.dayMarkers;
+    alcoholLogs = data.alcoholLogs;
     userFoods = data.userFoods;
     recentFoodIds = <String>[
       'usda:1750340',
@@ -324,7 +364,8 @@ class LocalStore {
     measurements = <BodyMeasurement>[];
     activityGoals = <ActivityGoal>[];
     templates = <ExerciseTemplate>[];
-    restDays = <String>{};
+    dayMarkers = <DayMarker>[];
+    alcoholLogs = <AlcoholLog>[];
     userFoods = <Food>[];
     recentFoodIds = <String>[];
     customTypes = <ActivityType>[];
@@ -424,10 +465,37 @@ class LocalStore {
       for (final e in (j['recentFoodIds'] as List<dynamic>? ?? <dynamic>[]))
         if (e is String) e,
     ];
-    restDays = <String>{
-      for (final e in (j['restDays'] as List<dynamic>? ?? <dynamic>[]))
-        if (e is String) e,
+
+    dayMarkers = list('dayMarkers', DayMarker.fromJson);
+    alcoholLogs = list('alcoholLogs', AlcoholLog.fromJson);
+
+    // Los días de descanso de un documento viejo, cuando eran una lista de
+    // fechas sueltas. Se convierten a marcas y se quedan: no hay migración
+    // aparte que ejecutar ni un momento en que el usuario los pierda.
+    //
+    // Solo entran los que no estén ya como marca, porque este documento puede
+    // venir de una reconciliación que ya trajo la versión nueva de la misma
+    // fecha, y ahí la marca manda: tiene nota, id y lápida.
+    final yaMarcados = <String>{
+      for (final m in dayMarkers)
+        if (m.kind == DayMarkerKind.rest) isoDate(m.localDate),
     };
+    for (final e in (j['restDays'] as List<dynamic>? ?? <dynamic>[])) {
+      if (e is! String || yaMarcados.contains(e)) continue;
+      final fecha = DateTime.tryParse(e);
+      if (fecha == null) continue;
+      dayMarkers.add(
+        DayMarker(
+          // Determinístico: el mismo día de descanso convertido en dos
+          // teléfonos tiene que dar el mismo id, o la reconciliación los
+          // uniría como dos marcas distintas del mismo día.
+          id: 'rest-$e',
+          localDate: fecha,
+          kind: DayMarkerKind.rest,
+          updatedAt: fecha,
+        ),
+      );
+    }
 
     try {
       if (j['integration'] != null) {
@@ -470,7 +538,8 @@ class LocalStore {
     'cachedFoods': cachedFoods.map((e) => e.toJson()).toList(),
     'customTypes': customTypes.map((e) => e.toJson()).toList(),
     'recentFoodIds': recentFoodIds,
-    'restDays': restDays.toList(),
+    'dayMarkers': dayMarkers.map((e) => e.toJson()).toList(),
+    'alcoholLogs': alcoholLogs.map((e) => e.toJson()).toList(),
     'integration': integration.toJson(),
     'offline': offline,
     'historyFilters': historyFilters,
@@ -491,11 +560,19 @@ class LocalStore {
       measurements.isNotEmpty ||
       waterLogs.isNotEmpty ||
       sleepLogs.isNotEmpty ||
+      dayMarkers.isNotEmpty ||
+      alcoholLogs.isNotEmpty ||
       userFoods.isNotEmpty;
 
   /// Versión del formato del documento. Sube cuando cambie de forma y haya que
   /// migrar un respaldo viejo.
-  static const int schemaVersion = 1;
+  ///
+  /// **2** — los días de descanso dejan de ser `restDays` (una lista de fechas)
+  /// y pasan a ser `dayMarkers`, junto con los de enfermedad; aparece
+  /// `alcoholLogs`. Un documento v1 se lee sin problema —`_restore` convierte
+  /// los `restDays` que encuentre—, pero uno v2 no lo puede abrir una versión
+  /// anterior de la app, y eso es lo que este número le avisa.
+  static const int schemaVersion = 2;
 
   /// Persiste el documento completo. Es barato para el volumen del MVP y se
   /// reemplaza por escrituras por tabla cuando entre Drift.

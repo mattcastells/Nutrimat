@@ -60,7 +60,7 @@ const _pure = MealItem(
 Meal _meal() => Meal(
   id: 'm-1',
   slot: MealSlot.dinner,
-  loggedAt: DateTime(2026, 8, 4, 21, 30),
+  eatenAt: DateTime(2026, 8, 4, 21, 30),
   localDate: DateTime(2026, 8, 4),
   items: const <MealItem>[_milanesa, _pure],
   source: MealSource.aiPhoto,
@@ -168,7 +168,7 @@ void main() {
     expect(draft.id, antes.id);
     expect(draft.slot, antes.slot);
     expect(draft.date, antes.date);
-    expect(draft.loggedAt, antes.loggedAt);
+    expect(draft.eatenAt, antes.eatenAt);
     expect(draft.aiAnalysisId, 'a-2');
   });
 
@@ -181,7 +181,7 @@ void main() {
       Meal(
         id: 'm-2',
         slot: MealSlot.lunch,
-        loggedAt: DateTime(2026, 8, 4, 13),
+        eatenAt: DateTime(2026, 8, 4, 13),
         localDate: DateTime(2026, 8, 4),
         items: const <MealItem>[_milanesa],
         source: MealSource.aiPhoto,

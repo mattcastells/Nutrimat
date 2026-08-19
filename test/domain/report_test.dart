@@ -34,7 +34,7 @@ void main() {
   Meal comida(DateTime fecha, {int kcal = 600, double proteina = 40}) => Meal(
     id: 'm-${isoDate(fecha)}',
     slot: MealSlot.lunch,
-    loggedAt: fecha,
+    eatenAt: fecha,
     localDate: dateOnly(fecha),
     items: <MealItem>[
       MealItem(
@@ -188,9 +188,18 @@ void main() {
   });
 
   group('desde cuándo se cuenta', () {
-    test('sin nada cargado, el período entero es el denominador', () {
+    test('sin nada cargado, no hay días que contar', () {
+      // Antes esto daba 30 —el período entero como denominador—, y era la
+      // única forma en que el informe podía decir "0 de 30 · 0 %" sobre una
+      // cuenta que **nunca registró nada**. Ese 0 % es un reproche por días que
+      // no se sabe si existieron: sin un solo registro no hay ningún momento en
+      // que la información válida haya empezado, así que no hay período
+      // efectivo. La pantalla que lo genera ya no deja apretar el botón con
+      // cero registros; el que quede en 0 es para que ninguna cuenta se haga
+      // sobre un denominador inventado. Ver `docs/contexto-diario.md`.
       final r = informe();
-      expect(r.totalDays, 30);
+      expect(r.totalDays, 0);
+      expect(r.coveragePct, 0);
       expect(r.startedMidPeriod, isFalse);
     });
 

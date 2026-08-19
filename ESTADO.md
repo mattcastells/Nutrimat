@@ -635,7 +635,11 @@ decía**.
    inexistente que la app guarda en `meals.ai_analysis_id`: la FK rechazaba
    esa comida y **ninguna comida cargada por descripción llegó a las tablas**.
    Migración 26, más un cinturón en `create_meal_with_items` (el registro de
-   cómo se estimó no puede ser el motivo de que se pierda la comida). Del lado
+   cómo se estimó no puede ser el motivo de que se pierda la comida). Ese RPC ya
+   no existe —la migración 43 lo sacó porque no lo llamaba nadie— y la garantía
+   quedó donde vive de verdad: la migración 34 sacó la FK de `meals` al
+   análisis, así que una comida no puede depender de una fila de auditoría para
+   existir. Del lado
    de la app, `_estimate()` solo capturaba `AppError` y un `TypeError` **no es
    una `Exception`**: cualquier respuesta con forma inesperada dejaba el botón
    girando para siempre. Y la entrada estaba escondida en el "+" de cada

@@ -171,7 +171,7 @@ class MealListItem extends StatelessWidget {
                         Text(
                           <String>[
                             if (showDate) shortDay(meal.localDate),
-                            timeOfDay(meal.loggedAt),
+                            timeOfDay(meal.eatenAt),
                             itemsLabel,
                           ].join(' · '),
                           style: NmTextStyles.from(

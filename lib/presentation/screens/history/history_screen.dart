@@ -352,6 +352,23 @@ class _DayRow extends StatelessWidget {
                           variant: NmTagVariant.outline,
                         ),
                       ],
+                      // El contexto va en la fila y no en una columna aparte:
+                      // "sin registros" y "estuve enfermo" se leen juntos o no
+                      // se leen. Ver `docs/contexto-diario.md`.
+                      if (day.isSickDay) ...<Widget>[
+                        const SizedBox(width: NmSpace.s2),
+                        const NmTag(
+                          label: 'Enfermedad',
+                          variant: NmTagVariant.outline,
+                        ),
+                      ],
+                      if (day.standardDrinks > 0) ...<Widget>[
+                        const SizedBox(width: NmSpace.s2),
+                        NmTag(
+                          label: Fmt.standardDrinks(day.standardDrinks),
+                          variant: NmTagVariant.outline,
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: NmSpace.s1),

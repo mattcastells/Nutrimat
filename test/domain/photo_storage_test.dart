@@ -117,7 +117,7 @@ Meal _meal({
 }) => Meal(
   id: id,
   slot: MealSlot.lunch,
-  loggedAt: DateTime(2026, 7, 20, 13),
+  eatenAt: DateTime(2026, 7, 20, 13),
   localDate: DateTime(2026, 7, 20),
   items: const <MealItem>[],
   source: MealSource.aiPhoto,

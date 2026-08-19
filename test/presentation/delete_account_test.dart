@@ -95,7 +95,7 @@ Future<(ProviderContainer, LocalRepository, _FakeGateway)> _boot() async {
     Meal(
       id: 'comida-1',
       slot: MealSlot.lunch,
-      loggedAt: ahora,
+      eatenAt: ahora,
       localDate: dateOnly(ahora),
       name: 'Milanesa',
       items: const <MealItem>[

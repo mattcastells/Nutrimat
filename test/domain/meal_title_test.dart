@@ -24,7 +24,7 @@ MealItem _item(String name) => MealItem(
 Meal _meal({required List<String> items, String? name}) => Meal(
   id: 'm1',
   slot: MealSlot.lunch,
-  loggedAt: DateTime(2026, 8, 12, 13),
+  eatenAt: DateTime(2026, 8, 12, 13),
   localDate: dateOnly(DateTime(2026, 8, 12)),
   name: name,
   items: <MealItem>[for (final i in items) _item(i)],

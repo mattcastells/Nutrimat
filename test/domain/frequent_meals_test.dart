@@ -26,7 +26,7 @@ void main() {
   }) => Meal(
     id: '$nombre-${fecha.toIso8601String()}-${slot.wire}',
     slot: slot,
-    loggedAt: fecha,
+    eatenAt: fecha,
     localDate: dateOnly(fecha),
     name: nombre,
     items: <MealItem>[

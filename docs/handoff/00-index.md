@@ -8,6 +8,26 @@ aplicación **sin acceso a la conversación original** y sin reinterpretar decis
 producto. Todo lo ambiguo fue decidido, documentado y justificado en
 [`decisions.md`](./decisions.md).
 
+> ⚠️ **Esto es la especificación original, no el estado actual.**
+>
+> La app se construyó a partir de acá y desde entonces cambió: hay tablas que se
+> agregaron, otras que se sacaron por no leerlas nadie, y decisiones que se
+> revisaron con datos reales. Este directorio **no se actualiza** — es el punto
+> de partida, y reescribirlo borraría el porqué de cada divergencia.
+>
+> Para lo que hay hoy:
+>
+> - **El esquema**: `supabase/migrations/`, en orden. Cada migración explica qué
+>   cambia y por qué.
+> - **El estado del producto**: [`../estado-de-la-app.md`](../estado-de-la-app.md)
+>   y [`../../ESTADO.md`](../../ESTADO.md).
+> - **Las decisiones posteriores**: los `docs/*.md` sueltos, como
+>   [`../contexto-diario.md`](../contexto-diario.md).
+>
+> Lo único de este directorio que **sí** es fuente viva es
+> [`design-tokens.json`](./design-tokens.json), de donde salen los tokens de la
+> app y del panel.
+
 ## Cómo leer este handoff
 
 | Orden | Documento | Para qué sirve |

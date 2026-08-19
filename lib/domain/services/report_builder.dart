@@ -1,5 +1,6 @@
 import '../../core/utils/dates.dart';
 import '../calculations/rounding.dart';
+import '../calculations/tracking_window.dart';
 import '../enums/enums.dart';
 import '../models/body.dart';
 import '../models/goal.dart';
@@ -149,25 +150,29 @@ class NutritionReport {
   /// comió. Vacío si no hay ninguna.
   final List<String> dietaryLabels;
 
-  /// Los días del período que efectivamente se podían registrar.
+  /// El período que de verdad se podía registrar.
   ///
-  /// Arranca cuando arrancó la persona, no cuando arranca la ventana elegida.
-  int get totalDays => daysBetween(countingFrom, to) + 1;
+  /// La lógica es la misma que usan el resto de las pantallas y el panel web, y
+  /// vive en un solo lado a propósito: este informe fue el **primer** lugar que
+  /// la tuvo, con su propio `countingFrom`, y mientras estuvo solo acá el resto
+  /// de la app siguió dividiendo por el calendario. Ver
+  /// `docs/contexto-diario.md`.
+  TrackingWindow get window =>
+      TrackingWindow(from: from, to: to, trackingSince: trackingSince);
+
+  /// Los días del período que efectivamente se podían registrar.
+  int get totalDays => window.effectiveDays;
 
   /// El primer día que cuenta: el del período, o el primero de la persona si
   /// empezó más tarde.
-  DateTime get countingFrom =>
-      trackingSince != null && trackingSince!.isAfter(from)
-      ? trackingSince!
-      : from;
+  DateTime get countingFrom => window.effectiveFrom;
 
   /// Si la ventana elegida es más larga que el tiempo que lleva usando la app.
-  bool get startedMidPeriod => countingFrom.isAfter(from);
+  bool get startedMidPeriod => window.startedMidPeriod;
 
   /// Qué proporción de los días que se podían registrar tienen algo. Es lo que
   /// permite leer el resto con la desconfianza que corresponda.
-  int get coveragePct =>
-      totalDays <= 0 ? 0 : roundHalfUp(daysWithRecords / totalDays * 100);
+  int get coveragePct => window.coveragePct(daysWithRecords) ?? 0;
 
   bool get hasEnoughData => daysWithRecords >= 3;
 }

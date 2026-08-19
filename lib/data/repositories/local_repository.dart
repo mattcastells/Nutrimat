@@ -7,17 +7,21 @@ import 'package:uuid/uuid.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/error/app_error.dart';
 import '../../core/utils/dates.dart';
+import '../../domain/calculations/alcohol.dart';
 import '../../domain/calculations/bmr.dart';
 import '../../domain/calculations/duplicate_score.dart';
 import '../../domain/calculations/exercise_credit.dart';
 import '../../domain/calculations/met_calories.dart';
 import '../../domain/calculations/pace_met.dart';
+import '../../domain/calculations/tracking_window.dart';
 import '../../domain/enums/enums.dart';
 import '../../domain/models/activity.dart';
 import '../../domain/models/ai_analysis.dart';
 import '../../domain/models/ai_calorie_target.dart';
+import '../../domain/models/alcohol.dart';
 import '../../domain/models/analysis_stage.dart';
 import '../../domain/models/body.dart';
+import '../../domain/models/day_marker.dart';
 import '../../domain/models/food.dart';
 import '../../domain/models/goal.dart';
 import '../../domain/models/meal.dart';
@@ -625,13 +629,13 @@ class LocalRepository
       date.year,
       date.month,
       date.day,
-      source.loggedAt.hour,
-      source.loggedAt.minute,
+      source.eatenAt.hour,
+      source.eatenAt.minute,
     );
     final copy = Meal(
       id: _uuid.v4(),
       slot: slot,
-      loggedAt: at,
+      eatenAt: at,
       localDate: dateOnly(date),
       name: source.name,
       items: source.items
@@ -698,7 +702,7 @@ class LocalRepository
       final k = key(meal);
       uses[k] = (uses[k] ?? 0) + 1;
       final current = newest[k];
-      if (current == null || meal.loggedAt.isAfter(current.loggedAt)) {
+      if (current == null || meal.eatenAt.isAfter(current.eatenAt)) {
         newest[k] = meal;
       }
     }
@@ -714,7 +718,7 @@ class LocalRepository
         }
         final byUse = (uses[key(b)] ?? 0).compareTo(uses[key(a)] ?? 0);
         if (byUse != 0) return byUse;
-        return b.loggedAt.compareTo(a.loggedAt);
+        return b.eatenAt.compareTo(a.eatenAt);
       });
 
     // Una comida cargada una sola vez y sin estrella no es "frecuente": sin
@@ -1581,6 +1585,8 @@ class LocalRepository
     creditPercentage: profile.exerciseCreditPercentage,
     creditEnabled: profile.exerciseCreditEnabled,
     isRestDay: isRestDay(date),
+    sickMarker: store.markerOn(date, DayMarkerKind.sick),
+    alcoholLogs: store.alcoholLogs,
   );
 
   @override
@@ -1593,6 +1599,8 @@ class LocalRepository
         goalFor: goalFor,
         isRestDay: isRestDay,
         creditEnabled: profile.exerciseCreditEnabled,
+        isSickDay: isSickDay,
+        alcoholLogs: store.alcoholLogs,
       );
 
   @override
@@ -1607,19 +1615,145 @@ class LocalRepository
         goalFor: goalFor,
         isRestDay: isRestDay,
         creditEnabled: profile.exerciseCreditEnabled,
+        // Sin esto, los denominadores del período salen del calendario y
+        // cuentan como huecos los días anteriores a que la persona existiera
+        // en la app. Ver `TrackingWindow`.
+        trackingSince: trackingSince,
+        markers: store.dayMarkers,
+        alcoholLogs: store.alcoholLogs,
       );
 
   @override
   bool isRestDay(DateTime date) => store.isRestDay(date);
 
   @override
-  Future<void> setRestDay(DateTime date, bool isRest) async {
-    final key = isoDate(date);
-    if (isRest) {
-      store.restDays.add(key);
-    } else {
-      store.restDays.remove(key);
+  bool isSickDay(DateTime date) => store.isSickDay(date);
+
+  @override
+  Future<void> setRestDay(DateTime date, bool isRest) => setMarker(
+    date: date,
+    kind: DayMarkerKind.rest,
+    on: isRest,
+  );
+
+  // ── Contexto del día ───────────────────────────────────────────────────
+
+  @override
+  DayMarker? markerOn(DateTime date, DayMarkerKind kind) =>
+      store.markerOn(date, kind);
+
+  @override
+  Future<void> setMarker({
+    required DateTime date,
+    required DayMarkerKind kind,
+    required bool on,
+    SickSeverity? severity,
+    String? note,
+    List<String> tags = const <String>[],
+  }) async {
+    final existente = store.markerOn(date, kind);
+
+    if (!on) {
+      if (existente == null) return;
+      // Lápida y no borrado de la lista: sin esto, desmarcar acá lo saca de
+      // este teléfono y lo deja vivo en la tabla, así que la reconciliación
+      // siguiente lo resucita. Es el mismo error que ya se arregló en el sueño
+      // (migración 29).
+      _replaceMarker(existente.copyWith(deletedAt: DateTime.now()));
+      await _commit();
+      return;
     }
+
+    // Puede haber una marca **borrada** de ese mismo día: se revive en vez de
+    // insertar otra, porque el único de la tabla es por (día, tipo) y dos filas
+    // vivas para el mismo par no entran.
+    final enterrada = _buriedMarker(date, kind);
+    final base = existente ?? enterrada;
+
+    if (base != null) {
+      _replaceMarker(
+        base.copyWith(
+          severity: kind == DayMarkerKind.sick ? severity : null,
+          clearSeverity: kind != DayMarkerKind.sick || severity == null,
+          note: note,
+          clearNote: note == null,
+          tags: tags,
+          clearDeletedAt: true,
+        ),
+      );
+    } else {
+      store.dayMarkers.add(
+        DayMarker(
+          id: _uuid.v4(),
+          localDate: dateOnly(date),
+          kind: kind,
+          severity: kind == DayMarkerKind.sick ? severity : null,
+          note: note,
+          tags: tags,
+          updatedAt: DateTime.now(),
+          syncStatus: store.writeStatus,
+        ),
+      );
+    }
+    await _commit();
+  }
+
+  DayMarker? _buriedMarker(DateTime date, DayMarkerKind kind) {
+    final key = isoDate(date);
+    for (final m in store.dayMarkers) {
+      if (m.isDeleted && m.kind == kind && isoDate(m.localDate) == key) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  void _replaceMarker(DayMarker updated) {
+    final i = store.dayMarkers.indexWhere((m) => m.id == updated.id);
+    if (i >= 0) {
+      store.dayMarkers[i] = updated;
+    } else {
+      store.dayMarkers.add(updated);
+    }
+  }
+
+  // ── Alcohol ────────────────────────────────────────────────────────────
+
+  @override
+  List<AlcoholLog> alcoholOn(DateTime date) => store.alcoholOn(date);
+
+  @override
+  Future<AlcoholLog> logAlcohol({
+    required DateTime date,
+    required DrinkType type,
+    required double quantity,
+    required int volumeMl,
+    required double abvPct,
+    String? note,
+  }) async {
+    final log = AlcoholLog(
+      id: _uuid.v4(),
+      localDate: dateOnly(date),
+      type: type,
+      quantity: quantity.clamp(0.1, AlcoholLog.maxQuantity),
+      volumeMl: volumeMl,
+      abvPct: abvPct,
+      note: note,
+      loggedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      syncStatus: store.writeStatus,
+    );
+    store.alcoholLogs.add(log);
+    await _commit();
+    return log;
+  }
+
+  @override
+  Future<void> deleteAlcohol(String id) async {
+    final i = store.alcoholLogs.indexWhere((a) => a.id == id);
+    if (i < 0) return;
+    store.alcoholLogs[i] =
+        store.alcoholLogs[i].copyWith(deletedAt: DateTime.now());
     await _commit();
   }
 
@@ -1637,25 +1771,20 @@ class LocalRepository
   /// registra antes que cualquier otra cosa, así que para casi todo el mundo es
   /// el primero de los tres. Se ignoran agua y sueño a propósito — se pueden
   /// cargar hacia atrás y no marcan cuándo empezó nadie.
+  /// La fórmula es una sola y vive en `tracking_window.dart`, porque también la
+  /// tienen que contestar igual el panel web (`backoffice/lib/tracking.ts`) y el
+  /// servidor (`public.tracking_since`). Si el PDF que genera el teléfono y la
+  /// pantalla que mira la nutricionista contaran distinto, estarían discutiendo
+  /// sobre dos números que se llaman igual.
   @override
-  DateTime? get trackingSince {
-    DateTime? first;
-    void ver(DateTime date) {
-      final day = dateOnly(date);
-      if (first == null || day.isBefore(first!)) first = day;
-    }
-
-    for (final m in store.meals) {
-      if (!m.isDeleted) ver(m.localDate);
-    }
-    for (final a in store.activities) {
-      if (!a.isDeleted) ver(a.localDate);
-    }
-    for (final w in store.weightLogs) {
-      if (!w.isDeleted) ver(w.localDate);
-    }
-    return first;
-  }
+  DateTime? get trackingSince => earliestTrackedDay(<DateTime>[
+    for (final m in store.meals)
+      if (!m.isDeleted) m.localDate,
+    for (final a in store.activities)
+      if (!a.isDeleted) a.localDate,
+    for (final w in store.weightLogs)
+      if (!w.isDeleted) w.localDate,
+  ]);
 
   // ── Salud ──────────────────────────────────────────────────────────────
 

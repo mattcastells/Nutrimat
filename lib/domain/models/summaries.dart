@@ -1,6 +1,9 @@
 import '../calculations/daily_balance.dart';
+import '../calculations/tracking_window.dart';
 import '../enums/enums.dart';
 import 'activity.dart';
+import 'alcohol.dart';
+import 'day_marker.dart';
 import 'meal.dart';
 
 class MacroProgress {
@@ -62,6 +65,8 @@ class DailySummary {
     required this.activityTotals,
     required this.isRestDay,
     this.weight,
+    this.sickMarker,
+    this.alcohol,
   });
 
   final DateTime date;
@@ -77,6 +82,17 @@ class DailySummary {
   final ActivityTotals activityTotals;
   final WeightSnapshot? weight;
   final bool isRestDay;
+
+  /// La marca de enfermedad del día, si la hay. Va el objeto y no un `bool`
+  /// porque la pantalla muestra la nota y la severidad, y volver a buscarla
+  /// después sería recorrer la colección otra vez.
+  final DayMarker? sickMarker;
+
+  bool get isSickDay => sickMarker != null;
+
+  /// Lo que se tomó ese día. `null` si no hubo nada, que no es lo mismo que
+  /// cero: la tarjeta no aparece en vez de mostrar "0 tragos".
+  final AlcoholDay? alcohol;
 
   DailyBalance get balance => DailyBalance(
     baseTarget: baseTarget,
@@ -115,6 +131,8 @@ class HistoryDay {
     required this.isRestDay,
     required this.hasRecords,
     this.steps,
+    this.isSickDay = false,
+    this.standardDrinks = 0,
   });
 
   final DateTime date;
@@ -127,6 +145,11 @@ class HistoryDay {
   final int? steps;
   final bool isRestDay;
   final bool hasRecords;
+
+  /// Contexto, no cálculo: ni la enfermedad ni el alcohol cambian el objetivo
+  /// ni el balance de la fila. Están para que un día flojo se pueda leer.
+  final bool isSickDay;
+  final double standardDrinks;
 
   int get adjustedTarget => baseTarget + appliedKcal;
 
@@ -217,14 +240,43 @@ class ProgressSummary {
     required this.weeklyAverageMinutes,
     required this.previousWeekDeltaMinutes,
     required this.goals,
+    required this.window,
     this.trendKgPerWeek,
     this.adherencePct,
     this.stepsAverage,
+    this.sickDays = const <DayMarker>[],
+    this.alcoholDays = const <AlcoholDay>[],
   });
 
   final DateTime from;
   final DateTime to;
+
+  /// Los días que tiene el período **elegido**. Es con lo que se lo rotula
+  /// ("Últimos 30 días"), no con lo que se divide: para eso está
+  /// [window]. Ver `docs/contexto-diario.md`.
   final int days;
+
+  /// El período que de verdad se podía registrar. Todo denominador sale de acá.
+  final TrackingWindow window;
+
+  /// Los días marcados como enfermedad, para dibujar contexto sobre los
+  /// gráficos que ya existen en vez de agregar uno nuevo.
+  final List<DayMarker> sickDays;
+
+  /// Lo que se tomó, ya sumado por día.
+  final List<AlcoholDay> alcoholDays;
+
+  /// Cuántos días del período tuvieron algún consumo.
+  int get drinkingDays => alcoholDays.where((d) => !d.isEmpty).length;
+
+  /// Unidades de bebida estándar del período entero.
+  double get totalStandardDrinks =>
+      alcoholDays.fold(0.0, (acc, d) => acc + d.standardDrinks);
+
+  /// Calorías del alcohol en el período. Van aparte de las comidas a propósito:
+  /// sumarlas ahí escondería de dónde salieron, que es justo lo que se busca
+  /// cuando el peso no baja y las comidas estaban bien.
+  int get alcoholKcal => alcoholDays.fold(0, (acc, d) => acc + d.kcal);
   final List<ChartPoint> weightPoints;
   final List<ChartPoint> weightMovingAverage;
   final double weightDeltaKg;

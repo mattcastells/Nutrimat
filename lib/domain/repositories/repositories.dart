@@ -1,12 +1,15 @@
 // ignore: unused_import
 import '../../core/error/app_error.dart';
+import '../calculations/alcohol.dart';
 import '../calculations/duplicate_score.dart';
 import '../enums/enums.dart';
 import '../models/activity.dart';
 import '../models/ai_analysis.dart';
 import '../models/ai_calorie_target.dart';
+import '../models/alcohol.dart';
 import '../models/analysis_stage.dart';
 import '../models/body.dart';
+import '../models/day_marker.dart';
 import '../models/food.dart';
 import '../models/goal.dart';
 import '../models/meal.dart';
@@ -104,6 +107,8 @@ abstract interface class NutrimatRepositories
         WaterRepository,
         ReminderRepository,
         SleepRepository,
+        DayContextRepository,
+        AlcoholRepository,
         SummaryRepository,
         HealthRepository,
         AiPhotoRepository,
@@ -351,11 +356,47 @@ abstract interface class BodyRepository {
   Future<void> deleteMeasurement(String id);
 }
 
+/// Lo que califica un día sin medirlo: descanso y enfermedad.
+///
+/// Las dos marcas comparten interfaz porque comparten forma y tabla
+/// (`day_markers`). Sumar una tercera —vacaciones, viaje— es agregar un valor
+/// al enum, no una superficie nueva. Ver `docs/contexto-diario.md`.
+abstract interface class DayContextRepository {
+  DayMarker? markerOn(DateTime date, DayMarkerKind kind);
+
+  /// Pone o saca la marca. Volver a marcar un día ya marcado **actualiza** la
+  /// que hay en vez de agregar otra: el único es por (día, tipo).
+  Future<void> setMarker({
+    required DateTime date,
+    required DayMarkerKind kind,
+    required bool on,
+    SickSeverity? severity,
+    String? note,
+    List<String> tags,
+  });
+}
+
+abstract interface class AlcoholRepository {
+  List<AlcoholLog> alcoholOn(DateTime date);
+
+  Future<AlcoholLog> logAlcohol({
+    required DateTime date,
+    required DrinkType type,
+    required double quantity,
+    required int volumeMl,
+    required double abvPct,
+    String? note,
+  });
+
+  Future<void> deleteAlcohol(String id);
+}
+
 abstract interface class SummaryRepository {
   DailySummary daily(DateTime date);
   List<HistoryDay> history({required DateTime from, required DateTime to});
   ProgressSummary progress({required DateTime from, required DateTime to});
   bool isRestDay(DateTime date);
+  bool isSickDay(DateTime date);
   Future<void> setRestDay(DateTime date, bool isRest);
 
   /// Días con al menos un registro, para la densidad del selector de fecha.

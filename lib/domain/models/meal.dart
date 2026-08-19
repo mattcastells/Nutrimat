@@ -131,7 +131,7 @@ class Meal {
   const Meal({
     required this.id,
     required this.slot,
-    required this.loggedAt,
+    required this.eatenAt,
     required this.localDate,
     required this.items,
     required this.source,
@@ -148,7 +148,20 @@ class Meal {
 
   final String id;
   final MealSlot slot;
-  final DateTime loggedAt;
+
+  /// Cuándo se **comió**, en hora local.
+  ///
+  /// Se llamaba `loggedAt` y el nombre mentía desde que el formulario tiene el
+  /// botón "Cambiar hora": el valor se arma con la fecha elegida más la hora
+  /// elegida, no con `DateTime.now()`, y editar una comida lo conserva. Con el
+  /// nombre viejo, la hora de la comida —el insumo de la ventana de
+  /// alimentación y de los horarios— parecía un dato de auditoría, y por eso no
+  /// la usó nunca ninguna pantalla de análisis.
+  ///
+  /// El resto de los modelos se quedan con `loggedAt` y hacen bien: en el
+  /// sueño, el peso y el alcohol ese campo sí es cuándo se registró.
+  final DateTime eatenAt;
+
   final DateTime localDate;
   final String? name;
   final List<MealItem> items;
@@ -189,7 +202,7 @@ class Meal {
 
   Meal copyWith({
     MealSlot? slot,
-    DateTime? loggedAt,
+    DateTime? eatenAt,
     DateTime? localDate,
     String? name,
     List<MealItem>? items,
@@ -206,7 +219,7 @@ class Meal {
   }) => Meal(
     id: id,
     slot: slot ?? this.slot,
-    loggedAt: loggedAt ?? this.loggedAt,
+    eatenAt: eatenAt ?? this.eatenAt,
     localDate: localDate ?? this.localDate,
     // Sin `clearName`: borrar el título es guardar la comida entera de nuevo
     // desde el formulario, y ahí `MealDraft.toMeal` la construye con `name` en
@@ -227,7 +240,7 @@ class Meal {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'slot': slot.wire,
-    'loggedAt': loggedAt.toIso8601String(),
+    'eatenAt': eatenAt.toIso8601String(),
     'localDate': isoDate(localDate),
     'name': name,
     'items': items.map((i) => i.toJson()).toList(),
@@ -245,7 +258,10 @@ class Meal {
   static Meal fromJson(Map<String, dynamic> j) => Meal(
     id: j['id'] as String,
     slot: MealSlot.fromWire(j['slot'] as String),
-    loggedAt: DateTime.parse(j['loggedAt'] as String),
+    // `loggedAt` es el nombre viejo del mismo valor: un documento guardado
+    // antes del cambio lo trae así, y sin este `??` una comida vieja se
+    // quedaría sin hora al abrir la app actualizada.
+    eatenAt: DateTime.parse((j['eatenAt'] ?? j['loggedAt']) as String),
     localDate: DateTime.parse(j['localDate'] as String),
     name: j['name'] as String?,
     items: (j['items'] as List<dynamic>)

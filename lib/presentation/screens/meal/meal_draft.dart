@@ -17,7 +17,7 @@ class MealDraft {
     required this.id,
     required this.slot,
     required this.date,
-    required this.loggedAt,
+    required this.eatenAt,
     required this.items,
     required this.source,
     this.name,
@@ -29,7 +29,7 @@ class MealDraft {
   final String id;
   final MealSlot slot;
   final DateTime date;
-  final DateTime loggedAt;
+  final DateTime eatenAt;
   final List<MealItem> items;
   final MealSource source;
 
@@ -61,7 +61,7 @@ class MealDraft {
   MealDraft copyWith({
     MealSlot? slot,
     DateTime? date,
-    DateTime? loggedAt,
+    DateTime? eatenAt,
     List<MealItem>? items,
     MealSource? source,
     String? photoPath,
@@ -70,7 +70,7 @@ class MealDraft {
     id: id,
     slot: slot ?? this.slot,
     date: date ?? this.date,
-    loggedAt: loggedAt ?? this.loggedAt,
+    eatenAt: eatenAt ?? this.eatenAt,
     items: items ?? this.items,
     source: source ?? this.source,
     name: name,
@@ -82,7 +82,7 @@ class MealDraft {
   Meal toMeal({required SyncStatus syncStatus, DateTime? createdAt}) => Meal(
     id: editingMealId ?? id,
     slot: slot,
-    loggedAt: loggedAt,
+    eatenAt: eatenAt,
     localDate: dateOnly(date),
     // Solo se guarda el título si alguien lo eligió: lo escribió la persona o
     // lo propuso la IA. El resumen de los ítems **no** se congela acá a
@@ -121,7 +121,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: _uuid.v4(),
       slot: slot,
       date: date,
-      loggedAt: DateTime(
+      eatenAt: DateTime(
         date.year,
         date.month,
         date.day,
@@ -141,7 +141,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: meal.id,
       slot: meal.slot,
       date: meal.localDate,
-      loggedAt: meal.loggedAt,
+      eatenAt: meal.eatenAt,
       items: meal.items,
       source: meal.source,
       // El nombre viajaba perdido: editar una comida con título propio la
@@ -164,7 +164,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: current.id,
       slot: current.slot,
       date: current.date,
-      loggedAt: current.loggedAt,
+      eatenAt: current.eatenAt,
       items: current.items,
       source: current.source,
       name: clean.isEmpty ? null : clean,
@@ -204,7 +204,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: current.id,
       slot: current.slot,
       date: current.date,
-      loggedAt: current.loggedAt,
+      eatenAt: current.eatenAt,
       items: <MealItem>[...current.items, ...items],
       source: source,
       // El título del análisis **no** pisa al de la comida abierta: acá lo
@@ -236,7 +236,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: current.id,
       slot: current.slot,
       date: current.date,
-      loggedAt: current.loggedAt,
+      eatenAt: current.eatenAt,
       items: <MealItem>[
         for (var i = 0; i < items.length; i++) items[i].copyWith(position: i),
       ],
@@ -281,7 +281,7 @@ class MealDraftController extends Notifier<MealDraft?> {
       id: current.id,
       slot: current.slot,
       date: current.date,
-      loggedAt: current.loggedAt,
+      eatenAt: current.eatenAt,
       items: current.items,
       source: current.source,
       name: current.name,
@@ -293,7 +293,7 @@ class MealDraftController extends Notifier<MealDraft?> {
 
   void setSlot(MealSlot slot) => state = state?.copyWith(slot: slot);
 
-  void setLoggedAt(DateTime value) => state = state?.copyWith(loggedAt: value);
+  void setEatenAt(DateTime value) => state = state?.copyWith(eatenAt: value);
 
   void clear() => state = null;
 }

@@ -215,7 +215,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                             Expanded(
                               child: Text(
                                 '${friendlyDay(draft.date)} · '
-                                '${timeOfDay(draft.loggedAt)}',
+                                '${timeOfDay(draft.eatenAt)}',
                                 overflow: TextOverflow.ellipsis,
                                 style: NmTextStyles.from(
                                   NmType.bodySm,
@@ -229,11 +229,11 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                                 final picked = await showTimePicker(
                                   context: context,
                                   initialTime: TimeOfDay.fromDateTime(
-                                    draft.loggedAt,
+                                    draft.eatenAt,
                                   ),
                                 );
                                 if (picked == null) return;
-                                controller.setLoggedAt(
+                                controller.setEatenAt(
                                   DateTime(
                                     draft.date.year,
                                     draft.date.month,
@@ -558,7 +558,7 @@ class MealDetailScreen extends ConsumerWidget {
           ],
           Text(
             '${meal.slot.label} · ${longDay(meal.localDate)} · '
-            '${timeOfDay(meal.loggedAt)}',
+            '${timeOfDay(meal.eatenAt)}',
             style: NmTextStyles.from(NmType.caption, color: nm.textMuted).tnum,
           ),
           const SizedBox(height: NmSpace.s6),

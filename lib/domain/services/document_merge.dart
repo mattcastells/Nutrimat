@@ -59,6 +59,12 @@ const Map<String, List<String>> _timestampFields = <String, List<String>>{
   // local". Ahora tienen `updatedAt` y desempata de verdad.
   'measurements': <String>['updatedAt'],
   'sleepLogs': <String>['loggedAt'],
+  // Las marcas del día y el alcohol desempatan por `updatedAt` como el resto.
+  // Las marcas **tienen** que desempatar: desmarcar un día de descanso en un
+  // teléfono le escribe la lápida, y sin desempate el otro teléfono —que
+  // todavía la tiene viva— la resucitaría en la siguiente reconciliación.
+  'dayMarkers': <String>['updatedAt'],
+  'alcoholLogs': <String>['updatedAt'],
   // Los objetivos sí desempatan: cerrar uno en un dispositivo tiene que ganarle
   // al que todavía lo tiene abierto, o el push del segundo lo des-cierra y
   // quedan dos vigentes para el mismo día.
@@ -70,7 +76,25 @@ const Map<String, List<String>> _timestampFields = <String, List<String>>{
   'customTypes': <String>[],
 };
 
+/// `reminders` **no está** en la tabla de arriba, y es a propósito.
+///
+/// No tienen id: el modelo se identifica por tipo, así que la unión por id no
+/// aplica. Caen en "gana el local", y eso da la semántica correcta para lo que
+/// son —una configuración del aparato—: un teléfono nuevo arranca vacío, entra
+/// el documento remoto entero y se los trae; uno que ya tiene datos se queda
+/// con los suyos, que es lo que uno espera de un horario de notificación que
+/// depende del permiso y del "no molestar" de ese teléfono.
+///
+/// Lo que sí se resolvió es que **suban**: hasta la migración 44 la tabla
+/// existía y el cliente no la nombraba, así que cambiar de teléfono los perdía.
+
 /// Listas de valores sueltos —sin id— que se unen sin desempatar.
+///
+/// `restDays` sigue acá aunque la app ya no lo escriba: un documento v1 —un
+/// respaldo viejo, o un teléfono que todavía no actualizó— puede traerlo, y
+/// `LocalStore._restore` lo convierte a marcas al leerlo. Sacarlo de esta lista
+/// haría que esos días se perdieran en la reconciliación, justo antes de llegar
+/// al convertidor.
 const List<String> _idlessLists = <String>['recentFoodIds', 'restDays'];
 
 /// Reconcilia [local] con [remote] y devuelve el documento resultante.

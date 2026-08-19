@@ -92,7 +92,7 @@ void main() {
       Meal(
         id: 'm1',
         slot: MealSlot.lunch,
-        loggedAt: DateTime(2026, 7, 29, 13),
+        eatenAt: DateTime(2026, 7, 29, 13),
         localDate: DateTime(2026, 7, 29),
         name: 'Milanesa',
         items: const <MealItem>[

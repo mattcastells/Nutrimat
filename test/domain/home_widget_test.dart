@@ -54,7 +54,7 @@ void main() {
     Meal(
       id: 'm-$kcal',
       slot: MealSlot.lunch,
-      loggedAt: DateTime.now(),
+      eatenAt: DateTime.now(),
       localDate: today(),
       items: <MealItem>[
         MealItem(
@@ -101,7 +101,7 @@ void main() {
       Meal(
         id: 'm-1',
         slot: MealSlot.lunch,
-        loggedAt: DateTime.now(),
+        eatenAt: DateTime.now(),
         localDate: today(),
         items: <MealItem>[
           const MealItem(
@@ -182,7 +182,7 @@ void main() {
       Meal(
         id: 'm-1',
         slot: MealSlot.lunch,
-        loggedAt: DateTime.now(),
+        eatenAt: DateTime.now(),
         localDate: today(),
         items: <MealItem>[
           const MealItem(
@@ -224,7 +224,7 @@ void main() {
       Meal(
         id: 'm-1',
         slot: MealSlot.dinner,
-        loggedAt: DateTime.now(),
+        eatenAt: DateTime.now(),
         localDate: today(),
         items: <MealItem>[
           const MealItem(

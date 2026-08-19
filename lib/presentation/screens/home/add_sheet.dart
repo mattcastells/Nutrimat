@@ -18,6 +18,8 @@ import '../../providers/app_providers.dart';
 import '../sleep/sleep_sheet.dart';
 import '../weight/measurement_sheet.dart';
 import '../weight/weight_sheet.dart';
+import 'alcohol_sheet.dart';
+import 'sick_day_sheet.dart';
 
 /// S-08 · Menú Agregar y S-09 · Menú Ejercicio.
 ///
@@ -174,6 +176,26 @@ class _MainPane extends ConsumerWidget {
             onTap: () {
               Navigator.of(context).pop();
               showMeasurementSheet(context, date: date);
+            },
+          ),
+          // Las dos de contexto van al final y juntas: no son un registro más
+          // del día como el peso o el sueño, son lo que explica al resto.
+          ActionRow(
+            icon: PhosphorIcons.wine(),
+            label: 'Anotar alcohol',
+            subtitle: 'Qué tomaste y cuánto',
+            onTap: () {
+              Navigator.of(context).pop();
+              showAlcoholSheet(context, date: date);
+            },
+          ),
+          ActionRow(
+            icon: PhosphorIcons.thermometer(),
+            label: 'Día de enfermedad',
+            subtitle: 'Queda como contexto: no cambia tus números',
+            onTap: () {
+              Navigator.of(context).pop();
+              showSickDaySheet(context, date: date);
             },
           ),
         ],

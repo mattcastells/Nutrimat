@@ -23,6 +23,17 @@ abstract final class Fmt {
   /// "≈ 184 kcal" — prefijo obligatorio en todo gasto estimado (RN-03).
   static String estimatedKcal(num v) => '≈ ${integer(v)} kcal';
 
+  /// "2 tragos" · "1,5 tragos" — unidades de bebida estándar.
+  ///
+  /// Se dice "tragos" y no "UBE" porque nadie habla en unidades de bebida
+  /// estándar; el número **es** la UBE, que es lo que permite sumar una
+  /// cerveza y un whisky. La equivalencia está explicada en la pantalla de
+  /// carga, que es donde importa entenderla.
+  static String standardDrinks(double v) {
+    final n = v == v.roundToDouble() ? integer(v) : decimal1(v);
+    return v == 1 ? '$n trago' : '$n tragos';
+  }
+
   /// "+120" / "−80" con el signo tipográfico correcto.
   static String signed(num v) {
     if (v == 0) return '0';

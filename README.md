@@ -15,6 +15,10 @@ and to never present an estimate as if it were a measurement.
   credit, plus manual entry for anything else.
 - **Weight, body measurements, water, and sleep** — logged per day, editable
   and deletable at any time, for any date.
+- **Day context** — sick days (with severity and a note), planned rest days,
+  and alcohol (by drink format, counted in 10 g standard units). None of it
+  changes a single calculation: it exists so a gap in the activity chart can be
+  read for what it was. See [`docs/contexto-diario.md`](./docs/contexto-diario.md).
 - **Progress** — trends over time, plus a full day-by-day history, and a PDF
   report of any period you can keep or hand to a professional.
 - **Pals** — share your day with people you choose. Meals and whether you
@@ -73,13 +77,26 @@ attached, `r` hot-reloads, `R` restarts, and `q` quits.
 
 A separate web app, in [`backoffice/`](./backoffice/), for a nutritionist to
 follow someone's day-to-day. It reads only what the user granted, per category
-and revocably, and it is read-only.
+and revocably, and the patient's data is read-only.
+
+The one thing it writes is the professional's own notes, in a table of their
+own. **Those notes are private to whoever wrote them** — they never appear in
+the patient's app, not even the ones about them.
 
 ```bash
 cd backoffice
 npm install
 npm run dev          # http://localhost:3000
+npm test             # node --test, no extra dependencies
 ```
+
+Every count, average, streak and percentage is computed over the **effective
+period**: the overlap between the window you picked and the time the person has
+actually been using the app. Someone who started on the 18th logged 13 of 13
+days, not 13 of 30. The same formula lives in three places that must agree —
+`lib/domain/calculations/tracking_window.dart`, `backoffice/lib/tracking.ts` and
+`public.tracking_since()` — and that is the point of
+[`docs/contexto-diario.md`](./docs/contexto-diario.md).
 
 The first run needs a `.env.local` — see
 [`backoffice/README.md`](./backoffice/README.md), which also explains how the

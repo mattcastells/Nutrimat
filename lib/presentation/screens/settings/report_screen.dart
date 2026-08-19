@@ -11,6 +11,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/dates.dart';
 import '../../../data/local/pdf_report.dart';
+import '../../../domain/calculations/tracking_window.dart';
 import '../../../domain/enums/enums.dart';
 import '../../../domain/models/summaries.dart';
 import '../../../domain/services/report_builder.dart';
@@ -106,13 +107,23 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     final nm = context.nm;
     final to = today();
     final from = to.subtract(Duration(days: _range.days - 1));
+
+    // El denominador de acá tiene que ser el mismo que el del PDF.
+    //
+    // Antes esta pantalla decía "4 de 90" con `_range.days` mientras el informe
+    // que generaba abajo contaba desde `countingFrom` y salía con otro número:
+    // dos pantallas del mismo flujo, contradiciéndose sobre el mismo período.
+    // Ver `docs/contexto-diario.md`.
+    final ventana = TrackingWindow(
+      from: from,
+      to: to,
+      trackingSince: ref.read(repositoryProvider).trackingSince,
+    );
     final conRegistro = ref
         .watch(daysWithRecordsProvider)
         .where((iso) {
           final date = DateTime.tryParse(iso);
-          return date != null &&
-              !date.isBefore(from) &&
-              !date.isAfter(to);
+          return date != null && ventana.contains(date);
         })
         .length;
 
@@ -158,9 +169,17 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 // mejor saberlo acá que después de abrir el archivo.
                 ValueRow(
                   label: 'Días con registro',
-                  value: '$conRegistro de ${_range.days}',
+                  value: '$conRegistro de ${ventana.effectiveDays}',
                   muted: true,
                 ),
+                // Solo cuando la ventana se recortó: si no, "13 de 13" parece
+                // un período elegido a mano y no el que se pidió.
+                if (ventana.startedMidPeriod)
+                  ValueRow(
+                    label: 'Contado desde',
+                    value: longDay(ventana.effectiveFrom),
+                    muted: true,
+                  ),
               ],
             ),
           ),

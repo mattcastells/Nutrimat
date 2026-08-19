@@ -10,6 +10,7 @@ import '../../../core/utils/formats.dart';
 import '../../../domain/enums/enums.dart';
 import '../../components/activity/activity_cards.dart';
 import '../../components/charts/macro_bar.dart';
+import '../../components/feedback/day_context.dart';
 import '../../components/food/daily_summary_card.dart';
 import '../../components/food/food_widgets.dart';
 import '../../components/sleep/sleep_card.dart';
@@ -19,7 +20,9 @@ import '../../components/system/surfaces.dart';
 import '../../components/water/water_card.dart';
 import '../../providers/app_providers.dart';
 import '../home/add_to_slot_sheet.dart';
+import '../home/alcohol_sheet.dart';
 import '../home/daily_breakdown_sheet.dart';
+import '../home/sick_day_sheet.dart';
 import '../profile/calorie_target_sheet.dart';
 import '../weight/weight_sheet.dart';
 
@@ -52,6 +55,19 @@ class DayDetailScreen extends ConsumerWidget {
           WaterCard(date: date),
           const SizedBox(height: NmSpace.s4),
           SleepCard(date: date),
+
+          // Solo aparece el día que hay algo que contar. Ver `DayContextStrip`.
+          if (summary.isSickDay || summary.alcohol != null) ...<Widget>[
+            const SizedBox(height: NmSpace.s4),
+            NmCard(
+              child: DayContextStrip(
+                sick: summary.sickMarker,
+                alcohol: summary.alcohol,
+                onTapSick: () => showSickDaySheet(context, date: date),
+                onTapAlcohol: () => showAlcoholSheet(context, date: date),
+              ),
+            ),
+          ],
           const SizedBox(height: NmSpace.s8),
 
           // Las comidas van sin encabezado: los cuatro slots ya se nombran

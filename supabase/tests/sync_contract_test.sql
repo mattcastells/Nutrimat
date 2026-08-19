@@ -15,7 +15,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(14);
+select plan(26);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -255,6 +255,161 @@ select is(
     where id = 'eeee0006-0000-4000-8000-000000000006'),
   420,
   'Y la noche de la otra persona queda como estaba'
+);
+
+-- ── Lo que el cliente pasó a subir con las migraciones 43 y 44 ───────────
+--
+-- Estas tres comprobaciones existen porque las tres cosas estuvieron rotas por
+-- **omisión** y no por error: la tabla estaba, el modelo tenía el dato, y nadie
+-- había escrito el renglón que los une. Eso no se ve mirando ninguna de las dos
+-- puntas por separado, y por eso se fija acá.
+
+-- La hora de la comida se llama como lo que guarda.
+select has_column('public', 'meals', 'eaten_at',
+  'La comida guarda cuándo se comió, no cuándo se cargó');
+
+-- `logged_at` sigue existiendo, pero ya no es la columna: es el espejo de
+-- compatibilidad de la migración 45, para el teléfono que todavía no actualizó.
+-- Lo que distingue a una de otra es cuál lleva el `not null`: la canónica es la
+-- que la base exige, el espejo es el que la sigue.
+select col_not_null('public', 'meals', 'eaten_at',
+  'eaten_at es la canónica: la base la exige');
+select col_is_null('public', 'meals', 'logged_at',
+  'y logged_at es solo el espejo, así que puede faltar');
+
+-- Los recordatorios: el cliente sube **sin id** y resuelve por (usuario, tipo).
+-- Si la columna perdiera su default, el push fallaría entero con un not-null y
+-- la app no tiene ningún id que mandar.
+insert into public.reminders (user_id, kind, enabled, times)
+values ('77777777-7777-7777-7777-777777777777', 'water', true,
+        array[600, 840, 1080]::smallint[])
+on conflict (user_id, kind) do update
+  set enabled = excluded.enabled, times = excluded.times;
+
+create temporary table recordatorio on commit drop as
+  select id from public.reminders
+   where user_id = '77777777-7777-7777-7777-777777777777';
+
+-- La segunda subida es la que importa: con el id adentro del insert, el upsert
+-- le reescribiría la primary key a la fila en cada sincronización.
+insert into public.reminders (user_id, kind, enabled, times)
+values ('77777777-7777-7777-7777-777777777777', 'water', false,
+        array[540]::smallint[])
+on conflict (user_id, kind) do update
+  set enabled = excluded.enabled, times = excluded.times;
+
+select is(
+  (select count(*)::int from public.reminders
+    where user_id = '77777777-7777-7777-7777-777777777777'),
+  1,
+  'Subir dos veces el mismo recordatorio deja una sola fila'
+);
+
+select is(
+  (select id from public.reminders
+    where user_id = '77777777-7777-7777-7777-777777777777'),
+  (select id from recordatorio),
+  'Y no le cambia el id en cada subida'
+);
+
+select is(
+  (select times from public.reminders
+    where user_id = '77777777-7777-7777-7777-777777777777'),
+  array[540]::smallint[],
+  'Los horarios viajan como minutos desde medianoche'
+);
+
+-- Las plantillas de ejercicio, con el mismo juego de columnas que manda el
+-- cliente.
+insert into public.exercise_templates (
+  id, user_id, name, activity_type_id, default_duration_minutes,
+  default_intensity, default_distance_meters, default_notes, use_count)
+select 'eeee0007-0000-4000-8000-000000000007',
+       '77777777-7777-7777-7777-777777777777', 'Caminata del parque',
+       id, 40, 'moderate', 3200, null, 3
+  from public.activity_types where slug = 'walking';
+
+select is(
+  (select default_duration_minutes from public.exercise_templates
+    where id = 'eeee0007-0000-4000-8000-000000000007'),
+  40,
+  'La plantilla que arma la app entra con las columnas que manda'
+);
+
+-- ── El puente para el teléfono que todavía no actualizó (migración 45) ───
+--
+-- Renombrar `logged_at` a `eaten_at` dejó a cada cliente desplegado mandando
+-- una columna inexistente. `logged_at` volvió como espejo mantenido por un
+-- trigger, y lo que sigue prueba las cuatro combinaciones — porque **una de
+-- ellas ya falló** en el primer intento de esa migración.
+--
+-- La que falló es la del cliente viejo corrigiendo la hora. En un `update`,
+-- `eaten_at` no viene en el `set` —PostgREST arma el upsert solo con las
+-- columnas que mandó el cliente— así que llega con su valor anterior y nunca es
+-- null: la primera versión del trigger se guiaba por eso y descartaba la
+-- corrección en silencio. Lo que distingue quién habla es cuál de las dos se
+-- movió.
+
+insert into public.meals (id, user_id, slot, local_date, logged_at, source, name)
+values ('eeee0008-0000-4000-8000-000000000008',
+        '77777777-7777-7777-7777-777777777777', 'lunch', current_date,
+        timestamptz '2026-08-19 13:05:00-03', 'manual', 'App vieja');
+
+select is(
+  (select eaten_at from public.meals
+    where id = 'eeee0008-0000-4000-8000-000000000008'),
+  timestamptz '2026-08-19 13:05:00-03',
+  'El cliente viejo inserta con logged_at y la hora llega a eaten_at'
+);
+
+-- El upsert del push, tal como lo arma PostgREST para un cliente que no manda
+-- `eaten_at`. Este es el caso que se rompía.
+insert into public.meals (id, user_id, slot, local_date, logged_at, source, name)
+values ('eeee0008-0000-4000-8000-000000000008',
+        '77777777-7777-7777-7777-777777777777', 'lunch', current_date,
+        timestamptz '2026-08-19 14:20:00-03', 'manual', 'App vieja corrige')
+on conflict (id) do update
+  set logged_at = excluded.logged_at, name = excluded.name;
+
+select is(
+  (select eaten_at from public.meals
+    where id = 'eeee0008-0000-4000-8000-000000000008'),
+  timestamptz '2026-08-19 14:20:00-03',
+  'Y si corrige la hora, la corrección no se pierde'
+);
+
+insert into public.meals (id, user_id, slot, local_date, eaten_at, source, name)
+values ('eeee0009-0000-4000-8000-000000000009',
+        '77777777-7777-7777-7777-777777777777', 'dinner', current_date,
+        timestamptz '2026-08-19 21:30:00-03', 'manual', 'App nueva');
+
+select is(
+  (select logged_at from public.meals
+    where id = 'eeee0009-0000-4000-8000-000000000009'),
+  timestamptz '2026-08-19 21:30:00-03',
+  'El cliente nuevo escribe eaten_at y el espejo lo sigue, así el viejo lo lee'
+);
+
+insert into public.meals (id, user_id, slot, local_date, eaten_at, source, name)
+values ('eeee0009-0000-4000-8000-000000000009',
+        '77777777-7777-7777-7777-777777777777', 'dinner', current_date,
+        timestamptz '2026-08-19 22:45:00-03', 'manual', 'App nueva corrige')
+on conflict (id) do update
+  set eaten_at = excluded.eaten_at, name = excluded.name;
+
+select is(
+  (select logged_at from public.meals
+    where id = 'eeee0009-0000-4000-8000-000000000009'),
+  timestamptz '2026-08-19 22:45:00-03',
+  'Y el espejo lo sigue también al corregir'
+);
+
+-- Ninguna comida puede quedar con el espejo vacío: si pasara, el cliente viejo
+-- la leería sin hora y la saltearía al reconciliar.
+select is(
+  (select count(*)::int from public.meals where logged_at is null),
+  0,
+  'Ninguna comida queda sin espejo'
 );
 
 select * from finish();

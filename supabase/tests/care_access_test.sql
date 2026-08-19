@@ -216,7 +216,11 @@ select columns_are(
   array['grant_id', 'patient_id', 'patient_name', 'biological_sex',
         'birth_date', 'height_cm', 'unit_system', 'share_meals',
         'share_photos', 'share_body', 'share_wellbeing', 'accepted_at',
-        'expires_at'],
+        'expires_at',
+        -- Desde cuándo lleva registro (migración 41). El panel la necesita
+        -- para no contar como huecos los días anteriores a la cuenta, y no se
+        -- puede calcular sola: solo consulta el período elegido.
+        'tracking_since'],
   'La lista de pacientes tiene las columnas del cálculo, y ningún código'
 );
 

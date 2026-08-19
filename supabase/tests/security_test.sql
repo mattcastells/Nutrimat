@@ -9,7 +9,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(11);
+select plan(9);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -32,19 +32,10 @@ select throws_ok(
   'Ninguna cuenta puede disparar la purga de borrados'
 );
 
-select throws_ok(
-  $$select public.expire_food_cache()$$,
-  '42501',
-  null,
-  'Ninguna cuenta puede vencer el cache de alimentos a mano'
-);
-
-select throws_ok(
-  $$select public.trim_recents()$$,
-  '42501',
-  null,
-  'Ninguna cuenta puede recortar los recientes de otro a mano'
-);
+-- `expire_food_cache` y `trim_recents` tenían su propia comprobación acá. Las
+-- dos funciones se fueron con la migración 43, junto con las tablas que
+-- limpiaban: nadie las leía nunca. Un test de permisos sobre una función que no
+-- existe no protege nada.
 
 select throws_ok(
   $$select public.purge_audit_log()$$,

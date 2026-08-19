@@ -54,8 +54,16 @@ select isnt(
   'El alta genera un código de pal'
 );
 
+-- Acotado a los tres usuarios del test y no a `profiles` entera: contar toda
+-- la tabla daba por sentado que la base arranca vacía, así que el test se ponía
+-- rojo con cualquier fila previa —correr la suite contra una base con datos, que
+-- es justo lo que uno hace para probar una migración de subida— y el mensaje
+-- ("have 4, want 3") no dice en ningún lado que el problema es el vecino.
 select is(
-  (select count(distinct pal_code)::int from public.profiles),
+  (select count(distinct pal_code)::int from public.profiles
+    where id in ('11111111-1111-1111-1111-111111111111',
+                 '22222222-2222-2222-2222-222222222222',
+                 '33333333-3333-3333-3333-333333333333')),
   3,
   'Los códigos no se repiten'
 );

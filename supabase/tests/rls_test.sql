@@ -10,7 +10,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(22);
+select plan(21);
 
 -- ── Dos usuarios de prueba ───────────────────────────────────────────────
 insert into auth.users (
@@ -231,12 +231,11 @@ select is(
   'El registro de auditoría de B es invisible para A'
 );
 
--- El resumen del día solo puede hablar del usuario del JWT.
-select is(
-  ((public.get_daily_summary(current_date)) ->> 'base_target')::int,
-  2100,
-  'get_daily_summary usa el objetivo del usuario autenticado'
-);
+-- Acá había una comprobación de que `get_daily_summary` solo hablaba del
+-- usuario del JWT. La función se fue con la migración 43: no la llamaba nadie
+-- —el resumen del día lo calcula el dominio en el teléfono— y mantenerla era
+-- tener dos implementaciones de la misma cuenta, una de las cuales nunca se
+-- ejecutaba y por lo tanto nunca se iba a notar cuando dejaran de coincidir.
 
 select * from finish();
 rollback;
